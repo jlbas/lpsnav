@@ -1,0 +1,3 @@
+[submodule "legitable/policies/Python-RVO2"]
+	path = legitable/policies/Python-RVO2
+	url = https://github.com/sybrenstuvel/Python-RVO2.git
