@@ -42,31 +42,28 @@ class Eval():
         return np.mean(np.abs(agent.heading_log - helper.angle(agent.goal - agent.pos_log)))
 
     def compute_legibility(self, env):
-        subgoal_priors = env.config.subgoal_priors
+        subgoal_priors = self.config.subgoal_priors
         col_width = 2 * self.config.radius + self.config.col_buffer
         int_baseline = np.array([[0, -col_width], [0, col_width]])
         other_agents = {id : agent for id, agent in env.agents.items() if agent != env.ego_agent}
         legibility_score = {id : 0 for id in other_agents}
+        rel_prims = self.config.prim_horiz * np.multiply.outer(speeds, helper.unit_vec(self.rel_headings))
         for id, agent in other_agents.items():
             goal_conditional_log = list()
+            cost_tg_log = np.array()
             for i in range(len(env.ego_agent.pos_log)):
-                int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(env.ego_agent.goal - env.ego_agent.pos_log[id]))
+                int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(env.ego_agent.goal - env.ego_agent.pos_log[i]))
                 in_front = helper.in_front(agent.pos_log[i], int_line_heading, env.ego_agent.pos_log[i])
                 in_radius = helper.dist(env.ego_agent.pos_log[i], agent.pos_log[i]) <= self.config.sensing_dist
                 if in_front and in_radius:
-                    scaled_speed = 1.1 * agent.speed_log[i] if env.ego_agent.speed_log[i] <= agent.speed_log[i] else env.ego_agent.speed_log[i]
                     pts = helper.rotate(int_baseline, int_line_heading)
                     int_line = agent.pos_log[i] + pts
-                    if not i:
-                        cost_tg_log = list()
-                        t = np.arange(-self.config.receding_horiz, 0, self.config.timestep)
-                        past_pos = agent.pos_log[0] + t[:,None] * agent.vel_log[0]
-                        past_int_line = int_line + (t[:,None] * agent.vel_log[0])[:,None]
-                        for pos, int_line in zip(past_pos, past_int_line):
-                            cost_tg_log.append(helper.dynamic_pt_cost(pos, scaled_speed, int_line, int_line_heading, agent.vel_log[0]))
+                    cost_tg = helper.dynamic_pt_cost(env.ego_agent.pos_log[i], env.ego_agent.max_speed, int_line, int_line_heading, agent.vel_log[i])
+                    if not cost_tg_log:
+                        cost_tg_log = np.full((int(self.config.receding_horiz / env.timestep), 3), cost_tg)
+                    cost_pg = helper.dynamic_prim_cost(env.ego_agent.pos_log[i], abs_prims, env.ego_agent.max_speed, abs_prims_vels, pred_int_line, int_line_heading, agent.vel_log[i], int_line)
                     cost_sg = cost_tg_log[-int(2 / self.config.timestep)]
                     cost_st = i * self.config.timestep
-                    cost_tg = helper.dynamic_pt_cost(env.ego_agent.pos_log[i], scaled_speed, int_line, int_line_heading, agent.vel_log[i])
                     goal_conditional = np.exp(cost_sg - (cost_st + cost_tg)) * subgoal_priors
                     goal_conditional /= np.sum(goal_conditional)
                     goal_conditional = np.delete(goal_conditional, 1)
