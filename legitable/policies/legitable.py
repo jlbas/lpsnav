@@ -62,8 +62,10 @@ class Legitable(Agent):
         for id, agent in self.other_agents.items():
             in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
             in_radius = helper.dist(self.pos, agent.pos) <= self.sensing_dist
+            ttg = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
+            approaching = np.min(np.delete(ttg, 1)) < 1e2
             # prims_in_front = np.all(helper.in_front(agent.pos, self.int_line_heading, self.abs_prims))
-            if in_front and in_radius:
+            if in_front and in_radius and approaching:
                 self.interacting_agents[id] = agent
 
     def remove_col_prims(self):
