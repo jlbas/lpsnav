@@ -9,9 +9,11 @@ class Rvo(Agent):
         super().__init__(config, env, id, policy, start, goal)
         self.color = "#DC267F"
         # self.color = "#EC5F67"
-        self.rvo_sim = rvo2.PyRVOSimulator(self.config.timestep, self.config.rvo_neighbor_dist, \
-                self.config.rvo_max_neighbors, self.config.rvo_time_horiz, self.config.rvo_time_horiz, \
-                self.config.radius, self.config.max_speed)
+        self.neighbor_dist = self.config.rvo_neighbor_dist
+        self.max_neighbors = self.config.rvo_max_neighbors
+        self.time_horiz = self.config.rvo_time_horiz
+        self.rvo_sim = rvo2.PyRVOSimulator(self.env.timestep, self.neighbor_dist, self.max_neighbors, \
+            self.time_horiz, self.time_horiz, self.radius, self.max_speed)
 
     def post_init(self):
         super().post_init()
@@ -21,10 +23,10 @@ class Rvo(Agent):
         for id, agent in self.rvo_agents.items():
             self.rvo_sim.setAgentPosition(agent, tuple(self.env.agents[id].pos))
             pref_vel = self.env.agents[id].max_speed * helper.unit_vec(helper.angle(self.env.agents[id].goal \
-                    - self.env.agents[id].pos))
+                - self.env.agents[id].pos))
             self.rvo_sim.setAgentPrefVelocity(agent, tuple(pref_vel))
         self.rvo_sim.doStep()
 
         dpos = self.rvo_sim.getAgentPosition(self.rvo_agents[self.id]) - self.pos
-        self.des_speed = np.linalg.norm(dpos) / self.config.timestep
+        self.des_speed = np.linalg.norm(dpos) / self.env.timestep
         self.des_heading = helper.angle(dpos)
