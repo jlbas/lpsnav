@@ -69,8 +69,8 @@ def get_starts_goals(config):
         raise ValueError(f"Scenario '{config.scenario}' is not recognized")
 
     # Without noise, RVO might not work properly
-    # bound = 0.01
-    # starts += np.random.uniform(-bound, bound, np.shape(starts))
-    # goals += np.random.uniform(-bound, bound, np.shape(goals))
+    bound = 0.01
+    starts += np.random.uniform(-bound, bound, np.shape(starts))
+    goals += np.random.uniform(-bound, bound, np.shape(goals))
     
     return starts, goals
