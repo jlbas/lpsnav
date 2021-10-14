@@ -9,6 +9,7 @@ class Legitable(Agent):
 
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
+        self.scaled_speed = self.config.scaled_speed
         self.sensing_dist = self.config.sensing_dist
         self.receding_horiz = self.config.receding_horiz
         self.speed_samples = self.config.speed_samples
@@ -80,12 +81,12 @@ class Legitable(Agent):
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
-        self.pred_int_lines[id] = self.pred_pos[id] + pts
-        self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
+        self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
+        self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.scaled_speed, self.int_lines[id], self.int_line_heading, agent.vel)
         if id not in self.cost_tg_log:
             self.cost_tg_log[id] = np.full((int(self.receding_horiz / self.env.timestep), 3), self.cost_tg[id])
 
-    def update_pred_int_t(self, id):
+    def update_pred_int_t(self, id, agent):
         if id in self.interacting_agents:
             if self.int_start_t[id] == -1:
                 ttg = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
@@ -99,20 +100,18 @@ class Legitable(Agent):
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
-        self.cost_pg[id] = helper.dynamic_prim_cost(self.pos, self.abs_prims, self.max_speed, \
+        self.cost_sg[id] = self.cost_tg_log[id][-1]
+        self.cost_pg[id] = helper.dynamic_prim_cost(self.pos, self.abs_prims, self.scaled_speed, \
             self.abs_prim_vels, self.pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
-        self.cost_st[id] = self.int_t[id]
-        idx = -1 if self.env.step >= len(self.cost_tg_log[id]) else self.env.step
-        idx = -1
-        self.cost_sg[id] = self.cost_tg_log[id][idx]
-        self.cost_tpg[id] = self.prim_horiz + self.cost_pg[id]
+        self.cost_tpg[id] = self.max_speed / self.scaled_speed * self.prim_horiz + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
-            partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel)
+            partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.scaled_speed / self.max_speed * self.abs_prim_vels, self.int_lines[id], agent.vel)
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
-        self.cost_spg[id] = self.int_t[id] + self.cost_tpg[id]
+        self.cost_st[id] = min(self.int_t[id], self.receding_horiz)
+        self.cost_spg[id] = self.cost_st[id] + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
-        # snapshot(self, id)
+        snapshot(self, id)
         with np.errstate(invalid='ignore', over='ignore'):
             arg = self.cost_sg[id][...,None,None] - self.cost_spg[id]
             bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
@@ -128,6 +127,10 @@ class Legitable(Agent):
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.prim_pred_score[id] = np.exp(arg)
         self.prim_pred_score[id] = np.delete(self.prim_pred_score[id], 1, 0)
+        # print("Predictability Score:")
+        # print(self.prim_pred_score[id])
+        # print(20 * '-')
+        # print('')
 
     def compute_leg(self, id):
         # with np.errstate(invalid='ignore', over='ignore'):
@@ -155,10 +158,12 @@ class Legitable(Agent):
             self.taus[id] = 1
         else:
             self.taus[id] = min(1, self.int_t[id] / max(0.01, self.pred_int_t[id]))
+        self.taus[id] = 1
 
     def update_col_mask(self, id, agent):
         intersecting = ~helper.in_front(self.pred_int_lines[id][0], self.int_line_heading, self.abs_prims)
         t_to_line = helper.directed_cost_to_line(self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel)
+        t_to_line = np.where(np.isposinf(t_to_line), 1e2, t_to_line)
         mask = helper.directed_intersection_pt(self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel, t_to_line)
         self.col_mask |= mask[1] & intersecting
 
@@ -188,7 +193,7 @@ class Legitable(Agent):
         self.remove_col_prims()
         for id, agent in self.interacting_agents.items():
             self.predict_pos(id, agent)
-            self.update_pred_int_t(id)
+            self.update_pred_int_t(id, agent)
             self.get_int_costs(id, agent)
             self.compute_prim_leg(id)
             self.compute_prim_pred(id)
