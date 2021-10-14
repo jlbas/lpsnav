@@ -49,7 +49,8 @@ def dynamic_pt_cost(pt, pt_speed, line, line_th, line_vel):
     cost_line = cost_to_line(pt, pt_speed, line, line_vel)
     masks = p_intersect(pt, pt_speed, line, line_th, line_vel, cost_line)
     masked_costs = masked_cost(masks, cost_col_0, cost_col_1, cost_line)
-    return np.where(masked_costs > 1e2, np.inf, masked_costs)
+    return masked_costs
+    # return np.where(masked_costs > 1e2, np.inf, masked_costs)
 
 def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, line):
     cost_col_0 = cost_to_pt(pt, pt_speed, pred_line[0], line_vel)
@@ -61,7 +62,8 @@ def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, l
         dir_costs = directed_cost_to_line(pos, pt_vel, line, line_vel)
         dir_masks = directed_masks(pos, pt_vel, line, line_vel, dir_costs)
         return np.where(~in_front(pred_line[0], line_th, pt), np.where(dir_masks, 0, np.inf), prim_costs)
-    return np.where(prim_costs > 1e2, np.inf, prim_costs)
+    return prim_costs
+    # return np.where(prim_costs > 1e2, np.inf, prim_costs)
     # return np.where(~in_front(line_pts[0], line_th, pos), 0, costs)
     # return np.where(~in_front(line[0], line_th, pt), np.where(masks, 0, np.inf), prim_costs)
 
@@ -88,7 +90,9 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
     proj_pt_speed = np.dot(pt_vel, -v_hat) # use other v_hat
     proj_line_speed = np.dot(line_vel, v_hat) # Sign is important
     den = proj_pt_speed + proj_line_speed
-    return d / np.where(den == 0, 1e-5, den)
+    t = d / np.where(den == 0, 1e-5, den)
+    return np.where(t <= 0, np.inf, t)
+    # return d / np.where(den == 0, 1e-5, den)
 
 def cost_to_line(pt, pt_speed, line, line_vel):
     v0 = np.full(pt.shape, rotate(line[1] - line[0], np.pi/2))
@@ -98,7 +102,10 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     v_hat = v / np.linalg.norm(v, axis=-1)[...,None]
     d = np.abs(np.sum(r * v_hat, axis=-1))
     proj_line_speed = np.dot(v_hat, line_vel) # Sign is important
-    return d / (pt_speed + proj_line_speed)
+    den = pt_speed + proj_line_speed
+    t = d / np.where(den == 0, 1e-5, den)
+    return np.where(t <= 0, np.inf, t)
+    # return d / (pt_speed + proj_line_speed)
 
 def directed_intersection_pt(pos, vel, line, line_vel, t_to_line):
     r_pred = pos + vel * t_to_line[...,None]

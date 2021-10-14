@@ -18,7 +18,7 @@ def main():
     for i in range(trial_cnt):
         ani = Animate(config)
         for policy_id, ego_policy in enumerate(config.policies):
-            np.random.seed(i)
+            # np.random.seed(i)
             env = Env(config, ego_policy, policy_id)
             while not env.done:
                 env.update()
