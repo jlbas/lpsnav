@@ -88,7 +88,8 @@ class Legitable(Agent):
     def update_pred_int_t(self, id):
         if id in self.interacting_agents:
             if self.int_start_t[id] == -1:
-                self.pred_int_t[id] = np.min(np.delete(self.cost_tg[id], 1))
+                ttg = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
+                self.pred_int_t[id] = np.min(np.delete(ttg, 1))
                 self.int_start_t[id] = self.env.time
                 self.int_t[id] = self.env.time
             else:
