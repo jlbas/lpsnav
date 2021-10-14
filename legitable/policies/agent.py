@@ -12,7 +12,7 @@ class Patches:
 
 class Agent():
 
-    def __init__(self, config, env, id, policy, start, goal=None):
+    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
         self.config = config
         self.env = env
         self.id = id
@@ -22,20 +22,17 @@ class Agent():
         self.heading = helper.angle(self.goal - self.start)
         self.heading_samples = self.config.heading_samples
         self.heading_span = self.config.heading_span
-        self.speed = self.config.max_speed
+        self.min_speed = self.config.min_speed
+        self.max_speed = max_speed if max_speed is not None else self.config.max_speed
+        self.speed = self.max_speed
         # self.speed = 0
         self.vel = self.speed * helper.unit_vec(self.heading)
         self.speed_samples = self.config.speed_samples
-        self.min_speed = self.config.min_speed
-        self.max_speed = self.config.max_speed
         self.prim_horiz = self.config.prim_horiz
         self.kinematics = self.config.kinematics
         self.max_accel = self.config.max_accel
         self.max_ang_accel = self.config.max_ang_accel
-        if self.speed_samples == 1:
-            self.speeds = np.array([self.max_speed])
-        else:
-            self.speeds = np.linspace(self.min_speed, self.max_speed, self.speed_samples)[::-1]
+        self.speeds = np.linspace(self.max_speed, self.min_speed, self.speed_samples)
         self.rel_headings = np.linspace(-self.heading_span/2, self.heading_span/2, self.heading_samples)
         self.rel_prims = self.prim_horiz * np.multiply.outer(self.speeds, helper.unit_vec(self.rel_headings))
         self.pos = self.start.copy()
