@@ -56,10 +56,12 @@ class Legitable(Agent):
         # if not hasattr(self, 'int_line_heading'):
         #     self.int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(self.goal - self.pos))
         self.int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(self.goal - self.pos))
+        self.int_pts = helper.rotate(self.int_baseline, self.int_line_heading)
 
     def get_interacting_agents(self):
         self.interacting_agents = dict()
         for id, agent in self.other_agents.items():
+            self.int_lines[id] = agent.pos + self.int_pts
             in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
             in_radius = helper.dist(self.pos, agent.pos) <= self.sensing_dist
             ttg = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
@@ -77,8 +79,6 @@ class Legitable(Agent):
                 self.col_mask |= helper.dist(ego_pred, a_pred) < 2*self.radius + self.radius
 
     def predict_pos(self, id, agent):
-        pts = helper.rotate(self.int_baseline, self.int_line_heading)
-        self.int_lines[id] = agent.pos + pts
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + pts
         self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.max_speed, self.int_lines[id], self.int_line_heading, agent.vel)
