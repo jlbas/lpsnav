@@ -21,8 +21,10 @@ class Legitable(Agent):
         self.color = "#785EF0"
         # self.color = "#C594c5"
         self.pred_pos = dict()
+        self.scaled_pred_pos = dict()
         self.int_lines = dict()
         self.pred_int_lines = dict()
+        self.scaled_pred_int_lines = dict()
         self.cost_tp = dict()
         self.cost_tg = dict()
         self.cost_pg = dict()
@@ -52,6 +54,7 @@ class Legitable(Agent):
 
     def update_abs_prim_vels(self):
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
+        self.scaled_abs_prim_vels = self.scaled_speed / self.max_speed * self.abs_prim_vels
 
     def update_int_line(self):
         # if not hasattr(self, 'int_line_heading'):
@@ -80,8 +83,11 @@ class Legitable(Agent):
                 self.col_mask |= helper.dist(ego_pred, a_pred) < 2*self.radius + self.radius
 
     def predict_pos(self, id, agent):
-        self.pred_pos[id] = agent.pos + agent.vel * self.max_speed / self.scaled_speed * self.prim_horiz
+        self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
+        self.scaled_prim_horiz = self.max_speed / self.scaled_speed * self.prim_horiz
+        self.scaled_pred_pos[id] = agent.pos + agent.vel * self.scaled_prim_horiz
+        self.scaled_pred_int_lines[id] = self.scaled_pred_pos[id] + self.int_pts
         self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.scaled_speed, self.int_lines[id], self.int_line_heading, agent.vel)
         if id not in self.cost_tg_log:
             self.cost_tg_log[id] = np.full((int(self.receding_horiz / self.env.timestep), 3), self.cost_tg[id])
@@ -102,10 +108,10 @@ class Legitable(Agent):
     def get_int_costs(self, id, agent):
         self.cost_sg[id] = self.cost_tg_log[id][-1]
         self.cost_pg[id] = helper.dynamic_prim_cost(self.pos, self.abs_prims, self.scaled_speed, \
-            self.scaled_speed / self.max_speed * self.abs_prim_vels, self.pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
-        self.cost_tpg[id] = self.max_speed / self.scaled_speed * self.prim_horiz + self.cost_pg[id]
+            self.scaled_abs_prim_vels, self.scaled_pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
+        self.cost_tpg[id] = self.scaled_prim_horiz + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
-            partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.scaled_speed / self.max_speed * self.abs_prim_vels, self.int_lines[id], agent.vel)
+            partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.scaled_abs_prim_vels, self.int_lines[id], agent.vel)
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
         self.cost_st[id] = min(self.int_t[id], self.receding_horiz)
         self.cost_spg[id] = self.cost_st[id] + self.cost_tpg[id]
@@ -153,7 +159,7 @@ class Legitable(Agent):
         self.pareto_front[id] = np.invert(np.any(leg_gr & pred_gr, axis=(3,4,5)))
 
     def check_if_legible(self, id):
-        passing_ratio = np.max(self.current_leg_score[id]) / np.min(self.current_leg_score[id])
+        passing_ratio = np.max(self.current_leg_score[id]) / np.min(self.current_leg_score[id], where=self.current_leg_score[id] > 0, initial=1)
         self.is_legible[id] = passing_ratio > self.leg_tol
 
     def update_tau(self, id, agent):
