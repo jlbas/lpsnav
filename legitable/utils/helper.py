@@ -61,6 +61,7 @@ def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, l
     if np.any(~in_front(pred_line[0], line_th, pt)):
         dir_costs = directed_cost_to_line(pos, pt_vel, line, line_vel)
         dir_masks = directed_masks(pos, pt_vel, line, line_vel, dir_costs)
+        return np.where(~in_front(pred_line[0], line_th, pt), np.where(dir_masks, 0, prim_cost), prim_costs)
         return np.where(~in_front(pred_line[0], line_th, pt), np.where(dir_masks, 0, np.inf), prim_costs)
     return prim_costs
     # return np.where(prim_costs > 1e2, np.inf, prim_costs)

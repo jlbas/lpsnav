@@ -2,7 +2,7 @@ import numpy as np
 # np.seterr(all='raise')
 # np.seterr(divide='ignore', invalid='ignore')
 # np.set_printoptions(formatter={'float': lambda x: "{0:0.6f}".format(x)})
-np.set_printoptions(precision=3)
+np.set_printoptions(precision=5)
 
 from env.env import Env
 from utils.eval import Eval
