@@ -176,6 +176,7 @@ class Legitable(Agent):
             self.update_col_mask(id, agent) # This might not be necessary
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + \
                     self.taus[id] * self.prim_pred_score[id]
+            # Simplify this as is done in prim pred
             indices = np.argmax(new_score, axis=0)
             x, y = np.meshgrid(np.arange(self.heading_samples), np.arange(self.speed_samples))
             new_score = new_score[indices, y, x]
@@ -210,9 +211,12 @@ class Legitable(Agent):
             self.des_speed = self.speeds[self.speed_idx]
             self.des_heading = self.abs_headings[self.heading_idx]
         else:
-            super().get_action()
-            self.speed_idx = np.argmin(np.abs(self.speeds - self.des_speed))
-            self.heading_idx = np.argmin(np.abs(self.abs_headings - self.des_heading))
+            delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
+            goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
+            goal_cost = np.where(self.col_mask, np.inf, goal_cost)
+            self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
+            self.des_speed = self.speeds[self.speed_idx]
+            self.des_heading = self.abs_headings[self.heading_idx]
 
     def log_data(self, step):
         super().log_data(step)
