@@ -111,7 +111,7 @@ class Legitable(Agent):
         self.cost_spg[id] = self.cost_st[id] + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
-        snapshot(self, id)
+        # snapshot(self, id)
         with np.errstate(invalid='ignore', over='ignore'):
             arg = self.cost_sg[id][...,None,None] - self.cost_spg[id]
             bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
@@ -119,7 +119,7 @@ class Legitable(Agent):
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[...,None,None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
-        assert np.all(self.prim_leg_score[id] <= 1), "Error in legibility computation"
+        assert np.all(np.around(self.prim_leg_score[id], 8) <= 1), "Error in legibility computation"
 
     def compute_leg(self, id):
         # with np.errstate(invalid='ignore', over='ignore'):
@@ -141,10 +141,10 @@ class Legitable(Agent):
         # arg = np.where(self.prim_leg_score[id][0] > self.prim_leg_score[id][1], arg[0], arg[2])
         arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
         self.prim_pred_score[id] = np.exp(arg)
-        assert np.all(self.prim_pred_score[id] <= 1), "Error in predictability computation"
+        assert np.all(np.around(self.prim_pred_score[id], 8) <= 1), "Error in predictability computation"
         # print("Predictability Score:")
         # print(self.prim_pred_score[id])
-        print(20 * '-')
+        # print(20 * '-')
         # print('')
 
     def compute_pareto_front(self, id):
@@ -161,7 +161,6 @@ class Legitable(Agent):
             self.taus[id] = 1
         else:
             self.taus[id] = min(1, self.int_t[id] / max(0.01, self.pred_int_t[id]))
-        # self.taus[id] = 1
 
     def update_col_mask(self, id, agent):
         intersecting = ~helper.in_front(self.pred_int_lines[id][0], self.int_line_heading, self.abs_prims)
