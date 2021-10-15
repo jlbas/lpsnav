@@ -179,9 +179,9 @@ class Legitable(Agent):
             indices = np.argmax(new_score, axis=0)
             x, y = np.meshgrid(np.arange(self.heading_samples), np.arange(self.speed_samples))
             new_score = new_score[indices, y, x]
-            self.pareto_front[id] = self.pareto_front[id][indices, y, x]
+            # self.pareto_front[id] = self.pareto_front[id][indices, y, x]
             score = np.minimum(score, new_score)
-        self.tot_pareto_front = np.any([self.pareto_front[id] for id in self.interacting_agents], axis=0)
+        # self.tot_pareto_front = np.any([self.pareto_front[id] for id in self.interacting_agents], axis=0)
         score = np.where(self.col_mask, -np.inf, score)
         # score *= self.tot_pareto_front
         # opt_prims = np.unravel_index(np.argmax(score), score.shape)
@@ -200,8 +200,8 @@ class Legitable(Agent):
             self.get_int_costs(id, agent)
             self.compute_prim_leg(id)
             self.compute_leg(id)
-            self.compute_pareto_front(id)
             self.compute_prim_pred(id)
+            # self.compute_pareto_front(id)
             self.check_if_legible(id)
             self.update_tau(id, agent)
         if self.interacting_agents:
