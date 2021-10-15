@@ -119,18 +119,7 @@ class Legitable(Agent):
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[...,None,None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
-
-    def compute_prim_pred(self, id):
-        with np.errstate(invalid='ignore', over='ignore'):
-            arg = self.cost_tg[id][...,None,None] - self.cost_tpg[id]
-            bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
-        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
-        self.prim_pred_score[id] = np.exp(arg)
-        self.prim_pred_score[id] = np.delete(self.prim_pred_score[id], 1, 0)
-        # print("Predictability Score:")
-        # print(self.prim_pred_score[id])
-        # print(20 * '-')
-        # print('')
+        assert np.all(self.prim_leg_score[id] <= 1), "Error in legibility computation"
 
     def compute_leg(self, id):
         # with np.errstate(invalid='ignore', over='ignore'):
@@ -143,6 +132,20 @@ class Legitable(Agent):
         speed_idx = np.argmin(np.abs(self.speeds - self.speed))
         heading_idx = self.heading_samples //2
         self.current_leg_score[id] = self.prim_leg_score[id][:,speed_idx,heading_idx]
+
+    def compute_prim_pred(self, id):
+        with np.errstate(invalid='ignore', over='ignore'):
+            arg = self.cost_tg[id][...,None,None] - self.cost_tpg[id]
+            bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
+        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
+        # arg = np.where(self.prim_leg_score[id][0] > self.prim_leg_score[id][1], arg[0], arg[2])
+        arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
+        self.prim_pred_score[id] = np.exp(arg)
+        assert np.all(self.prim_pred_score[id] <= 1), "Error in predictability computation"
+        # print("Predictability Score:")
+        # print(self.prim_pred_score[id])
+        print(20 * '-')
+        # print('')
 
     def compute_pareto_front(self, id):
         leg_gr = np.less.outer(self.prim_leg_score[id], self.prim_leg_score[id])
@@ -196,9 +199,9 @@ class Legitable(Agent):
             self.update_pred_int_t(id, agent)
             self.get_int_costs(id, agent)
             self.compute_prim_leg(id)
-            self.compute_prim_pred(id)
             self.compute_leg(id)
             self.compute_pareto_front(id)
+            self.compute_prim_pred(id)
             self.check_if_legible(id)
             self.update_tau(id, agent)
         if self.interacting_agents:
