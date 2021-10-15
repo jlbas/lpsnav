@@ -80,7 +80,7 @@ class Legitable(Agent):
                 self.col_mask |= helper.dist(ego_pred, a_pred) < 2*self.radius + self.radius
 
     def predict_pos(self, id, agent):
-        self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
+        self.pred_pos[id] = agent.pos + agent.vel * self.max_speed / self.scaled_speed * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
         self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.scaled_speed, self.int_lines[id], self.int_line_heading, agent.vel)
         if id not in self.cost_tg_log:
@@ -102,7 +102,7 @@ class Legitable(Agent):
     def get_int_costs(self, id, agent):
         self.cost_sg[id] = self.cost_tg_log[id][-1]
         self.cost_pg[id] = helper.dynamic_prim_cost(self.pos, self.abs_prims, self.scaled_speed, \
-            self.abs_prim_vels, self.pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
+            self.scaled_speed / self.max_speed * self.abs_prim_vels, self.pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
         self.cost_tpg[id] = self.max_speed / self.scaled_speed * self.prim_horiz + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
             partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.scaled_speed / self.max_speed * self.abs_prim_vels, self.int_lines[id], agent.vel)
