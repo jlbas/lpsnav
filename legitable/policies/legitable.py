@@ -161,7 +161,7 @@ class Legitable(Agent):
             self.taus[id] = 1
         else:
             self.taus[id] = min(1, self.int_t[id] / max(0.01, self.pred_int_t[id]))
-        self.taus[id] = 1
+        # self.taus[id] = 1
 
     def update_col_mask(self, id, agent):
         intersecting = ~helper.in_front(self.pred_int_lines[id][0], self.int_line_heading, self.abs_prims)
