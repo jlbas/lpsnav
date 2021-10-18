@@ -168,7 +168,11 @@ class Legitable(Agent):
         if (self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)) or agent.at_goal:
             self.taus[id] = 1
         else:
-            self.taus[id] = min(1, self.int_t[id] / max(0.01, self.pred_int_t[id]))
+            lb = 0.0
+            ub = 1.0
+            tau = self.int_t[id] / max(0.01, self.pred_int_t[id])
+            tau = tau * (ub - lb) + lb
+            self.taus[id] = min(ub, tau)
 
     def update_col_mask(self, id, agent):
         intersecting = ~helper.in_front(self.pred_int_lines[id][0], self.int_line_heading, self.abs_prims)
