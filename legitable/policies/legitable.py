@@ -181,10 +181,7 @@ class Legitable(Agent):
             self.update_col_mask(id, agent) # This might not be necessary
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + \
                     self.taus[id] * self.prim_pred_score[id]
-            # Simplify this as is done in prim pred
-            indices = np.argmax(new_score, axis=0)
-            x, y = np.meshgrid(np.arange(self.heading_samples), np.arange(self.speed_samples))
-            new_score = new_score[indices, y, x]
+            new_score = np.where(new_score[0] > new_score[1], new_score[0], new_score[1])
             # self.pareto_front[id] = self.pareto_front[id][indices, y, x]
             score = np.minimum(score, new_score)
         # self.tot_pareto_front = np.any([self.pareto_front[id] for id in self.interacting_agents], axis=0)
