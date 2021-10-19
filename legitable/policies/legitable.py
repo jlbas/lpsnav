@@ -24,6 +24,7 @@ class Legitable(Agent):
         self.int_lines = dict()
         self.pred_int_lines = dict()
         self.scaled_pred_int_lines = dict()
+        self.interacting_agents = dict()
         self.cost_tp = dict()
         self.cost_tg = dict()
         self.cost_pg = dict()
@@ -50,6 +51,9 @@ class Legitable(Agent):
         self.abs_prim_vels = np.multiply.outer(
             self.speeds, helper.unit_vec(self.abs_headings)
         )
+        self.speed_idx = 0
+        self.heading_idx = self.heading_samples // 2
+        self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
 
     def post_init(self):
         super().post_init()

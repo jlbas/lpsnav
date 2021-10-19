@@ -18,6 +18,9 @@ class Env:
         for agent in self.agents.values():
             print(agent)
             agent.post_init()
+            agent.log_data(self.step)
+        self.time += self.timestep
+        self.step += 1
 
     def update(self):
         for a in self.agents.values():
