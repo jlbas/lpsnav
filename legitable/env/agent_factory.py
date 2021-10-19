@@ -34,25 +34,18 @@ def init_agents(config, env, ego_policy, iter):
     return agents[ids[0]], agents
 
 def get_starts_goals(config):
-    if config.scenario == 'circle':
-        thetas = np.linspace(0, 2*np.pi-2*np.pi/config.num_of_agents, config.num_of_agents)
-        starts = config.circle_radius * helper.unit_vec(thetas)
-        goals = config.circle_radius * helper.unit_vec(thetas + np.pi)
-    elif config.scenario == 'random':
-        min_dist = 2 * config.radius + config.min_start_buffer
-        for _ in range(100):
-            starts = config.workspace_length * np.random.rand(config.num_of_agents, 2)
-            goals = config.workspace_length * np.random.rand(config.num_of_agents, 2)
-            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist) and far_enough(starts, goals):
-                break
-        else:
-            raise AttemptsExceededError(100)
-    elif config.scenario == 'swap':
+    if config.scenario == 'swap':
         starts = [[-config.interaction_dist / 2, 0], [config.interaction_dist / 2, 0]]
         goals = starts[::-1]
     elif config.scenario == 'passing':
         starts = [[-config.interaction_dist / 2, 0], [config.interaction_dist / 2, 2 * config.radius + config.lat_dist]]
         goals = [[config.interaction_dist / 2, 0], [-config.interaction_dist / 2, 2 * config.radius + config.lat_dist]]
+    elif config.scenario == 'acute':
+        starts = [[-config.interaction_dist / 2, 0], [-config.interaction_dist / 2 + 1, 2]]
+        goals = [[config.interaction_dist / 2, 0], [config.interaction_dist / 2 + 1, -2]]
+    elif config.scenario == 'obtuse':
+        starts = [[-config.interaction_dist / 2, 0], [config.interaction_dist / 2 + 1, 2]]
+        goals = [[config.interaction_dist / 2, 0], [-config.interaction_dist / 2 + 1, -2]]
     elif config.scenario == '2_agent_split':
         starts = [[-config.interaction_dist / 2, 0], [config.interaction_dist / 2, 2 * config.radius + config.lat_dist], [config.interaction_dist / 2, -(2 * config.radius + config.lat_dist)]]
         goals = [[config.interaction_dist / 2, 0], [-config.interaction_dist / 2, 2 * config.radius + config.lat_dist], [-config.interaction_dist / 2, -(2 * config.radius + config.lat_dist)]]
@@ -65,6 +58,19 @@ def get_starts_goals(config):
     elif config.scenario == 'custom':
         starts = [start_goal[0] for start_goal in config.custom_pos]
         goals = [start_goal[1] for start_goal in config.custom_pos]
+    elif config.scenario == 'circle':
+        thetas = np.linspace(0, 2*np.pi-2*np.pi/config.num_of_agents, config.num_of_agents)
+        starts = config.circle_radius * helper.unit_vec(thetas)
+        goals = config.circle_radius * helper.unit_vec(thetas + np.pi)
+    elif config.scenario == 'random':
+        min_dist = 2 * config.radius + config.min_start_buffer
+        for _ in range(100):
+            starts = config.workspace_length * np.random.rand(config.num_of_agents, 2)
+            goals = config.workspace_length * np.random.rand(config.num_of_agents, 2)
+            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist) and far_enough(starts, goals):
+                break
+        else:
+            raise AttemptsExceededError(100)
     else:
         raise ValueError(f"Scenario '{config.scenario}' is not recognized")
 
