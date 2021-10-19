@@ -4,7 +4,7 @@ from utils.animation import Animate
 from utils.config import load_config
 from utils.eval import Eval
 
-# np.seterr(all='raise')
+np.seterr(all="raise")
 # np.seterr(divide='ignore', invalid='ignore')
 # np.set_printoptions(formatter={'float': lambda x: "{0:0.6f}".format(x)})
 np.set_printoptions(precision=5)

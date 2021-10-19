@@ -184,10 +184,9 @@ class Legitable(Agent):
 
     def compute_prim_leg(self, id):
         # snapshot(self, id)
-        with np.errstate(invalid="ignore", over="ignore"):
-            arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
-            # assert np.all(np.around(arg, 8) <= 0), "Error in legibility computation"
-            bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
+        arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
+        assert np.all(np.around(arg, 8) <= 0), "Error in legibility computation"
+        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
@@ -209,10 +208,9 @@ class Legitable(Agent):
         self.current_leg_score[id] = self.prim_leg_score[id][:, speed_idx, heading_idx]
 
     def compute_prim_pred(self, id):
-        with np.errstate(invalid="ignore", over="ignore"):
-            arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
-            assert np.all(np.around(arg, 8) <= 0), "Error in predictability computation"
-            bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
+        arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
+        assert np.all(np.around(arg, 8) <= 0), "Error in predictability computation"
+        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         # arg = np.where(self.prim_leg_score[id][0] > self.prim_leg_score[id][1], arg[0], arg[2])
         arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
