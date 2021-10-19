@@ -1,6 +1,7 @@
 from collections.abc import Iterable
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def rotate(obj, angle):

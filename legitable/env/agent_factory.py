@@ -1,7 +1,7 @@
 import ast
-import numpy as np
 import importlib
 
+import numpy as np
 from utils import helper
 
 
@@ -81,7 +81,10 @@ def get_starts_goals(config):
             [-config.interaction_dist / 2, -(2 * config.radius + config.lat_dist)],
         ]
     elif config.scenario == "t_junction":
-        starts = [[-config.interaction_dist / 2, 0], [0, -config.interaction_dist / 2]]
+        starts = [
+            [-config.interaction_dist / 2, 0],
+            [0, -config.interaction_dist / 2],
+        ]
         goals = [[config.interaction_dist / 2, 0], [0, config.interaction_dist / 2]]
     elif config.scenario == "2_agent_t_junction":
         starts = [
