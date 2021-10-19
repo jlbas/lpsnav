@@ -12,6 +12,7 @@ class Legitable(Agent):
         self.scaled_speed = self.config.scaled_speed
         self.sensing_dist = self.config.sensing_dist
         self.receding_horiz = self.config.receding_horiz
+        self.receding_steps = int(self.receding_horiz / self.env.timestep)
         self.speed_samples = self.config.speed_samples
         self.heading_samples = self.config.heading_samples
         col_width = 2 * self.radius + self.config.col_buffer
@@ -37,7 +38,6 @@ class Legitable(Agent):
         self.current_leg_score = dict()
         self.pareto_front = dict()
         self.is_legible = dict()
-        self.cost_tg_log = dict()
         self.abs_prims_log = np.full((int(self.env.max_duration / self.env.timestep) + 1, self.speed_samples, self.heading_samples, 2), np.inf)
         self.opt_log = list()
         self.col_mask_log = list()
@@ -89,8 +89,6 @@ class Legitable(Agent):
         self.scaled_pred_pos[id] = agent.pos + agent.vel * self.scaled_prim_horiz
         self.scaled_pred_int_lines[id] = self.scaled_pred_pos[id] + self.int_pts
         self.cost_tg[id] = helper.dynamic_pt_cost(self.pos, self.scaled_speed, self.int_lines[id], self.int_line_heading, agent.vel)
-        if id not in self.cost_tg_log:
-            self.cost_tg_log[id] = np.full((int(self.receding_horiz / self.env.timestep), 3), self.cost_tg[id])
 
     def update_pred_int_t(self, id, agent):
         if id in self.interacting_agents:
@@ -106,14 +104,17 @@ class Legitable(Agent):
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
-        self.cost_sg[id] = self.cost_tg_log[id][-1]
+        idx = -self.receding_steps if len(self.pos_log) >= self.receding_steps else 0
+        receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
+        self.cost_sg[id] = helper.dynamic_pt_cost(self.pos_log[idx], self.scaled_speed, \
+            receded_line, self.int_line_heading, agent.vel)
         self.cost_pg[id] = helper.dynamic_prim_cost(self.pos, self.abs_prims, self.scaled_speed, \
             self.scaled_abs_prim_vels, self.scaled_pred_int_lines[id], self.int_line_heading, agent.vel, self.int_lines[id])
         self.cost_tpg[id] = self.scaled_prim_horiz + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
             partial_cost_tpg = helper.directed_cost_to_line(self.pos, self.scaled_abs_prim_vels, self.int_lines[id], agent.vel)
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
-        self.cost_st[id] = min(self.int_t[id], self.receding_horiz)
+        self.cost_st[id] = min(self.env.time, self.receding_horiz)
         self.cost_spg[id] = self.cost_st[id] + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
@@ -228,9 +229,6 @@ class Legitable(Agent):
 
     def log_data(self, step):
         super().log_data(step)
-        for id in self.interacting_agents:
-            self.cost_tg_log[id] = np.roll(self.cost_tg_log[id], 1, axis=0)
-            self.cost_tg_log[id][0] = self.cost_tg[id]
         self.abs_prims_log[step] = self.abs_prims
         self.opt_log.append([self.speed_idx, self.heading_idx])
         self.col_mask_log.append(self.col_mask)
