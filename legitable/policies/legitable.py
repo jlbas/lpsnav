@@ -152,7 +152,7 @@ class Legitable(Agent):
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
-        idx = -self.receding_steps if len(self.pos_log) >= self.receding_steps else 0
+        idx = max(0, self.env.step - self.receding_steps)
         receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
         self.cost_sg[id] = helper.dynamic_pt_cost(
             self.pos_log[idx],
