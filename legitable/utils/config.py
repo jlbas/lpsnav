@@ -1,6 +1,7 @@
 import tomli
 from collections import namedtuple
 
+
 def flatten_dict(config):
     r = dict()
     for k, v in config.items():
@@ -10,7 +11,8 @@ def flatten_dict(config):
             r[k] = v
     return r
 
+
 def load_config(default_config):
     with open(default_config, "rb") as f:
         config = flatten_dict(tomli.load(f))
-    return namedtuple('Config', config.keys())(**config)
+    return namedtuple("Config", config.keys())(**config)

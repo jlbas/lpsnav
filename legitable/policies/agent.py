@@ -3,15 +3,15 @@ import numpy as np
 
 from utils import helper
 
+
 @dataclass
 class Patches:
-
     def __iter__(self):
         for _, val in self.__dict__.items():
             yield val
 
-class Agent():
 
+class Agent:
     def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
         self.config = config
         self.env = env
@@ -33,17 +33,29 @@ class Agent():
         self.max_accel = self.config.max_accel
         self.max_ang_accel = self.config.max_ang_accel
         self.speeds = np.linspace(self.max_speed, self.min_speed, self.speed_samples)
-        self.rel_headings = np.linspace(-self.heading_span/2, self.heading_span/2, self.heading_samples)
-        self.rel_prims = self.prim_horiz * np.multiply.outer(self.speeds, helper.unit_vec(self.rel_headings))
+        self.rel_headings = np.linspace(
+            -self.heading_span / 2, self.heading_span / 2, self.heading_samples
+        )
+        self.rel_prims = self.prim_horiz * np.multiply.outer(
+            self.speeds, helper.unit_vec(self.rel_headings)
+        )
         self.pos = self.start.copy()
         self.dt = self.config.timestep
         self.goal_tol = self.config.goal_tol
         self.radius = self.config.radius
         self.patches = Patches()
-        self.pos_log = np.full((int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf)
-        self.heading_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
-        self.speed_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
-        self.vel_log = np.full((int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf)
+        self.pos_log = np.full(
+            (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
+        )
+        self.heading_log = np.full(
+            int(self.config.max_duration / self.config.timestep) + 1, np.inf
+        )
+        self.speed_log = np.full(
+            int(self.config.max_duration / self.config.timestep) + 1, np.inf
+        )
+        self.vel_log = np.full(
+            (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
+        )
         self.past_vels = self.vel * np.ones((2, 2))
         self.collided = False
         self.update_abs_prims()
@@ -55,18 +67,22 @@ class Agent():
         # return (f"Agent {self.id}: policy={self.policy}, " \
         #         f"start=[{self.start[0]:.2f}, {self.start[1]:.2f}], " \
         #         f"goal=[{self.goal[0]:.2f}, {self.goal[1]:.2f}]")
-        return (f"Agent {self.id}: policy={self.policy}, " \
-                f"[[{self.start[0]:.2f}, {self.start[1]:.2f}], [{self.goal[0]:.2f}, {self.goal[1]:.2f}]]")
+        return (
+            f"Agent {self.id}: policy={self.policy}, "
+            f"[[{self.start[0]:.2f}, {self.start[1]:.2f}], [{self.goal[0]:.2f}, {self.goal[1]:.2f}]]"
+        )
 
     def post_init(self):
         self.update_agent_list()
 
     def update_agent_list(self):
-        self.other_agents = {id : a for id, a in self.env.agents.items() if id != self.id}
+        self.other_agents = {
+            id: a for id, a in self.env.agents.items() if id != self.id
+        }
 
     def goal_check(self):
         self.at_goal = helper.dist(self.pos, self.goal) <= self.goal_tol
-        if self.at_goal and not hasattr(self, 'time_to_goal'):
+        if self.at_goal and not hasattr(self, "time_to_goal"):
             self.time_to_goal = self.env.time
 
     def collision_check(self):
@@ -85,14 +101,20 @@ class Agent():
 
     def step(self):
         if not self.at_goal and not self.collided:
-            if self.kinematics == 'first_order_unicycle':
+            if self.kinematics == "first_order_unicycle":
                 self.speed = self.des_speed
                 self.heading = self.des_heading
-            elif self.kinematics == 'second_order_unicycle':
-                self.speed += self.dt * np.clip((self.des_speed - self.speed) / self.dt,
-                        -self.max_accel, self.max_accel)
-                self.heading += self.dt * np.clip(helper.wrap_to_pi(self.des_heading - self.heading) / self.dt,
-                        -self.max_ang_accel, self.max_ang_accel)
+            elif self.kinematics == "second_order_unicycle":
+                self.speed += self.dt * np.clip(
+                    (self.des_speed - self.speed) / self.dt,
+                    -self.max_accel,
+                    self.max_accel,
+                )
+                self.heading += self.dt * np.clip(
+                    helper.wrap_to_pi(self.des_heading - self.heading) / self.dt,
+                    -self.max_ang_accel,
+                    self.max_ang_accel,
+                )
                 self.heading = helper.wrap_to_pi(self.heading)
             else:
                 raise NotImplementedError

@@ -3,8 +3,8 @@ from utils import helper
 import numpy as np
 import rvo2
 
-class Rvo(Agent):
 
+class Rvo(Agent):
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
         self.color = "#DC267F"
@@ -12,18 +12,29 @@ class Rvo(Agent):
         self.neighbor_dist = self.config.rvo_neighbor_dist
         self.max_neighbors = self.config.rvo_max_neighbors
         self.time_horiz = self.config.rvo_time_horiz
-        self.rvo_sim = rvo2.PyRVOSimulator(self.env.timestep, self.neighbor_dist, self.max_neighbors, \
-            self.time_horiz, self.time_horiz, self.radius, self.max_speed)
+        self.rvo_sim = rvo2.PyRVOSimulator(
+            self.env.timestep,
+            self.neighbor_dist,
+            self.max_neighbors,
+            self.time_horiz,
+            self.time_horiz,
+            self.radius,
+            self.max_speed,
+        )
 
     def post_init(self):
         super().post_init()
-        self.rvo_agents = {id : self.rvo_sim.addAgent(tuple(a.start)) for id, a in self.env.agents.items()}
+        self.rvo_agents = {
+            id: self.rvo_sim.addAgent(tuple(a.start))
+            for id, a in self.env.agents.items()
+        }
 
     def get_action(self):
         for id, agent in self.rvo_agents.items():
             self.rvo_sim.setAgentPosition(agent, tuple(self.env.agents[id].pos))
-            pref_vel = self.env.agents[id].max_speed * helper.unit_vec(helper.angle(self.env.agents[id].goal \
-                - self.env.agents[id].pos))
+            pref_vel = self.env.agents[id].max_speed * helper.unit_vec(
+                helper.angle(self.env.agents[id].goal - self.env.agents[id].pos)
+            )
             self.rvo_sim.setAgentPrefVelocity(agent, tuple(pref_vel))
         self.rvo_sim.doStep()
 

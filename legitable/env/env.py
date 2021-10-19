@@ -2,8 +2,8 @@ import numpy as np
 
 from env.agent_factory import init_agents
 
-class Env():
 
+class Env:
     def __init__(self, config, ego_policy, policy_id=0):
         self.config = config
         self.timestep = self.config.timestep
@@ -13,7 +13,9 @@ class Env():
         self.step = 0
         self.ego_policy = ego_policy
         self.policy_id = policy_id
-        self.ego_agent, self.agents = init_agents(self.config, self, self.ego_policy, self.policy_id)
+        self.ego_agent, self.agents = init_agents(
+            self.config, self, self.ego_policy, self.policy_id
+        )
         for agent in self.agents.values():
             print(agent)
             agent.post_init()
@@ -36,17 +38,21 @@ class Env():
 
     def check_if_done(self):
         if all([a.at_goal for a in self.agents.values()]):
-            print(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
+            print(
+                f"Simulation ended at {self.time:.2f}s. All agents reached their goals."
+            )
             self.done = True
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
             print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
             self.done = True
         elif self.time >= self.max_duration:
-            print(f"Simulation duration of {self.max_duration}s was reached. " \
-                  "Not all agents reached their goals.")
+            print(
+                f"Simulation duration of {self.max_duration}s was reached. "
+                "Not all agents reached their goals."
+            )
             self.done = True
         if self.done:
-            print(60 * '=')
+            print(60 * "=")
 
     def trim_logs(self):
         for a in self.agents.values():
