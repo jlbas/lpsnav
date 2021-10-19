@@ -117,7 +117,7 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
     proj_line_speed = np.dot(line_vel, v_hat)  # Sign is important
     den = proj_pt_speed + proj_line_speed
     t = d / np.where(den == 0, 1e-5, den)
-    return np.where(t <= 0, np.inf, t)
+    return np.where(t <= 0, 1e5, t)
     # return d / np.where(den == 0, 1e-5, den)
 
 
