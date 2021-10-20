@@ -20,10 +20,8 @@ class Legitable(Agent):
         self.color = "#785EF0"
         # self.color = "#C594c5"
         self.pred_pos = dict()
-        self.scaled_pred_pos = dict()
         self.int_lines = dict()
         self.pred_int_lines = dict()
-        self.scaled_pred_int_lines = dict()
         self.interacting_agents = dict()
         self.cost_tp = dict()
         self.cost_tg = dict()
@@ -78,9 +76,6 @@ class Legitable(Agent):
         self.abs_prim_vels = np.multiply.outer(
             self.speeds, helper.unit_vec(self.abs_headings)
         )
-        self.scaled_abs_prim_vels = (
-            self.scaled_speed / self.max_speed * self.abs_prim_vels
-        )
 
     def update_int_line(self):
         # if not hasattr(self, 'int_line_heading'):
@@ -121,9 +116,6 @@ class Legitable(Agent):
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
-        self.scaled_prim_horiz = self.max_speed / self.scaled_speed * self.prim_horiz
-        self.scaled_pred_pos[id] = agent.pos + agent.vel * self.scaled_prim_horiz
-        self.scaled_pred_int_lines[id] = self.scaled_pred_pos[id] + self.int_pts
         self.cost_tg[id] = helper.dynamic_pt_cost(
             self.pos,
             self.scaled_speed,
@@ -165,16 +157,16 @@ class Legitable(Agent):
             self.pos,
             self.abs_prims,
             self.scaled_speed,
-            self.scaled_abs_prim_vels,
-            self.scaled_pred_int_lines[id],
+            self.abs_prim_vels,
+            self.pred_int_lines[id],
             self.int_line_heading,
             agent.vel,
             self.int_lines[id],
         )
-        self.cost_tpg[id] = self.scaled_prim_horiz + self.cost_pg[id]
+        self.cost_tpg[id] = self.prim_horiz + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
             partial_cost_tpg = helper.directed_cost_to_line(
-                self.pos, self.scaled_abs_prim_vels, self.int_lines[id], agent.vel
+                self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
             )
             self.cost_tpg[id] = np.where(
                 self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id]
