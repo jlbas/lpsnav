@@ -26,7 +26,6 @@ class Legitable(Agent):
         self.cost_tp = dict()
         self.cost_tg = dict()
         self.cost_pg = dict()
-        self.cost_st = dict()
         self.cost_sg = dict()
         self.cost_tpg = dict()
         self.cost_spg = dict()
@@ -144,10 +143,13 @@ class Legitable(Agent):
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
-        idx = max(0, self.env.step - self.receding_steps)
-        receded_line = self.int_lines[id] - agent.vel * min(self.env.time, self.receding_horiz)
+        if self.env.time < self.receding_horiz:
+            pos = self.pos - self.vel * self.receding_horiz
+        else:
+            pos = self.pos_log[self.env.step - self.receding_steps]
+        receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
         self.cost_sg[id] = helper.dynamic_pt_cost(
-            self.pos_log[idx],
+            pos,
             self.scaled_speed,
             receded_line,
             self.int_line_heading,
@@ -171,8 +173,7 @@ class Legitable(Agent):
             self.cost_tpg[id] = np.where(
                 self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id]
             )
-        self.cost_st[id] = min(self.env.time, self.receding_horiz)
-        self.cost_spg[id] = self.cost_st[id] + self.cost_tpg[id]
+        self.cost_spg[id] = self.receding_horiz + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
         # snapshot(self, id)
