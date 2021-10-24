@@ -187,16 +187,16 @@ class Legitable(Agent):
         ), "Error in legibility computation"
 
     def compute_leg(self, id):
-        # with np.errstate(invalid='ignore', over='ignore'):
-        #     arg = self.cost_sg[id] - (self.cost_st[id] + self.cost_tg[id])
-        #     bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
-        # arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
-        # self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
-        # self.current_leg_score[id] /= np.sum(self.current_leg_score[id])
-        # self.current_leg_score[id] = np.delete(self.current_leg_score[id], 1)
-        speed_idx = np.argmin(np.abs(self.speeds - self.speed))
-        heading_idx = self.heading_samples // 2
-        self.current_leg_score[id] = self.prim_leg_score[id][:, speed_idx, heading_idx]
+        arg = self.cost_sg[id] - (self.receding_horiz + self.cost_tg[id])
+        assert np.all(np.around(arg, 8) <= 0), "Error in current legibility computation"
+        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
+        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
+        self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
+        self.current_leg_score[id] /= np.sum(self.current_leg_score[id])
+        self.current_leg_score[id] = np.delete(self.current_leg_score[id], 1)
+        assert np.all(
+            np.around(self.current_leg_score[id], 8) <= 1
+        ), "Error in current legibility computation"
 
     def compute_prim_pred(self, id):
         arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
