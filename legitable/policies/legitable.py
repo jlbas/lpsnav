@@ -23,7 +23,8 @@ class Legitable(Agent):
         self.int_lines = dict()
         self.pred_int_lines = dict()
         self.interacting_agents = dict()
-        self.cost_tp = dict()
+        self.cost_st = self.receding_horiz
+        self.cost_tp = self.prim_horiz
         self.cost_tg = dict()
         self.cost_pg = dict()
         self.cost_sg = dict()
@@ -77,8 +78,6 @@ class Legitable(Agent):
         )
 
     def update_int_line(self):
-        # if not hasattr(self, 'int_line_heading'):
-        #     self.int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(self.goal - self.pos))
         self.int_line_heading = helper.wrap_to_pi(
             np.pi + helper.angle(self.goal - self.pos)
         )
@@ -90,6 +89,7 @@ class Legitable(Agent):
             self.int_lines[id] = agent.pos + self.int_pts
             in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
             in_radius = helper.dist(self.pos, agent.pos) <= self.sensing_dist
+            # Might not need approaching anymore with fixes
             ttg = helper.dynamic_pt_cost(
                 self.pos,
                 self.max_speed,
@@ -115,13 +115,6 @@ class Legitable(Agent):
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
-        self.cost_tg[id] = helper.dynamic_pt_cost(
-            self.pos,
-            self.scaled_speed,
-            self.int_lines[id],
-            self.int_line_heading,
-            agent.vel,
-        )
 
     def update_pred_int_t(self, id, agent):
         if id in self.interacting_agents:
@@ -153,6 +146,13 @@ class Legitable(Agent):
             self.int_line_heading,
             agent.vel,
         )
+        self.cost_tg[id] = helper.dynamic_pt_cost(
+            self.pos,
+            self.scaled_speed,
+            self.int_lines[id],
+            self.int_line_heading,
+            agent.vel,
+        )
         self.cost_pg[id] = helper.dynamic_prim_cost(
             self.pos,
             self.abs_prims,
@@ -163,7 +163,7 @@ class Legitable(Agent):
             agent.vel,
             self.int_lines[id],
         )
-        self.cost_tpg[id] = self.prim_horiz + self.cost_pg[id]
+        self.cost_tpg[id] = self.cost_tp + self.cost_pg[id]
         if np.any(self.cost_pg[id] == 0):
             partial_cost_tpg = helper.directed_cost_to_line(
                 self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
@@ -171,7 +171,7 @@ class Legitable(Agent):
             self.cost_tpg[id] = np.where(
                 self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id]
             )
-        self.cost_spg[id] = self.receding_horiz + self.cost_tpg[id]
+        self.cost_spg[id] = self.cost_st + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
         # snapshot(self, id)
@@ -187,7 +187,7 @@ class Legitable(Agent):
         ), "Error in legibility computation"
 
     def compute_leg(self, id):
-        arg = self.cost_sg[id] - (self.receding_horiz + self.cost_tg[id])
+        arg = self.cost_sg[id] - (self.cost_st + self.cost_tg[id])
         assert np.all(np.around(arg, 8) <= 0), "Error in current legibility computation"
         bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
