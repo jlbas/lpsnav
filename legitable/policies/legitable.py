@@ -135,9 +135,7 @@ class Legitable(Agent):
                 )
                 self.pred_int_t[id] = np.min(np.delete(ttg, 1))
                 self.int_start_t[id] = self.env.time
-                self.int_t[id] = self.env.time
-            else:
-                self.int_t[id] = self.env.time - self.int_start_t[id]
+            self.int_t[id] = self.env.time - self.int_start_t[id]
         else:
             self.pred_int_t[id] = -1
             self.int_start_t[id] = -1
