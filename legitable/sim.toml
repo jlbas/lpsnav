@@ -3,7 +3,7 @@ timestep = 0.1
 max_duration = 10
 eval = true
 # passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
-scenario = "custom"
+scenario = "swap"
 random_scenarios = 10
 homogeneous = false
 human_policy = "rvo"
@@ -52,15 +52,15 @@ max_accel = 1
 max_ang_accel = 3
 goal_tol = 0.1
 heading_span = 1.047
-speed_samples = 9
-heading_samples = 15
-# speed_samples = 4
-# heading_samples = 5
+# speed_samples = 9
+# heading_samples = 15
+speed_samples = 4
+heading_samples = 5
 prim_horiz = 1.5
 kinematics = "second_order_unicycle"
 
 [policy]
-sensing_dist = 5
+sensing_dist = 20
 
 [legitable]
 legibility_tol = 1.15
