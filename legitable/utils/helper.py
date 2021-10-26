@@ -135,7 +135,7 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     proj_line_speed = np.dot(v_hat, line_vel)  # Sign is important
     den = pt_speed + proj_line_speed
     t = d / np.where(den == 0, 1e-5, den)
-    return np.where(t <= 0, np.inf, t)
+    return np.where(t <= 0, 1e5, t)
     # return d / (pt_speed + proj_line_speed)
 
 
