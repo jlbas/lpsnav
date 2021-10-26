@@ -1,15 +1,13 @@
 import colorsys
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.colors as mc
-from matplotlib.animation import FuncAnimation
-from matplotlib.animation import FFMpegWriter
-from matplotlib.patches import Circle
-from matplotlib.patches import Polygon
-import numpy as np
 import os
-import seaborn as sns
 
+import matplotlib
+import matplotlib.colors as mc
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from matplotlib.animation import FFMpegWriter, FuncAnimation
+from matplotlib.patches import Circle, Polygon
 from utils import helper
 
 
@@ -22,9 +20,7 @@ def snapshot(ego_agent, id):
     fig.canvas.manager.window.wm_geometry("+1510+450")
     ax.axis("equal")
     plt.ion()
-    ax.scatter(
-        ego_agent.int_lines[id][:, 0], ego_agent.int_lines[id][:, 1], color="gray"
-    )
+    ax.scatter(ego_agent.int_lines[id][:, 0], ego_agent.int_lines[id][:, 1], color="gray")
     plt.pause(0.1)
     ax.scatter(
         ego_agent.pred_int_lines[id][:, 0],
@@ -68,9 +64,7 @@ class Animate:
                 if a.policy == "legitable" and i < min(
                     [len(log) - 1 for log in a.int_lines_log.values()]
                 ):
-                    for log, circles in zip(
-                        a.int_lines_log.values(), a.patches.int_lines
-                    ):
+                    for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
                         for pos, circle in zip(log[i], circles):
                             if pos is None or np.all(np.isnan(pos)):
                                 circle.set_radius(0)
@@ -92,9 +86,7 @@ class Animate:
                     ):
                         for k, (pt, coord, col) in enumerate(zip(prim, speed, col_row)):
                             pt.center = coord
-                            zorder, r = (
-                                [1, 0.08] if [j, k] == a.opt_log[i] else [0, 0.04]
-                            )
+                            zorder, r = [1, 0.08] if [j, k] == a.opt_log[i] else [0, 0.04]
                             pt.set_zorder(zorder)
                             pt.set_radius(r)
                             fc = "lightgray" if [j, k] == a.opt_log[i] else "#004D40"
@@ -128,9 +120,7 @@ class Animate:
         ax.axis([x_min - 2, x_max + 2, y_min - 2, y_max + 2])
         # colors = sns.color_palette(n_colors=len(agents))
         for a in agents:
-            a.patches.goal = Circle(
-                (a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1
-            )
+            a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
             a.patches.path = Polygon(
                 ((0, 0), (0, 0)),
                 closed=False,
@@ -152,10 +142,7 @@ class Animate:
             if self.config.debug:
                 if a.policy == "legitable":
                     a.patches.prims = [
-                        [
-                            Circle((0, 0), 0.04, color="#004D40", lw=0)
-                            for _ in a.rel_headings
-                        ]
+                        [Circle((0, 0), 0.04, color="#004D40", lw=0) for _ in a.rel_headings]
                         for _ in a.speeds
                     ]
                 if a.policy == "legitable":
@@ -222,15 +209,11 @@ class Animate:
         # for a, color in zip(agents[::-1], colors):
         sampled_len = 0
         for a in agents:
-            a.sampled_traj = a.pos_log[
-                :: int(self.config.body_interval / self.config.timestep)
-            ]
+            a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
             sampled_len = max(sampled_len, len(a.sampled_traj))
         for i, a in enumerate(list(agents)[::-1]):
             # ax.add_patch(Circle(a.goal, 0.05, color=color, zorder=100))
-            ax.scatter(
-                *a.goal, s=100, color=a.color, marker="*", zorder=2 * len(agents) + i
-            )
+            ax.scatter(*a.goal, s=100, color=a.color, marker="*", zorder=2 * len(agents) + i)
             if self.config.plot_traj:
                 # l = 5
                 # offset = 3
@@ -261,9 +244,7 @@ class Animate:
                 )
                 for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
-                    ax.add_patch(
-                        Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i)
-                    )
+                    ax.add_patch(Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i))
         # ax.legend()
         if self.config.show_plot:
             plt.show()
