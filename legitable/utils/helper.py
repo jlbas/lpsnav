@@ -181,3 +181,16 @@ def flatten(list_of_lists):
             yield from flatten(list)
         else:
             yield list
+
+
+def split_interactions(arr):
+    arr = np.max(arr, axis=-1)
+    zero_mask = arr == 0
+    split_idx = (np.argwhere(np.diff(zero_mask.astype(int))) + 1).flatten()
+    arr = np.split(arr, split_idx)
+    arr = remove_zero_arrs(arr)
+    return arr
+
+
+def sub_lengths(arr):
+    return [len(stride) for stride in arr]

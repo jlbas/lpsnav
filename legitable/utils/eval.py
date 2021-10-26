@@ -144,11 +144,7 @@ class Eval:
                         predictability.values[id][i] = np.delete(np.exp(traj_arg), 1)
                 if not in_front and start_idx is not None:
                     start_idx = None
-            legibility.values[id] = np.max(legibility.values[id], axis=-1)
-            zero_mask = legibility.values[id] == 0
-            split_idx = (np.argwhere(np.diff(zero_mask.astype(int))) + 1).flatten()
-            legibility.values[id] = np.split(legibility.values[id], split_idx)
-            legibility.values[id] = helper.remove_zero_arrs(legibility.values[id])
+            legibility.values[id] = helper.split_interactions(legibility.values[id])
             t = [
                 np.linspace(0, len(stride) * env.timestep, len(stride))
                 for stride in legibility.values[id]
@@ -158,18 +154,14 @@ class Eval:
                 legibility.values[id][i] = np.sum(sub_goal_inference * discount)
                 legibility.values[id][i] /= np.sum(discount)
             if legibility.values[id]:
-                legibility.weights[id] = [len(stride) for stride in t]
+                legibility.weights[id] = helper.sub_lengths(t)
                 legibility.scores.append(
                     np.average(legibility.values[id], weights=legibility.weights[id])
                 )
                 legibility.tot_weights.append(np.sum(legibility.weights[id]))
-            predictability.values[id] = np.max(predictability.values[id], axis=-1)
-            zero_mask = predictability.values[id] == 0
-            split_idx = (np.argwhere(np.diff(zero_mask.astype(int))) + 1).flatten()
-            predictability.values[id] = np.split(predictability.values[id], split_idx)
-            predictability.values[id] = helper.remove_zero_arrs(predictability.values[id])
+            predictability.values[id] = helper.split_interactions(predictability.values[id])
             if predictability.values[id]:
-                predictability.weights[id] = [len(stride) for stride in predictability.values[id]]
+                predictability.weights[id] = helper.sub_lengths(predictability.values[id])
                 predictability.values[id] = np.array(
                     [stride[-1] for stride in predictability.values[id]]
                 )
