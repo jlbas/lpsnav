@@ -69,7 +69,8 @@ class Agent:
         #         f"goal=[{self.goal[0]:.2f}, {self.goal[1]:.2f}]")
         return (
             f"Agent {self.id}: policy={self.policy}, "
-            f"[[{self.start[0]:.2f}, {self.start[1]:.2f}], [{self.goal[0]:.2f}, {self.goal[1]:.2f}]]"
+            + f"[[{self.start[0]:.2f}, {self.start[1]:.2f}], "
+            + f"[{self.goal[0]:.2f}, {self.goal[1]:.2f}]]"
         )
 
     def post_init(self):

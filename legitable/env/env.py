@@ -22,6 +22,9 @@ class Env:
         self.time += self.timestep
         self.step += 1
 
+    def __str__(self):
+        return f"{self.config.scenario}_{len(self.agents)}_{self.ego_policy}"
+
     def update(self):
         for a in self.agents.values():
             a.goal_check()
