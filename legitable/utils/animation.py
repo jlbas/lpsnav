@@ -269,7 +269,6 @@ class Animate:
             plt.show()
         if self.config.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
-            if self.config.overlay:
                 filename = f"{self.config.scenario}_overlay"
             else:
                 filename = f"{self.config.scenario}_{len(agents)}_{agents[0].policy}"
@@ -283,7 +282,6 @@ class Animate:
             self.plot(self.agents_log.values())
 
     def animate(self, env):
-        if not self.config.overlay:
             if self.config.show_ani or self.config.save_ani:
                 self.init_ani(env.agents.values())
             if self.config.show_plot or self.config.save_plot:

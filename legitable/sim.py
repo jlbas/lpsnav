@@ -26,7 +26,8 @@ def main():
             env.trim_logs()
             eval.evaluate(env, i)
             ani.animate(env)
-        ani.overlay()
+        if config.overlay and len(config.policies) > 1:
+            ani.overlay()
     eval.get_summary()
 
 
