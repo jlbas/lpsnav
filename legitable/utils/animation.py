@@ -180,8 +180,8 @@ class Animate:
             os.makedirs(self.config.ani_dir, exist_ok=True)
             if filename is None:
                 filename = f"{self.config.scenario}_overlay"
-            ani.save(vidname, writer=FFMpegWriter(fps=100))
             vidname = os.path.join(self.config.ani_dir, f"{filename}.mp4")
+            ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.timestep)))
 
     def plot(self, agents, filename=None):
         if self.config.dark_bkg:
