@@ -99,7 +99,7 @@ class Animate:
 
         return helper.flatten([p for a in agents for p in a.patches])
 
-    def init_ani(self, agents):
+    def init_ani(self, agents, filename=None):
         if self.config.dark_bkg:
             plt.style.use("dark_background")
         fig, ax = plt.subplots()
@@ -177,15 +177,13 @@ class Animate:
             plt.show()
 
         if self.config.save_ani:
-            os.makedirs(self.config.vid_dir, exist_ok=True)
-            if self.config.overlay:
+            os.makedirs(self.config.ani_dir, exist_ok=True)
+            if filename is None:
                 filename = f"{self.config.scenario}_overlay"
-            else:
-                filename = f"{self.config.scenario}_{len(agents)}_{agents[0].policy}"
-            vidname = os.path.join(self.config.vid_dir, f"{filename}.mp4")
             ani.save(vidname, writer=FFMpegWriter(fps=100))
+            vidname = os.path.join(self.config.ani_dir, f"{filename}.mp4")
 
-    def plot(self, agents):
+    def plot(self, agents, filename=None):
         if self.config.dark_bkg:
             plt.style.use("dark_background")
         fig, ax = plt.subplots()
@@ -250,9 +248,8 @@ class Animate:
             plt.show()
         if self.config.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
+            if filename is None:
                 filename = f"{self.config.scenario}_overlay"
-            else:
-                filename = f"{self.config.scenario}_{len(agents)}_{agents[0].policy}"
             plotname = os.path.join(self.config.plot_dir, f"{filename}.pdf")
             fig.savefig(plotname, bbox_inches="tight", pad_inches=0)
 
@@ -263,8 +260,8 @@ class Animate:
             self.plot(self.agents_log.values())
 
     def animate(self, env):
-            if self.config.show_ani or self.config.save_ani:
-                self.init_ani(env.agents.values())
-            if self.config.show_plot or self.config.save_plot:
-                self.plot(env.agents.values())
+        if self.config.show_ani or self.config.save_ani:
+            self.init_ani(env.agents.values(), str(env))
+        if self.config.show_plot or self.config.save_plot:
+            self.plot(env.agents.values(), str(env))
         self.agents_log.update(env.agents)
