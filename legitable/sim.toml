@@ -2,6 +2,8 @@
 timestep = 0.1
 max_duration = 10
 eval = true
+save_tbl = true
+tbl_dir = "data/tables"
 # passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
 scenario = "swap"
 random_scenarios = 10

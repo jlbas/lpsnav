@@ -24,10 +24,10 @@ def main():
             while not env.done:
                 env.update()
             env.trim_logs()
-            # eval.evaluate(env, i)
+            eval.evaluate(env, i)
             ani.animate(env)
         ani.overlay()
-    # eval.get_summary()
+    eval.get_summary()
 
 
 if __name__ == "__main__":
