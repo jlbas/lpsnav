@@ -20,7 +20,7 @@ def main():
         ani = Animate(config)
         for policy_id, ego_policy in enumerate(config.policies):
             # np.random.seed(i)
-            env = Env(config, ego_policy, policy_id)
+            env = Env(config, ego_policy, i, policy_id)
             while not env.done:
                 env.update()
             env.trim_logs()
