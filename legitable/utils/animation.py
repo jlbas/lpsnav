@@ -134,10 +134,10 @@ class Animate:
             y = 0.9 * a.radius * np.sin(np.pi / 6)
             a.body_coords = [(0.9 * a.radius, 0), (-x, y), (-x, -y)]
             a.patches.body_poly = Polygon(
-                a.body_coords, facecolor=ax.get_facecolor(), linewidth=4, zorder=i+3
+                a.body_coords, facecolor=ax.get_facecolor(), linewidth=4, zorder=i + 3
             )
             a.patches.body = Circle(
-                (a.pos), a.radius, color=a.color, zorder=i+2, label=f"{type(a).__name__}"
+                (a.pos), a.radius, color=a.color, zorder=i + 2, label=f"{type(a).__name__}"
             )
             if self.config.debug:
                 if a.policy == "legitable":

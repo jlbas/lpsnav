@@ -25,8 +25,7 @@ class Rvo(Agent):
     def post_init(self):
         super().post_init()
         self.rvo_agents = {
-            id: self.rvo_sim.addAgent(tuple(a.start))
-            for id, a in self.env.agents.items()
+            id: self.rvo_sim.addAgent(tuple(a.start)) for id, a in self.env.agents.items()
         }
 
     def get_action(self):

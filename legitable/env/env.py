@@ -44,9 +44,7 @@ class Env:
 
     def check_if_done(self):
         if all([a.at_goal for a in self.agents.values()]):
-            print(
-                f"Simulation ended at {self.time:.2f}s. All agents reached their goals."
-            )
+            print(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
             self.done = True
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
             print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")

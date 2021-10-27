@@ -47,12 +47,8 @@ class Agent:
         self.pos_log = np.full(
             (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
         )
-        self.heading_log = np.full(
-            int(self.config.max_duration / self.config.timestep) + 1, np.inf
-        )
-        self.speed_log = np.full(
-            int(self.config.max_duration / self.config.timestep) + 1, np.inf
-        )
+        self.heading_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
+        self.speed_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
         self.vel_log = np.full(
             (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
         )
@@ -77,9 +73,7 @@ class Agent:
         self.update_agent_list()
 
     def update_agent_list(self):
-        self.other_agents = {
-            id: a for id, a in self.env.agents.items() if id != self.id
-        }
+        self.other_agents = {id: a for id, a in self.env.agents.items() if id != self.id}
 
     def goal_check(self):
         self.at_goal = helper.dist(self.pos, self.goal) <= self.goal_tol

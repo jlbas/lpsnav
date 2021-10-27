@@ -8,7 +8,9 @@ from utils import helper
 class AttemptsExceededError(Exception):
     def __init__(self, max_attempts, message=None):
         self.max_attempts = max_attempts
-        self.default_msg = f"Couldn't create feasible configuration within {self.max_attempts} attempts"
+        self.default_msg = (
+            f"Couldn't create feasible configuration within {self.max_attempts} attempts"
+        )
         self.message = self.default_msg if message is None else message
         super().__init__(self.message)
 
@@ -101,9 +103,7 @@ def get_starts_goals(config):
         starts = [start_goal[0] for start_goal in config.custom_pos]
         goals = [start_goal[1] for start_goal in config.custom_pos]
     elif config.scenario == "circle":
-        thetas = np.linspace(
-            0, 2 * np.pi - 2 * np.pi / config.num_of_agents, config.num_of_agents
-        )
+        thetas = np.linspace(0, 2 * np.pi - 2 * np.pi / config.num_of_agents, config.num_of_agents)
         starts = config.circle_radius * helper.unit_vec(thetas)
         goals = config.circle_radius * helper.unit_vec(thetas + np.pi)
     elif config.scenario == "random":

@@ -6,13 +6,9 @@ import numpy as np
 
 def rotate(obj, angle):
     if isinstance(angle, np.ndarray):
-        rot_matrix = np.array(
-            [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
-        )
+        rot_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         return np.transpose(obj @ rot_matrix, axes=(1, 2, 0))
-    rot_matrix = np.array(
-        [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
-    )
+    rot_matrix = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
     return obj @ rot_matrix
 
 
@@ -163,15 +159,9 @@ def p_intersect(pos, v, line_pts, line_th, pt_vel, t_to_line):
 
 
 def masked_cost(masks, cost_col_0, cost_col_1, cost_line):
-    left = np.multiply(
-        masks[0], np.nan_to_num(np.array([cost_line, cost_col_0, cost_col_1]))
-    )
-    center = np.multiply(
-        masks[1], np.nan_to_num(np.array([cost_col_0, cost_line, cost_col_1]))
-    )
-    right = np.multiply(
-        masks[2], np.nan_to_num(np.array([cost_col_0, cost_col_1, cost_line]))
-    )
+    left = np.multiply(masks[0], np.nan_to_num(np.array([cost_line, cost_col_0, cost_col_1])))
+    center = np.multiply(masks[1], np.nan_to_num(np.array([cost_col_0, cost_line, cost_col_1])))
+    right = np.multiply(masks[2], np.nan_to_num(np.array([cost_col_0, cost_col_1, cost_line])))
     return left + center + right
 
 

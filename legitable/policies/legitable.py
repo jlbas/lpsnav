@@ -46,9 +46,7 @@ class Legitable(Agent):
         )
         self.opt_log = list()
         self.col_mask_log = list()
-        self.abs_prim_vels = np.multiply.outer(
-            self.speeds, helper.unit_vec(self.abs_headings)
-        )
+        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
         self.speed_idx = 0
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
@@ -60,27 +58,19 @@ class Legitable(Agent):
         self.int_start_t = {id: -1 for id in self.other_agents}
         self.int_t = {id: -1 for id in self.other_agents}
         self.int_lines_log = {
-            id: np.full(
-                (int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf
-            )
+            id: np.full((int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
         self.pred_int_lines_log = {
-            id: np.full(
-                (int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf
-            )
+            id: np.full((int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
 
     def update_abs_prim_vels(self):
-        self.abs_prim_vels = np.multiply.outer(
-            self.speeds, helper.unit_vec(self.abs_headings)
-        )
+        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
 
     def update_int_line(self):
-        self.int_line_heading = helper.wrap_to_pi(
-            np.pi + helper.angle(self.goal - self.pos)
-        )
+        self.int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(self.goal - self.pos))
         self.int_pts = helper.rotate(self.int_baseline, self.int_line_heading)
 
     def get_interacting_agents(self):
@@ -108,9 +98,7 @@ class Legitable(Agent):
             ego_pred = self.pos + t * (self.abs_prims - self.pos)
             for a in self.other_agents.values():
                 a_pred = a.pos + t * (a.pos + a.vel * self.prim_horiz - a.pos)
-                self.col_mask |= (
-                    helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius
-                )
+                self.col_mask |= helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
@@ -168,9 +156,7 @@ class Legitable(Agent):
             partial_cost_tpg = helper.directed_cost_to_line(
                 self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
             )
-            self.cost_tpg[id] = np.where(
-                self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id]
-            )
+            self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
         self.cost_spg[id] = self.cost_st + self.cost_tpg[id]
 
     def compute_prim_leg(self, id):
@@ -182,9 +168,7 @@ class Legitable(Agent):
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
-        assert np.all(
-            np.around(self.prim_leg_score[id], 8) <= 1
-        ), "Error in legibility computation"
+        assert np.all(np.around(self.prim_leg_score[id], 8) <= 1), "Error in legibility computation"
 
     def compute_leg(self, id):
         arg = self.cost_sg[id] - (self.cost_st + self.cost_tg[id])
@@ -226,9 +210,7 @@ class Legitable(Agent):
         self.is_legible[id] = passing_ratio > self.leg_tol
 
     def update_tau(self, id, agent):
-        if (
-            self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)
-        ) or agent.at_goal:
+        if (self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)) or agent.at_goal:
             self.taus[id] = 1
         else:
             lb = 0.0
@@ -257,9 +239,7 @@ class Legitable(Agent):
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + self.taus[
                 id
             ] * self.prim_pred_score[id]
-            new_score = np.where(
-                new_score[0] > new_score[1], new_score[0], new_score[1]
-            )
+            new_score = np.where(new_score[0] > new_score[1], new_score[0], new_score[1])
             # self.pareto_front[id] = self.pareto_front[id][indices, y, x]
             score = np.minimum(score, new_score)
         # self.tot_pareto_front = np.any([self.pareto_front[id] for id in self.interacting_agents], axis=0)
@@ -291,9 +271,7 @@ class Legitable(Agent):
             self.des_speed = self.speeds[self.speed_idx]
             self.des_heading = self.abs_headings[self.heading_idx]
         else:
-            delta_heading = np.abs(
-                self.abs_headings - helper.angle(self.goal - self.pos)
-            )
+            delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
             goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
             goal_cost = np.where(self.col_mask, np.inf, goal_cost)
             self.speed_idx, self.heading_idx = np.unravel_index(
