@@ -119,7 +119,7 @@ class Animate:
         y_max = np.max(pos_logs[:, 1])
         ax.axis([x_min - 2, x_max + 2, y_min - 2, y_max + 2])
         # colors = sns.color_palette(n_colors=len(agents))
-        for a in agents:
+        for i, a in enumerate(agents):
             a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
             a.patches.path = Polygon(
                 ((0, 0), (0, 0)),
@@ -134,10 +134,10 @@ class Animate:
             y = 0.9 * a.radius * np.sin(np.pi / 6)
             a.body_coords = [(0.9 * a.radius, 0), (-x, y), (-x, -y)]
             a.patches.body_poly = Polygon(
-                a.body_coords, facecolor=ax.get_facecolor(), linewidth=4, zorder=3
+                a.body_coords, facecolor=ax.get_facecolor(), linewidth=4, zorder=i+3
             )
             a.patches.body = Circle(
-                (a.pos), a.radius, color=a.color, zorder=2, label=f"{type(a).__name__}"
+                (a.pos), a.radius, color=a.color, zorder=i+2, label=f"{type(a).__name__}"
             )
             if self.config.debug:
                 if a.policy == "legitable":
