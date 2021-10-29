@@ -17,7 +17,7 @@ def get_args():
         "-c",
         "--config",
         type=str,
-        default="./onfig.toml",
+        default="./config.toml",
         help="Specify the location of the config file",
     )
 

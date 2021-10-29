@@ -56,11 +56,11 @@ def get_starts_goals(config):
     elif config.scenario == "acute":
         starts = [
             [-config.interaction_dist / 2, 0],
-            [-config.interaction_dist / 2 + 1, 2],
+            [-config.interaction_dist / 2, 2],
         ]
         goals = [
             [config.interaction_dist / 2, 0],
-            [config.interaction_dist / 2 + 1, -2],
+            [config.interaction_dist / 2, -2],
         ]
     elif config.scenario == "obtuse":
         starts = [

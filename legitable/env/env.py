@@ -20,8 +20,6 @@ class Env:
             print(agent)
             agent.post_init()
             agent.log_data(self.step)
-        self.time += self.timestep
-        self.step += 1
 
     def __str__(self):
         return f"{self.config.scenario}_{len(self.agents)}_{self.ego_policy}_iter_{self.iter}"
@@ -34,12 +32,12 @@ class Env:
                 a.get_action()
         for a in self.agents.values():
             a.step()
+        self.time += self.timestep
+        self.step += 1
         for a in self.agents.values():
             a.collision_check()
             if not a.collided:
                 a.log_data(self.step)
-        self.time += self.timestep
-        self.step += 1
         self.check_if_done()
 
     def check_if_done(self):
