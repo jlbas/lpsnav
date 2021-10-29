@@ -47,7 +47,7 @@ class Env:
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
             print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
             self.done = True
-        elif self.time >= self.max_duration:
+        elif self.time >= self.max_duration - self.timestep:
             print(
                 f"Simulation duration of {self.max_duration}s was reached. "
                 "Not all agents reached their goals."
