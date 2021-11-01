@@ -210,23 +210,9 @@ class Legitable(Agent):
             tau = tau * (ub - lb) + lb
             self.taus[id] = min(ub, tau)
 
-    def update_col_mask(self, id, agent):
-        intersecting = ~helper.in_front(
-            self.pred_int_lines[id][0], self.int_line_heading, self.abs_prims
-        )
-        t_to_line = helper.directed_cost_to_line(
-            self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
-        )
-        t_to_line = np.where(np.isposinf(t_to_line), 1e2, t_to_line)
-        mask = helper.directed_intersection_pt(
-            self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel, t_to_line
-        )
-        self.col_mask |= mask[1] & intersecting
-
     def get_opt_prims(self):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
         for id, agent in self.interacting_agents.items():
-            self.update_col_mask(id, agent)  # This might not be necessary
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + self.taus[
                 id
             ] * self.prim_pred_score[id]
