@@ -78,10 +78,13 @@ class Legitable(Agent):
         for id, agent in self.other_agents.items():
             self.int_lines[id] = agent.pos + self.int_pts
             in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
-            in_radius = helper.dist(self.pos, agent.pos) <= self.sensing_dist
+            in_horizon = (
+                helper.cost_to_line(self.pos, self.speed, self.int_lines[id], agent.vel)
+                < self.config.sensing_horizon
+            )
             outside_goal = helper.dist(self.pos, agent.pos) > helper.dist(self.pos, self.goal)
             stopped = agent.speed == 0
-            if in_front and in_radius and not (outside_goal and stopped):
+            if in_front and in_horizon and not (outside_goal and stopped):
                 self.interacting_agents[id] = agent
 
     def remove_col_prims(self):
