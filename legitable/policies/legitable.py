@@ -7,7 +7,6 @@ from utils.animation import snapshot
 class Legitable(Agent):
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
-        self.scaled_speed = self.config.scaled_speed
         self.sensing_dist = self.config.sensing_dist
         self.receding_horiz = self.config.receding_horiz
         self.receding_steps = int(self.receding_horiz / self.env.timestep)
@@ -117,6 +116,7 @@ class Legitable(Agent):
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
+        scaled_speed = max(self.max_speed, agent.speed + 0.1)
         if self.env.time < self.receding_horiz:
             pos = self.pos - self.vel * self.receding_horiz
         else:
@@ -124,14 +124,14 @@ class Legitable(Agent):
         receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
         self.cost_sg[id] = helper.dynamic_pt_cost(
             pos,
-            self.scaled_speed,
+            scaled_speed,
             receded_line,
             self.int_line_heading,
             agent.vel,
         )
         self.cost_tg[id] = helper.dynamic_pt_cost(
             self.pos,
-            self.scaled_speed,
+            scaled_speed,
             self.int_lines[id],
             self.int_line_heading,
             agent.vel,
@@ -139,7 +139,7 @@ class Legitable(Agent):
         self.cost_pg[id] = helper.dynamic_prim_cost(
             self.pos,
             self.abs_prims,
-            self.scaled_speed,
+            scaled_speed,
             self.abs_prim_vels,
             self.pred_int_lines[id],
             self.int_line_heading,
