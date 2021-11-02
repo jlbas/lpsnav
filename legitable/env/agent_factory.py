@@ -91,13 +91,13 @@ def get_starts_goals(config):
     elif config.scenario == "2_agent_t_junction":
         starts = [
             [-config.interaction_dist / 2, 0],
-            [0, config.interaction_dist / 2 - 1],
-            [2 * config.radius + config.lat_dist, -config.interaction_dist / 2],
+            [-0.5, config.interaction_dist / 2 - 1],
+            [0.5 * config.radius + config.lat_dist, -config.interaction_dist / 2],
         ]
         goals = [
             [config.interaction_dist / 2, 0],
-            [0, -config.interaction_dist / 2],
-            [2 * config.radius + config.lat_dist, config.interaction_dist / 2],
+            [-0.5, -config.interaction_dist / 2],
+            [0.5 * config.radius + config.lat_dist, config.interaction_dist / 2],
         ]
     elif config.scenario == "custom":
         starts = [start_goal[0] for start_goal in config.custom_pos]
