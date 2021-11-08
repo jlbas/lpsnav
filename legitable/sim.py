@@ -15,7 +15,7 @@ def main():
     args = get_args()
     config = load_config(args.config)
     trial_cnt = config.random_scenarios if config.scenario == "random" else 1
-    eval = Eval(config, trial_cnt)
+    eval = Eval(trial_cnt, config)
     for i in range(trial_cnt):
         ani = Animate(config)
         for policy_id, ego_policy in enumerate(config.policies):
