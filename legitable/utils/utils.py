@@ -12,7 +12,6 @@ def print_to_file(file, message):
 
 def get_args():
     args = argparse.ArgumentParser(description="Run time arguments")
-
     args.add_argument(
         "-c",
         "--config",
@@ -20,5 +19,4 @@ def get_args():
         default="./config.toml",
         help="Specify the location of the config file",
     )
-
     return args.parse_args()
