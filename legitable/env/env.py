@@ -3,7 +3,7 @@ from env.agent_factory import init_agents
 
 
 class Env:
-    def __init__(self, config, ego_policy, iter, policy_id=0):
+    def __init__(self, config, ego_policy, iter, scenario, policy_id=0):
         self.config = config
         self.timestep = self.config.timestep
         self.max_duration = self.config.max_duration
@@ -12,9 +12,10 @@ class Env:
         self.step = 0
         self.ego_policy = ego_policy
         self.iter = iter
+        self.scenario = scenario
         self.policy_id = policy_id
         self.ego_agent, self.agents = init_agents(
-            self.config, self, self.ego_policy, self.policy_id
+            self.config, self, self.ego_policy, self.scenario, self.policy_id
         )
         for agent in self.agents.values():
             print(agent)
@@ -22,7 +23,12 @@ class Env:
             agent.log_data(self.step)
 
     def __str__(self):
-        return f"{self.config.scenario}_{len(self.agents)}_{self.ego_policy}_iter_{self.iter}"
+        ret = f"{self.scenario}_{self.ego_policy}"
+        if self.scenario == "random" or self.scenario == "circle":
+            ret += f"_{len(self.agents)}"
+        if self.scenario == "random":
+            ret += f"_{self.iter}"
+        return ret
 
     def update(self):
         for a in self.agents.values():

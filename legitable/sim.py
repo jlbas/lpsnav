@@ -14,21 +14,23 @@ np.set_printoptions(precision=5)
 def main():
     args = get_args()
     config = load_config(args.config)
-    trial_cnt = config.random_scenarios if config.scenario == "random" else 1
-    eval = Eval(trial_cnt, config)
-    for i in range(trial_cnt):
-        ani = Animate(config)
-        for policy_id, ego_policy in enumerate(config.policies):
-            # np.random.seed(i)
-            env = Env(config, ego_policy, i, policy_id)
-            while not env.done:
-                env.update()
-            env.trim_logs()
-            eval.evaluate(env, i)
-            ani.animate(env)
-        if config.overlay and len(config.policies) > 1:
-            ani.overlay()
-    eval.get_summary()
+    for scenario in config.scenarios:
+        trial_cnt = config.random_scenarios if scenario == "random" else 1
+        eval = Eval(trial_cnt, config, scenario)
+        for i in range(trial_cnt):
+            print(f"ITERATION {i}")
+            ani = Animate(config, scenario)
+            for policy_id, ego_policy in enumerate(config.policies):
+                np.random.seed(i)
+                env = Env(config, ego_policy, i, scenario, policy_id)
+                while not env.done:
+                    env.update()
+                env.trim_logs()
+                eval.evaluate(i, env)
+                ani.animate(i, env, eval)
+            if config.overlay and len(config.policies) > 1:
+                ani.overlay()
+        eval.get_summary()
 
 
 if __name__ == "__main__":

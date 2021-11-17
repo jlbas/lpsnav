@@ -16,10 +16,11 @@ class Score:
 
 
 class Eval:
-    def __init__(self, trial_cnt, config):
+    def __init__(self, trial_cnt, config, scenario):
         self.config = config
         self.trial_cnt = trial_cnt
         self.ttg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
+        self.scenario = scenario
         self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
         self.failure_log = {policy: 0 for policy in config.policies}
         self.path_efficiency_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
@@ -36,12 +37,14 @@ class Eval:
         }
 
     def __repr__(self):
-        if self.config.scenario == "random":
-            return (
-                f"{self.config.scenario}_{self.config.num_of_agents}_agent_"
-                f"{self.config.random_scenarios}_iters"
-            )
-        return f"{self.config.scenario}"
+        ret = f"{self.scenario}"
+        if self.scenario == "random" or self.scenario == "circle":
+            ret += f"_{self.config.num_of_agents}"
+        if self.config.homogeneous:
+            ret += "_homogeneous"
+        if self.scenario == "random":
+            ret += f"_iter_{self.config.random_scenarios}"
+        return ret
 
     def evaluate(self, iter, env):
         if hasattr(env.ego_agent, "time_to_goal"):
