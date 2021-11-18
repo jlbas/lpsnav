@@ -239,10 +239,24 @@ class Animate:
         for a in agents:
             a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
             sampled_len = max(sampled_len, len(a.sampled_traj))
+        first_inattentive = True
         for i, a in enumerate(list(agents)[::-1]):
-            # ax.add_patch(Circle(a.goal, 0.05, color=color, zorder=100))
-            ax.scatter(*a.goal, s=100, color=a.color, marker="*", zorder=2 * len(agents) + i)
+            ax.add_patch(
+                Circle(
+                    a.goal,
+                    self.config.goal_tol,
+                    ec=a.color,
+                    fill=None,
+                    lw=0.5,
+                    zorder=2 * len(agents) + i,
+                )
+            )
             if self.config.plot_traj:
+                if (a.policy != "inattentive") or (a.policy == "inattentive" and first_inattentive):
+                    label = a.policy
+                    first_inattentive = False
+                else:
+                    label = None
                 ax.plot(
                     np.array(a.pos_log)[:, 0],
                     np.array(a.pos_log)[:, 1],
@@ -250,6 +264,7 @@ class Animate:
                     lw=0.5,
                     solid_capstyle="round",
                     zorder=len(agents) + i,
+                    label=label,
                 )
             if self.config.plot_body:
                 hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
@@ -258,9 +273,12 @@ class Animate:
                     1 - 0.2 * (1 - hls_color[1]),
                     sampled_len,
                 )
+                zorder = i if a.policy != "inattentive" else 0
                 for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
-                    ax.add_patch(Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i))
+                    ax.add_patch(
+                        Circle(pos, self.config.radius, fc=c, ec=a.color, lw=0.1, zorder=zorder)
+                    )
         # ax.legend()
         if self.config.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
