@@ -88,99 +88,92 @@ class Eval:
             legibility.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
             predictability.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
             start_idx = None
-            agent.pos_log = np.pad(
-                agent.pos_log, (0, len(env.ego_agent.pos_log) - len(agent.pos_log)), mode="edge"
-            )
             for i in range(len(legibility.vals[id])):
-                int_line_heading = helper.wrap_to_pi(
-                    np.pi + helper.angle(env.ego_agent.goal - env.ego_agent.pos_log[i])
-                )
-                in_front = helper.in_front(
-                    agent.pos_log[i], int_line_heading, env.ego_agent.pos_log[i]
-                )
-                in_radius = (
-                    helper.dist(env.ego_agent.pos_log[i], agent.pos_log[i])
-                    <= self.config.sensing_dist
-                )
-                if in_front and in_radius:
-                    if i < receding_steps:
-                        receded_pos = env.ego_agent.pos_log[0] - env.ego_agent.vel_log[0] * (
-                            self.config.receding_horiz - i * self.config.timestep
+                if not env.ego_agent.goal_log[i]:
+                    int_line_heading = helper.wrap_to_pi(
+                        helper.angle(env.ego_agent.pos_log[i] - env.ego_agent.goal)
+                    )
+                    ego_in_front = helper.in_front(
+                        agent.pos_log[i], agent.heading_log[i], env.ego_agent.pos_log[i]
+                    )
+                    a_in_front = helper.in_front(
+                        env.ego_agent.pos_log[i], env.ego_agent.heading_log[i], agent.pos_log[i]
+                    )
+                    in_radius = (
+                        helper.dist(env.ego_agent.pos_log[i], agent.pos_log[i])
+                        <= self.config.sensing_dist
+                    )
+                    if ego_in_front and a_in_front and in_radius:
+                        if i < receding_steps:
+                            receded_pos = env.ego_agent.pos_log[0] - env.ego_agent.vel_log[0] * (
+                                self.config.receding_horiz - i * self.config.timestep
+                            )
+                        else:
+                            receded_pos = env.ego_agent.pos_log[i - receding_steps]
+                        scaled_speed = max(env.ego_agent.max_speed, agent.speed_log[i] + 0.1)
+                        int_pts = helper.rotate(int_baseline, int_line_heading)
+                        int_line = agent.pos_log[i] + int_pts
+                        receded_line = int_line - agent.vel_log[i] * self.config.receding_horiz
+                        cost_rg = helper.dynamic_pt_cost(
+                            receded_pos,
+                            scaled_speed,
+                            receded_line,
+                            int_line_heading,
+                            agent.vel_log[i],
                         )
-                    else:
-                        receded_pos = env.ego_agent.pos_log[i - receding_steps]
-                    scaled_speed = max(env.ego_agent.max_speed, agent.speed_log[i] + 0.1)
-                    int_pts = helper.rotate(int_baseline, int_line_heading)
-                    int_line = agent.pos_log[i] + int_pts
-                    receded_line = int_line - agent.vel_log[i] * self.config.receding_horiz
-                    cost_rg = helper.dynamic_pt_cost(
-                        receded_pos,
-                        scaled_speed,
-                        receded_line,
-                        int_line_heading,
-                        agent.vel_log[i],
-                    )
-                    cost_tg = helper.dynamic_pt_cost(
-                        env.ego_agent.pos_log[i],
-                        scaled_speed,
-                        int_line,
-                        int_line_heading,
-                        agent.vel_log[i],
-                    )
-                    arg = cost_rg - (cost_st + cost_tg)
-                    goal_inference = np.exp(arg) * self.config.subgoal_priors
-                    goal_inference /= np.sum(goal_inference)
-                    legibility.vals[id][i] = np.delete(goal_inference, 1)
-                    if start_idx is None:
-                        start_idx = i
-                    int_time = (i - start_idx) * env.timestep
-                    start_line = int_line - agent.vel_log[i] * int_time
-                    cost_sg = helper.dynamic_pt_cost(
-                        env.ego_agent.pos_log[start_idx],
-                        scaled_speed,
-                        start_line,
-                        int_line_heading,
-                        agent.vel_log[i],
-                    )
-                    true_cost_tg = helper.dynamic_pt_cost(
-                        env.ego_agent.pos_log[i],
-                        scaled_speed,
-                        int_line,
-                        int_line_heading,
-                        agent.vel_log[i],
-                    )
-                    traj_arg = cost_sg - (int_time + true_cost_tg)
-                    with np.errstate(under="ignore", over="ignore"):
-                        predictability.vals[id][i] = np.delete(np.exp(traj_arg), 1)
-                if not in_front and start_idx is not None:
-                    start_idx = None
-            vals = helper.split_interactions(legibility.vals[id])
-            t = [np.linspace(0, len(stride) * env.timestep, len(stride)) for stride in vals]
-            for i, (sub_goal_inference, sub_t) in enumerate(zip(vals, t)):
+                        cost_tg = helper.dynamic_pt_cost(
+                            env.ego_agent.pos_log[i],
+                            scaled_speed,
+                            int_line,
+                            int_line_heading,
+                            agent.vel_log[i],
+                        )
+                        arg = cost_rg - (cost_st + cost_tg)
+                        assert np.all(np.around(arg, 1) <= 0), "Error in legibility eval"
+                        goal_inference = np.exp(arg) * self.config.subgoal_priors
+                        goal_inference /= np.sum(goal_inference)
+                        legibility.vals[id][i] = np.delete(goal_inference, 1)
+                        if start_idx is None:
+                            start_idx = i
+                        int_time = (i - start_idx) * env.timestep
+                        start_line = int_line - agent.vel_log[i] * int_time
+                        cost_sg = helper.dynamic_pt_cost(
+                            env.ego_agent.pos_log[start_idx],
+                            scaled_speed,
+                            start_line,
+                            int_line_heading,
+                            agent.vel_log[i],
+                        )
+                        traj_arg = cost_sg - (int_time + cost_tg)
+                        assert np.all(np.around(traj_arg, 0) <= 0), "Error in predictability eval"
+                        with np.errstate(under="ignore", over="ignore"):
+                            predictability.vals[id][i] = np.delete(np.exp(traj_arg), 1)
+                        if not np.all(np.isfinite(predictability.vals[id])):
+                            print("here")
+                    if not a_in_front and not ego_in_front and start_idx is not None:
+                        start_idx = None
+            lvals = helper.split_interactions(legibility.vals[id])
+            t = [np.linspace(0, len(stride) * env.timestep, len(stride)) for stride in lvals]
+            for i, (sub_goal_inference, sub_t) in enumerate(zip(lvals, t)):
                 discount = sub_t[-1] - sub_t if sub_t[-1] else 1
-                vals[i] = np.sum(sub_goal_inference * discount)
-                vals[i] /= np.sum(discount)
-            if vals:
+                lvals[i] = np.sum(sub_goal_inference * discount)
+                lvals[i] /= np.sum(discount)
+            if lvals:
                 legibility.weights[id] = helper.sub_lengths(t)
-                legibility.scores.append(np.average(vals, weights=legibility.weights[id]))
+                legibility.scores.append(np.average(lvals, weights=legibility.weights[id]))
                 legibility.tot_weights.append(np.sum(legibility.weights[id]))
-            predictability.vals[id] = helper.split_interactions(predictability.vals[id])
-            if predictability.vals[id]:
-                predictability.weights[id] = helper.sub_lengths(predictability.vals[id])
-                predictability.vals[id] = np.array(
-                    [stride[-1] for stride in predictability.vals[id]]
-                )
-                assert np.all(
-                    np.around(predictability.vals[id], 8) <= 1
-                ), "Error in trajectory inference computation"
-                predictability.scores.append(
-                    np.average(predictability.vals[id], weights=predictability.weights[id])
-                )
+            pvals = helper.split_interactions(predictability.vals[id])
+            if pvals:
+                predictability.weights[id] = helper.sub_lengths(pvals)
+                pvals = np.array([stride[-1] for stride in pvals])
+                predictability.scores.append(np.average(pvals, weights=predictability.weights[id]))
                 predictability.tot_weights.append(np.sum(predictability.weights[id]))
-        legibility.tot_score = np.average(legibility.scores, weights=legibility.tot_weights)
-        predictability.tot_score = np.average(
-            predictability.scores, weights=predictability.tot_weights
-        )
+        if legibility.scores:
+            legibility.tot_score = np.average(legibility.scores, weights=legibility.tot_weights)
+        if predictability.scores:
+            predictability.tot_score = np.average(
+                predictability.scores, weights=predictability.tot_weights
+            )
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
     def get_summary(self):
