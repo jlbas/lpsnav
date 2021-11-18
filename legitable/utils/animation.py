@@ -289,15 +289,99 @@ class Animate:
         if self.config.show_plot:
             plt.show()
 
+    def plot_inferences(self, iter, agents, goal_inference, traj_inference, filename=None):
+        for (goal_scores, traj_scores) in zip(goal_inference.values(), traj_inference.values()):
+            if self.config.dark_bkg:
+                plt.style.use("dark_background")
+            fig1, ax1 = plt.subplots()
+            fig2, ax2 = plt.subplots()
+            fig3, ax3 = plt.subplots()
+            # fig.set_size_inches(3.4, 3.4)
+            for fig in [fig1, fig2, fig3]:
+                fig.set_dpi(300)
+            # plt.tight_layout()
+            ax1.set_xlabel(r"$x$ (m)")
+            ax1.set_ylabel(r"$y$ (m)")
+            ax2.set_title("Interaction Goal Inference")
+            ax2.set_xlabel("Time (s)")
+            ax2.set_ylabel(r"$P(\mathcal{I}_i\mid\xi_{s\rightarrow{t}})$")
+            ax3.set_title("Trajectory Inference")
+            ax3.set_xlabel("Time (s)")
+            ax3.set_ylabel(r"$P(\xi_{s\rightarrow{t}}\mid\mathcal{I}_i)$")
+            pos_logs = np.concatenate([a.pos_log for a in agents])
+            x_min = np.min(pos_logs[:, 0])
+            x_max = np.max(pos_logs[:, 0])
+            y_min = np.min(pos_logs[:, 1])
+            y_max = np.max(pos_logs[:, 1])
+            padding = 0.5
+            ax1.axis("square")
+            ax1.set_xlim(x_min - padding, x_max + padding)
+            ax1.set_ylim(y_min - padding, y_max + padding)
+            sampled_len = 0
+            for a in agents:
+                a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
+                sampled_len = max(sampled_len, len(a.sampled_traj))
+            for i, a in enumerate(list(agents)[::-1]):
+                if self.config.plot_traj:
+                    ax1.plot(
+                        np.array(a.pos_log)[:, 0],
+                        np.array(a.pos_log)[:, 1],
+                        c=a.color,
+                        lw=2,
+                        solid_capstyle="round",
+                        zorder=len(agents) + i,
+                    )
+                if self.config.plot_body:
+                    hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
+                    lightness_range = np.linspace(
+                        hls_color[1] + 0.2 * (1 - hls_color[1]),
+                        1 - 0.2 * (1 - hls_color[1]),
+                        sampled_len,
+                    )
+                    for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
+                        c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
+                        ax1.add_patch(Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i))
+            for v in goal_scores[iter].values():
+                t = np.linspace(0, len(v) * self.config.timestep, len(v))
+                ax2.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
+                ax2.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
+                ax2.legend(loc=3)
+                sampled_inf = v[:: int(self.config.body_interval / self.config.timestep)]
+                sampled_t = t[:: int(self.config.body_interval / self.config.timestep)]
+                ax2.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
+                ax2.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
+            for v in traj_scores[iter].values():
+                t = np.linspace(0, len(v) * self.config.timestep, len(v))
+                ax3.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
+                ax3.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
+                ax3.legend(loc=3)
+                sampled_inf = v[:: int(self.config.body_interval / self.config.timestep)]
+                sampled_t = t[:: int(self.config.body_interval / self.config.timestep)]
+                ax3.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
+                ax3.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
+            if self.config.show_inferences:
+                plt.show()
+            if self.config.save_inferences:
+                os.makedirs(self.config.inferences_dir, exist_ok=True)
+                if filename is None:
+                    filename = f"{self.scenario}_goal_inference"
+                plotname = os.path.join(self.config.inferences_dir, filename)
+                # fig1.savefig(plotname + "_traj.pdf", bbox_inches="tight", pad_inches=0)
+                # fig2.savefig(plotname + "_inf.pdf", bbox_inches="tight", pad_inches=0)
+
     def overlay(self):
         if self.config.show_ani or self.config.save_ani:
             self.init_ani(self.agents_log.values())
         if self.config.show_plot or self.config.save_plot:
             self.plot(self.agents_log.values())
 
-    def animate(self, env):
+    def animate(self, iter, env, eval):
         if self.config.show_ani or self.config.save_ani:
             self.init_ani(env.agents.values(), str(env))
         if self.config.show_plot or self.config.save_plot:
             self.plot(env.agents.values(), str(env))
+        if self.config.show_inferences or self.config.save_inferences:
+            self.plot_inferences(
+                iter, env.agents.values(), eval.goal_inference, eval.traj_inference, str(env)
+            )
         self.agents_log.update(env.agents)
