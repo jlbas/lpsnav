@@ -1,11 +1,9 @@
 import colorsys
 import os
 
-import matplotlib
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.patches import Circle, Polygon
 from utils import helper
