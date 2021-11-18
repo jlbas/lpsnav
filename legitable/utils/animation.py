@@ -203,16 +203,31 @@ class Animate:
     def plot(self, agents, filename=None):
         if self.config.dark_bkg:
             plt.style.use("dark_background")
-        fig, ax = plt.subplots()
-        fig.tight_layout()
-        # fig.set_size_inches(16, 9)
-        # fig.subplots_adjust(left=0.05, right=1, bottom=0.075, top=0.95, wspace=0, hspace=0.3)
-        ax.set_xlabel("x (m)")
-        ax.set_ylabel("y (m)")
-        ax.axis("scaled")
-        # ax.axis('off')
+        plt.rcParams.update(
+            {
+                "pgf.texsystem": "pdflatex",
+                "text.usetex": True,
+                "font.family": "serif",
+                "font.serif": ["Times"],
+                "xtick.labelsize": 5,
+                "ytick.labelsize": 5,
+                "axes.labelsize": 5,
+            }
+        )
+        fig, ax = plt.subplots(constrained_layout=True)
+        fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
+        fig.set_size_inches(1.6, 1.6)
+        ax.axis("square")
+        # fig.subplots_adjust(left=0.15, right=0.97, bottom=0.06, top=1)
+        ax.set_xlabel(r"$x$ (m)")
+        ax.set_ylabel(r"$y$ (m)")
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_linewidth(0.5)
+        ax.spines["bottom"].set_linewidth(0.5)
+        ax.tick_params(length=0, pad=2)
+        ax.xaxis.labelpad = 1
+        ax.yaxis.labelpad = 1
         pos_logs = np.concatenate([a.pos_log for a in agents])
         x_min = np.min(pos_logs[:, 0])
         x_max = np.max(pos_logs[:, 0])
@@ -250,9 +265,11 @@ class Animate:
         if self.config.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
             if filename is None:
-                filename = f"{self.config.scenario}_overlay"
-            plotname = os.path.join(self.config.plot_dir, f"{filename}.pdf")
-            fig.savefig(plotname, bbox_inches="tight", pad_inches=0)
+                filename = f"{self.scenario}_overlay"
+            plotname = os.path.join(self.config.plot_dir, filename)
+            plt.savefig(plotname + ".pdf", backend="pgf")
+        if self.config.show_plot:
+            plt.show()
 
     def overlay(self):
         if self.config.show_ani or self.config.save_ani:
