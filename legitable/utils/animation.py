@@ -21,6 +21,7 @@ def snapshot(ego_agent, id):
     ax.axis("equal")
     plt.ion()
     ax.scatter(ego_agent.int_lines[id][:, 0], ego_agent.int_lines[id][:, 1], color="gray")
+    ax.scatter(ego_agent.pred_int_lines[id][:, 0], ego_agent.pred_int_lines[id][:, 1], color="red")
     plt.pause(0.1)
     ax.scatter(
         ego_agent.pred_int_lines[id][:, 0],
@@ -45,8 +46,9 @@ def snapshot(ego_agent, id):
 
 
 class Animate:
-    def __init__(self, config):
+    def __init__(self, config, scenario):
         self.config = config
+        self.scenario = scenario
         self.agents_log = dict()
 
     def ani(self, i, agents, last_frame, plt, fig):
@@ -179,7 +181,7 @@ class Animate:
         if self.config.save_ani:
             os.makedirs(self.config.ani_dir, exist_ok=True)
             if filename is None:
-                filename = f"{self.config.scenario}_overlay"
+                filename = f"{self.scenario}_overlay"
             vidname = os.path.join(self.config.ani_dir, f"{filename}.mp4")
             ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.timestep)))
 
@@ -203,8 +205,6 @@ class Animate:
         y_max = np.max(pos_logs[:, 1])
         padding = 2 * self.config.radius
         ax.axis([x_min - padding, x_max + padding, y_min - padding, y_max + padding])
-        # colors = sns.color_palette(n_colors=len(agents))
-        # for a, color in zip(agents[::-1], colors):
         sampled_len = 0
         for a in agents:
             a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
@@ -213,30 +213,18 @@ class Animate:
             # ax.add_patch(Circle(a.goal, 0.05, color=color, zorder=100))
             ax.scatter(*a.goal, s=100, color=a.color, marker="*", zorder=2 * len(agents) + i)
             if self.config.plot_traj:
-                # l = 5
-                # offset = 3
-                # space = 3 * offset + 2 * l
-                # if a.policy == 'legitable':
-                #     ls = (0, (l, space))
-                # elif a.policy == 'social_momentum':
-                #     ls = (l + offset, (l, space))
-                # elif a.policy == 'rvo' and a.start[0] < 1:
-                #     ls = (2 * (l + offset), (l, space))
-                # else:
-                #     ls = 'solid'
-                # ax.plot(np.array(a.pos_log)[:,0], np.array(a.pos_log)[:,1], ls=ls, c=a.color, lw=2, solid_capstyle='round', zorder=zorder+2)
                 ax.plot(
                     np.array(a.pos_log)[:, 0],
                     np.array(a.pos_log)[:, 1],
                     c=a.color,
-                    lw=2,
+                    lw=0.5,
                     solid_capstyle="round",
                     zorder=len(agents) + i,
                 )
             if self.config.plot_body:
                 hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
                 lightness_range = np.linspace(
-                    hls_color[1] + 0.2 * (1 - hls_color[1]),
+                    hls_color[1] + 0.1 * (1 - hls_color[1]),
                     1 - 0.2 * (1 - hls_color[1]),
                     sampled_len,
                 )
@@ -244,8 +232,6 @@ class Animate:
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
                     ax.add_patch(Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i))
         # ax.legend()
-        if self.config.show_plot:
-            plt.show()
         if self.config.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
             if filename is None:

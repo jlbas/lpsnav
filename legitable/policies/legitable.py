@@ -32,7 +32,6 @@ class Legitable(Agent):
         self.prim_leg_score = dict()
         self.prim_pred_score = dict()
         self.current_leg_score = dict()
-        self.pareto_front = dict()
         self.is_legible = dict()
         self.abs_prims_log = np.full(
             (
@@ -69,7 +68,7 @@ class Legitable(Agent):
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
 
     def update_int_line(self):
-        self.int_line_heading = helper.wrap_to_pi(np.pi + helper.angle(self.goal - self.pos))
+        self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
         self.int_pts = helper.rotate(self.int_baseline, self.int_line_heading)
 
     def get_interacting_agents(self):
@@ -92,7 +91,7 @@ class Legitable(Agent):
             ego_pred = self.pos + t * (self.abs_prims - self.pos)
             for a in self.other_agents.values():
                 a_pred = a.pos + t * (a.pos + a.vel * self.prim_horiz - a.pos)
-                self.col_mask |= helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius
+                self.col_mask |= helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius / 2
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
@@ -157,46 +156,41 @@ class Legitable(Agent):
     def compute_prim_leg(self, id):
         # snapshot(self, id)
         arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
-        assert np.all(np.around(arg, 8) <= 0), "Error in legibility computation"
+        assert np.all(np.around(arg, 5) <= 0), "Error in legibility computation"
         bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
-        assert np.all(np.around(self.prim_leg_score[id], 8) <= 1), "Error in legibility computation"
+        assert np.all(np.around(self.prim_leg_score[id], 5) <= 1), "Error in legibility computation"
 
     def compute_leg(self, id):
         arg = self.cost_sg[id] - (self.cost_st + self.cost_tg[id])
-        assert np.all(np.around(arg, 8) <= 0), "Error in current legibility computation"
+        assert np.all(np.around(arg, 5) <= 0), "Error in current legibility computation"
         bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
         self.current_leg_score[id] /= np.sum(self.current_leg_score[id])
         self.current_leg_score[id] = np.delete(self.current_leg_score[id], 1)
         assert np.all(
-            np.around(self.current_leg_score[id], 8) <= 1
+            np.around(self.current_leg_score[id], 5) <= 1
         ), "Error in current legibility computation"
 
     def compute_prim_pred(self, id):
         arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
-        assert np.all(np.around(arg, 8) <= 0), "Error in predictability computation"
+        assert np.all(np.around(arg, 5) <= 0), "Error in predictability computation"
         bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
         arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         # arg = np.where(self.prim_leg_score[id][0] > self.prim_leg_score[id][1], arg[0], arg[2])
         arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
         self.prim_pred_score[id] = np.exp(arg)
         assert np.all(
-            np.around(self.prim_pred_score[id], 8) <= 1
+            np.around(self.prim_pred_score[id], 5) <= 1
         ), "Error in predictability computation"
         # print("Predictability Score:")
         # print(self.prim_pred_score[id])
         # print(20 * '-')
         # print('')
-
-    def compute_pareto_front(self, id):
-        leg_gr = np.less.outer(self.prim_leg_score[id], self.prim_leg_score[id])
-        pred_gr = np.less.outer(self.prim_pred_score[id], self.prim_pred_score[id])
-        self.pareto_front[id] = np.invert(np.any(leg_gr & pred_gr, axis=(3, 4, 5)))
 
     def check_if_legible(self, id):
         passing_ratio = np.max(self.current_leg_score[id]) / np.min(
@@ -214,7 +208,7 @@ class Legitable(Agent):
             tau = tau * (ub - lb) + lb
             self.taus[id] = min(ub, tau)
 
-    def get_opt_prims(self):
+    def get_leg_pred_prims(self):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
         for id, agent in self.interacting_agents.items():
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + self.taus[
@@ -243,7 +237,6 @@ class Legitable(Agent):
             self.compute_prim_leg(id)
             self.compute_leg(id)
             self.compute_prim_pred(id)
-            # self.compute_pareto_front(id)
             self.check_if_legible(id)
             self.update_tau(id, agent)
         if self.interacting_agents:

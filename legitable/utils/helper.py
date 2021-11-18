@@ -98,8 +98,11 @@ def cost_to_pt(pos_0, speed_0, pos_1, vel_1):
     d_vec_hat = d_vec / d[..., None]
     speed_1_t = np.abs(np.dot(rotate(d_vec_hat, np.pi / 2), vel_1))
     speed_1_r = np.dot(d_vec_hat, vel_1)  # sign is important
-    arg = 1 - (speed_1_t / speed_0) ** 2
-    speed_0_r = 0 if not speed_0 else speed_0 * np.sqrt(np.where(arg < 0, 0, arg))
+    if not speed_0:
+        speed_0_r = 0
+    else:
+        arg = 1 - (speed_1_t / speed_0) ** 2
+        speed_0_r = speed_0 * np.sqrt(np.where(arg < 0, 0, arg))
     den = speed_0_r + speed_1_r
     t = d / np.where(den == 0, 1e-5, den)
     return np.where((t <= 0) | (speed_0 <= speed_1_t), np.inf, t)

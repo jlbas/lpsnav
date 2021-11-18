@@ -42,8 +42,7 @@ class Env:
         self.step += 1
         for a in self.agents.values():
             a.collision_check()
-            if not a.collided:
-                a.log_data(self.step)
+            a.log_data(self.step)
         self.check_if_done()
 
     def check_if_done(self):
@@ -63,8 +62,12 @@ class Env:
             print(60 * "=")
 
     def trim_logs(self):
-        for a in self.agents.values():
-            max_idx = np.argmax(np.all(a.pos_log == [np.inf, np.inf], axis=-1))
-            if max_idx:
+        max_idx = np.argmax(np.any(~np.isfinite(self.ego_agent.pos_log), axis=-1))
+        if max_idx:
+            for a in self.agents.values():
                 a.pos_log = a.pos_log[:max_idx]
                 a.heading_log = a.heading_log[:max_idx]
+                a.vel_log = a.vel_log[:max_idx]
+                a.speed_log = a.speed_log[:max_idx]
+                a.col_log = a.col_log[:max_idx]
+                a.goal_log = a.goal_log[:max_idx]

@@ -19,7 +19,6 @@ class Eval:
     def __init__(self, trial_cnt, config, scenario):
         self.config = config
         self.trial_cnt = trial_cnt
-        self.ttg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
         self.scenario = scenario
         self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
         self.failure_log = {policy: 0 for policy in config.policies}
@@ -48,13 +47,11 @@ class Eval:
 
     def evaluate(self, iter, env):
         if hasattr(env.ego_agent, "time_to_goal"):
-            self.ttg_log[env.ego_policy][iter] = env.ego_agent.time_to_goal
             self.extra_ttg_log[env.ego_policy][iter] = self.compute_extra_ttg(env.ego_agent)
             self.path_efficiency_log[env.ego_policy][iter] = self.compute_path_efficiency(
                 env.ego_agent
             )
         else:
-            self.ttg_log[env.ego_policy][iter] = np.inf
             self.extra_ttg_log[env.ego_policy][iter] = np.inf
             self.failure_log[env.ego_policy] += 1
             self.path_efficiency_log[env.ego_policy][iter] = 0
@@ -70,7 +67,7 @@ class Eval:
 
     def compute_extra_ttg(self, agent):
         opt_ttg = (helper.dist(agent.start, agent.goal) - self.config.goal_tol) / agent.max_speed
-        return agent.time_to_goal / opt_ttg
+        return (agent.time_to_goal - opt_ttg) / opt_ttg
 
     def compute_path_efficiency(self, agent):
         path_len = np.sum(np.linalg.norm(np.diff(agent.pos_log, axis=0), axis=-1))
@@ -190,7 +187,6 @@ class Eval:
         tbl = PrettyTable()
         tbl.field_names = [
             "Policy",
-            "TTG (s)",
             "Extra TTG (%)",
             "Failure Rate (%)",
             "Path Efficiency (%)",
@@ -200,17 +196,13 @@ class Eval:
         ]
         tbl.align["Policy"] = "l"
         for policy in self.config.policies:
-            if np.all(self.ttg_log[policy] == np.inf):
-                ttg = np.nan
                 extra_ttg = np.nan
                 path_efficiency = np.nan
             else:
-                ttg = np.mean(self.ttg_log[policy], where=self.ttg_log[policy] != np.inf)
                 extra_ttg = np.mean(
                     self.extra_ttg_log[policy], where=self.ttg_log[policy] != np.inf
                 )
                 path_efficiency = 100 * np.mean(
-                    self.path_efficiency_log[policy], where=self.ttg_log[policy] != np.inf
                 )
             failure_rate = 100 * self.failure_log[policy] / self.trial_cnt
             path_irregularity = np.mean(self.path_irregularity_log[policy])
