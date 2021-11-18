@@ -45,6 +45,21 @@ def snapshot(ego_agent, id):
     plt.close("all")
 
 
+def snap(*agents, istep=0, fstep=-1):
+    if agents[0].config.dark_bkg:
+        plt.style.use("dark_background")
+    _, ax = plt.subplots()
+    ax.axis("equal")
+    if fstep == -1:
+        fstep = agents[0].env.step + 1
+    else:
+        fstep += 1
+    for a in agents:
+        ax.scatter(*a.goal, c=a.color)
+        ax.plot(a.pos_log[istep:fstep, 0], a.pos_log[istep:fstep, 1], c=a.color, lw=3)
+    plt.show()
+
+
 class Animate:
     def __init__(self, config, scenario):
         self.config = config
