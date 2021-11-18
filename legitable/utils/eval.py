@@ -177,42 +177,52 @@ class Eval:
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
     def get_summary(self):
-        tbl = PrettyTable()
-        tbl.field_names = [
+        headers = [
             "Policy",
-            "Extra TTG (%)",
-            "Failure Rate (%)",
-            "Path Efficiency (%)",
+            "Extra TTG ($\\%$)",
+            "Failure Rate ($\\%$)",
+            "Path Efficiency ($\\%$)",
             "Path Irregularity (rad/m)",
-            "Legibility",
-            "Predictability",
+            "Legibility ($\\%$)",
+            "Predictability ($\\%$)",
         ]
+        clean_policy = {
+            "legitable": "LPNav",
+            "social_momentum": "SM",
+            "sa_cadrl": "SA-CADRL",
+            "ga3c_cadrl": "GA3C-CADRL",
+            "rvo": "ORCA",
+        }
+        rows = []
+        tbl = PrettyTable()
+        tbl.field_names = headers
         tbl.align["Policy"] = "l"
         for policy in self.config.policies:
+            if np.all(self.extra_ttg_log[policy] == np.inf):
                 extra_ttg = np.nan
                 path_efficiency = np.nan
             else:
-                extra_ttg = np.mean(
-                    self.extra_ttg_log[policy], where=self.ttg_log[policy] != np.inf
+                extra_ttg = 100 * np.mean(
+                    self.extra_ttg_log[policy], where=self.extra_ttg_log[policy] != np.inf
                 )
                 path_efficiency = 100 * np.mean(
+                    self.path_efficiency_log[policy], where=self.path_efficiency_log[policy] != 0
                 )
             failure_rate = 100 * self.failure_log[policy] / self.trial_cnt
             path_irregularity = np.mean(self.path_irregularity_log[policy])
-            legibility = np.mean(self.leg_log[policy])
-            predictability = np.mean(self.pred_log[policy])
-            tbl.add_row(
-                [
-                    policy,
-                    f"{ttg:.3f}",
-                    f"{extra_ttg:.3f}",
-                    f"{failure_rate:.0f} ({self.failure_log[policy]}/{self.trial_cnt})",
-                    f"{path_efficiency:.0f}",
-                    f"{path_irregularity:.3f}",
-                    f"{legibility:.3f}",
-                    f"{predictability:.3f}",
-                ]
-            )
+            legibility = 100 * np.mean(self.leg_log[policy])
+            predictability = 100 * np.mean(self.pred_log[policy])
+            row = [
+                clean_policy[policy],
+                f"{extra_ttg:.2f}",
+                f"{failure_rate:.0f}",
+                f"{path_efficiency:.2f}",
+                f"{path_irregularity:.4f}",
+                f"{legibility:.2f}",
+                f"{predictability:.2f}",
+            ]
+            rows.append(row)
+            tbl.add_row(row)
         if self.trial_cnt > 1:
             print(f"Average over {self.trial_cnt} trials")
         print(tbl)
