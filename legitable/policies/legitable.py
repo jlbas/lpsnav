@@ -210,18 +210,23 @@ class Legitable(Agent):
 
     def get_leg_pred_prims(self):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
-        for id, agent in self.interacting_agents.items():
+        for id in self.interacting_agents:
             new_score = (1 - self.taus[id]) * self.prim_leg_score[id] + self.taus[
                 id
             ] * self.prim_pred_score[id]
-            new_score = np.where(new_score[0] > new_score[1], new_score[0], new_score[1])
-            # self.pareto_front[id] = self.pareto_front[id][indices, y, x]
-            score = np.minimum(score, new_score)
-        # self.tot_pareto_front = np.any([self.pareto_front[id] for id in self.interacting_agents], axis=0)
+            score = np.minimum(score, np.max(new_score, axis=0))
         score = np.where(self.col_mask, -np.inf, score)
-        # score *= self.tot_pareto_front
-        # opt_prims = np.unravel_index(np.argmax(score), score.shape)
-        self.opt_prims = np.argwhere(score == np.max(score))
+        is_max = score == np.max(score)
+        if np.sum(is_max) > 1:
+            goal_score = 1 / helper.dist(self.abs_prims, self.goal)
+            score = np.where(is_max, goal_score, -np.inf)
+        self.speed_idx, self.heading_idx = np.unravel_index(np.argmax(score), score.shape)
+
+    def get_goal_prims(self):
+        delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
+        goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
+        goal_cost = np.where(self.col_mask, np.inf, goal_cost)
+        self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
 
     def get_action(self):
         self.update_abs_prims()
@@ -239,18 +244,14 @@ class Legitable(Agent):
             self.compute_prim_pred(id)
             self.check_if_legible(id)
             self.update_tau(id, agent)
-        if self.interacting_agents:
-            self.get_opt_prims()
-            self.speed_idx, self.heading_idx = self.opt_prims[len(self.opt_prims) // 2]
-            self.des_speed = self.speeds[self.speed_idx]
-            self.des_heading = self.abs_headings[self.heading_idx]
+        if np.all(self.col_mask):
+            self.des_speed = 0
+            self.des_heading = self.heading
         else:
-            delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
-            goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
-            goal_cost = np.where(self.col_mask, np.inf, goal_cost)
-            self.speed_idx, self.heading_idx = np.unravel_index(
-                np.argmin(goal_cost), goal_cost.shape
-            )
+            if self.interacting_agents:
+                self.get_leg_pred_prims()
+            else:
+                self.get_goal_prims()
             self.des_speed = self.speeds[self.speed_idx]
             self.des_heading = self.abs_headings[self.heading_idx]
 
