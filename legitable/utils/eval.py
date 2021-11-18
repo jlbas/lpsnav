@@ -229,5 +229,20 @@ class Eval:
 
         if self.config.save_tbl:
             os.makedirs(self.config.tbl_dir, exist_ok=True)
-            with open(os.path.join(self.config.tbl_dir, f"{str(self)}.latex"), "w") as f:
-                f.write(tbl.get_latex_string())
+            with open(os.path.join(self.config.tbl_dir, f"{str(self)}.tex"), "w") as f:
+                newline_char = " \\\\\n\t\t\t\t"
+                f.write(
+                    f"""
+\\begin{{table*}}
+    \\caption{{Performance metrics averaged over {self.config.random_scenarios} random scenarios with {self.config.num_of_agents} {"homogeneous " if self.config.homogeneous else ""}agents}}
+    \\label{{tbl:results}}
+    \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(headers) - 1)}}}{{Y}}@{{}}}}
+        \\toprule
+        {" & ".join(headers)} \\\\
+        \\midrule
+        {newline_char.join([" & ".join(row) for row in rows])} \\\\
+        \\bottomrule
+    \\end{{tabularx}}
+\\end{{table*}}
+                """.strip()
+                )
