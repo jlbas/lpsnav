@@ -4,20 +4,20 @@ from utils import helper
 from utils.animation import snapshot
 
 
-class Legitable(Agent):
+class Lpnav(Agent):
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
-        self.sensing_dist = self.config.sensing_dist
-        self.receding_horiz = self.config.receding_horiz
+        self.sensing_dist = self.conf.sensing_dist
+        self.receding_horiz = self.conf.receding_horiz
         self.receding_steps = int(self.receding_horiz / self.env.timestep)
-        self.speed_samples = self.config.speed_samples
-        self.heading_samples = self.config.heading_samples
-        col_width = 2 * self.radius + self.config.col_buffer
+        self.speed_samples = self.conf.speed_samples
+        self.heading_samples = self.conf.heading_samples
+        col_width = 2 * self.radius + self.conf.col_buffer
         self.int_baseline = np.array([[0, -col_width], [0, col_width]])
-        self.subgoal_priors = np.array(config.subgoal_priors)
-        self.leg_tol = self.config.legibility_tol
+        self.subgoal_priors = np.array(self.conf.subgoal_priors)
+        self.leg_tol = self.conf.legibility_tol
         self.color = "#785EF0"
-        # self.color = "#C594c5"
+        self.color = "#774db9"
         self.pred_pos = dict()
         self.int_lines = dict()
         self.pred_int_lines = dict()
@@ -78,7 +78,7 @@ class Legitable(Agent):
             in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
             in_horizon = (
                 helper.cost_to_line(self.pos, self.speed, self.int_lines[id], agent.vel)
-                < self.config.sensing_horizon
+                < self.conf.sensing_horizon
             )
             outside_goal = helper.dist(self.pos, agent.pos) > helper.dist(self.pos, self.goal)
             stopped = agent.speed == 0

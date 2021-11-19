@@ -1,17 +1,17 @@
-from policies.agent import Agent
-from utils import helper
 import numpy as np
 import rvo2
+from policies.agent import Agent
+from utils import helper
 
 
 class Rvo(Agent):
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
         self.color = "#DC267F"
-        # self.color = "#EC5F67"
-        self.neighbor_dist = self.config.rvo_neighbor_dist
-        self.max_neighbors = self.config.rvo_max_neighbors
-        self.time_horiz = self.config.rvo_time_horiz
+        self.color = "#bf346a"
+        self.neighbor_dist = self.conf.neighbor_dist
+        self.max_neighbors = self.conf.max_neighbors
+        self.time_horiz = self.conf.time_horiz
         self.rvo_sim = rvo2.PyRVOSimulator(
             self.env.timestep,
             self.neighbor_dist,

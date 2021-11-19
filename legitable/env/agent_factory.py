@@ -30,8 +30,8 @@ def far_enough(starts, goals):
 def init_agents(config, env, ego_policy, scenario, iter):
     starts, goals = get_starts_goals(config, scenario)
     agents = dict()
-    other_policy = ego_policy if config.homogeneous else config.human_policy
-    policies = [ego_policy] + (config.num_of_agents - 1) * [other_policy]
+    other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
+    policies = [ego_policy] + (config.env.num_of_agents - 1) * [other_policy]
     ids = range(iter * len(policies), iter * len(policies) + len(policies))
     for id, start, goal, policy in zip(ids, starts, goals, policies):
         module = importlib.import_module(f"policies.{policy}")
@@ -42,75 +42,77 @@ def init_agents(config, env, ego_policy, scenario, iter):
 
 def get_starts_goals(config, scenario):
     if scenario == "swap":
-        starts = [[-config.interaction_dist / 2, 0], [config.interaction_dist / 2, 0]]
+        starts = [[-config.env.interaction_dist / 2, 0], [config.env.interaction_dist / 2, 0]]
         goals = starts[::-1]
     elif scenario == "passing":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [config.interaction_dist / 2, 2 * config.radius + config.lat_dist],
+            [-config.env.interaction_dist / 2, 0],
+            [config.env.interaction_dist / 2, 2 * config.agent.radius + config.agent.lat_dist],
         ]
         goals = [
-            [config.interaction_dist / 2, 0],
-            [-config.interaction_dist / 2, 2 * config.radius + config.lat_dist],
+            [config.env.interaction_dist / 2, 0],
+            [-config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
         ]
     elif scenario == "acute":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [-config.interaction_dist / 2, 2],
+            [-config.env.interaction_dist / 2, 0],
+            [-config.env.interaction_dist / 2, -1.5],
         ]
         goals = [
-            [config.interaction_dist / 2, 0],
-            [config.interaction_dist / 2, -2],
+            [config.env.interaction_dist / 2, 0],
+            [config.env.interaction_dist / 2 - 2, 1.5],
         ]
     elif scenario == "obtuse":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [config.interaction_dist / 2 + 1, 2],
+            [-config.env.interaction_dist / 2, 0],
+            [config.env.interaction_dist / 2 + 1, 2],
         ]
         goals = [
-            [config.interaction_dist / 2, 0],
-            [-config.interaction_dist / 2 + 1, -2],
+            [config.env.interaction_dist / 2, 0],
+            [-config.env.interaction_dist / 2 + 1, -2],
         ]
     elif scenario == "2_agent_split":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [config.interaction_dist / 2, 2 * config.radius + config.lat_dist],
-            [config.interaction_dist / 2, -(2 * config.radius + config.lat_dist)],
+            [-config.env.interaction_dist / 2, 0],
+            [config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
+            [config.env.interaction_dist / 2, -(2 * config.agent.radius + config.env.lat_dist)],
         ]
         goals = [
-            [config.interaction_dist / 2, 0],
-            [-config.interaction_dist / 2, 2 * config.radius + config.lat_dist],
-            [-config.interaction_dist / 2, -(2 * config.radius + config.lat_dist)],
+            [config.env.interaction_dist / 2, 0],
+            [-config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
+            [-config.env.interaction_dist / 2, -(2 * config.agent.radius + config.env.lat_dist)],
         ]
     elif scenario == "t_junction":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [0, -config.interaction_dist / 2],
+            [-config.env.interaction_dist / 2, 0],
+            [0, -config.env.interaction_dist / 2],
         ]
-        goals = [[config.interaction_dist / 2, 0], [0, config.interaction_dist / 2]]
+        goals = [[config.env.interaction_dist / 2, 0], [0, config.env.interaction_dist / 2]]
     elif scenario == "2_agent_t_junction":
         starts = [
-            [-config.interaction_dist / 2, 0],
-            [-0.5, config.interaction_dist / 2 - 1],
-            [0.5 * config.radius + config.lat_dist, -config.interaction_dist / 2],
+            [-config.env.interaction_dist / 2, 0],
+            [-0.5, config.env.interaction_dist / 2 - 1],
+            [0.5 * config.agent.radius + config.env.lat_dist, -config.env.interaction_dist / 2],
         ]
         goals = [
-            [config.interaction_dist / 2, 0],
-            [-0.5, -config.interaction_dist / 2],
-            [0.5 * config.radius + config.lat_dist, config.interaction_dist / 2],
+            [config.env.interaction_dist / 2, 0],
+            [-0.5, -config.env.interaction_dist / 2],
+            [0.5 * config.agent.radius + config.env.lat_dist, config.env.interaction_dist / 2],
         ]
     elif scenario == "custom":
-        starts = [start_goal[0] for start_goal in config.custom_pos]
-        goals = [start_goal[1] for start_goal in config.custom_pos]
+        starts = [start_goal[0] for start_goal in config.env.custom_pos]
+        goals = [start_goal[1] for start_goal in config.env.custom_pos]
     elif scenario == "circle":
-        thetas = np.linspace(0, 2 * np.pi - 2 * np.pi / config.num_of_agents, config.num_of_agents)
-        starts = config.circle_radius * helper.unit_vec(thetas)
-        goals = config.circle_radius * helper.unit_vec(thetas + np.pi)
+        thetas = np.linspace(
+            0, 2 * np.pi - 2 * np.pi / config.env.num_of_agents, config.env.num_of_agents
+        )
+        starts = config.env.circle_radius * helper.unit_vec(thetas)
+        goals = config.env.circle_radius * helper.unit_vec(thetas + np.pi)
     elif scenario == "random":
-        min_dist = 2 * config.radius + config.min_start_buffer
+        min_dist = 2 * config.agent.radius + config.env.min_start_buffer
         for _ in range(100):
-            starts = config.workspace_length * np.random.rand(config.num_of_agents, 2)
-            goals = config.workspace_length * np.random.rand(config.num_of_agents, 2)
+            starts = config.env.workspace_length * np.random.rand(config.env.num_of_agents, 2)
+            goals = config.env.workspace_length * np.random.rand(config.env.num_of_agents, 2)
             if (
                 is_feasible(starts, min_dist)
                 and is_feasible(goals, min_dist)

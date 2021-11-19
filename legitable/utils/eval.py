@@ -17,32 +17,34 @@ class Score:
 
 class Eval:
     def __init__(self, trial_cnt, config, scenario):
-        self.config = config
+        self.conf = config
         self.trial_cnt = trial_cnt
         self.scenario = scenario
-        self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
-        self.failure_log = {policy: 0 for policy in config.policies}
-        self.path_efficiency_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
-        self.path_irregularity_log = {
-            policy: np.zeros(self.trial_cnt) for policy in config.policies
+        self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+        self.failure_log = {policy: 0 for policy in self.conf.env.policies}
+        self.path_efficiency_log = {
+            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
         }
-        self.leg_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
-        self.pred_log = {policy: np.zeros(self.trial_cnt) for policy in config.policies}
+        self.path_irregularity_log = {
+            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
+        }
+        self.leg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+        self.pred_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
         self.goal_inference = {
-            policy: [Score() for _ in range(self.trial_cnt)] for policy in config.policies
+            policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
         }
         self.traj_inference = {
-            policy: [Score() for _ in range(self.trial_cnt)] for policy in config.policies
+            policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
         }
 
     def __repr__(self):
         ret = f"{self.scenario}"
         if self.scenario == "random" or self.scenario == "circle":
-            ret += f"_{self.config.num_of_agents}"
-        if self.config.homogeneous:
+            ret += f"_{self.conf.env.num_of_agents}"
+        if self.conf.env.homogeneous:
             ret += "_homogeneous"
         if self.scenario == "random":
-            ret += f"_iter_{self.config.random_scenarios}"
+            ret += f"_iter_{self.conf.env.random_scenarios}"
         return ret
 
     def evaluate(self, iter, env):
@@ -66,7 +68,9 @@ class Eval:
         ) = self.compute_leg_pred(env)
 
     def compute_extra_ttg(self, agent):
-        opt_ttg = (helper.dist(agent.start, agent.goal) - self.config.goal_tol) / agent.max_speed
+        opt_ttg = (
+            helper.dist(agent.start, agent.goal) - self.conf.agent.goal_tol
+        ) / agent.max_speed
         return (agent.time_to_goal - opt_ttg) / opt_ttg
 
     def compute_path_efficiency(self, agent):
@@ -80,10 +84,10 @@ class Eval:
     def compute_leg_pred(self, env):
         legibility = Score()
         predictability = Score()
-        receding_steps = int(self.config.receding_horiz / env.timestep)
-        col_width = 2 * env.ego_agent.radius + self.config.col_buffer
+        receding_steps = int(self.conf.lpnav.receding_horiz / env.timestep)
+        col_width = 2 * env.ego_agent.radius + self.conf.lpnav.col_buffer
         int_baseline = np.array([[0, -col_width], [0, col_width]])
-        cost_st = self.config.receding_horiz
+        cost_st = self.conf.lpnav.receding_horiz
         for id, agent in {id: a for id, a in env.agents.items() if a is not env.ego_agent}.items():
             legibility.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
             predictability.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
@@ -101,19 +105,19 @@ class Eval:
                     )
                     in_radius = (
                         helper.dist(env.ego_agent.pos_log[i], agent.pos_log[i])
-                        <= self.config.sensing_dist
+                        <= self.conf.agent.sensing_dist
                     )
                     if ego_in_front and a_in_front and in_radius:
                         if i < receding_steps:
                             receded_pos = env.ego_agent.pos_log[0] - env.ego_agent.vel_log[0] * (
-                                self.config.receding_horiz - i * self.config.timestep
+                                self.conf.lpnav.receding_horiz - i * self.conf.env.timestep
                             )
                         else:
                             receded_pos = env.ego_agent.pos_log[i - receding_steps]
                         scaled_speed = max(env.ego_agent.max_speed, agent.speed_log[i] + 0.1)
                         int_pts = helper.rotate(int_baseline, int_line_heading)
                         int_line = agent.pos_log[i] + int_pts
-                        receded_line = int_line - agent.vel_log[i] * self.config.receding_horiz
+                        receded_line = int_line - agent.vel_log[i] * self.conf.lpnav.receding_horiz
                         cost_rg = helper.dynamic_pt_cost(
                             receded_pos,
                             scaled_speed,
@@ -130,7 +134,7 @@ class Eval:
                         )
                         arg = cost_rg - (cost_st + cost_tg)
                         assert np.all(np.around(arg, 1) <= 0), "Error in legibility eval"
-                        goal_inference = np.exp(arg) * self.config.subgoal_priors
+                        goal_inference = np.exp(arg) * self.conf.lpnav.subgoal_priors
                         goal_inference /= np.sum(goal_inference)
                         legibility.vals[id][i] = np.delete(goal_inference, 1)
                         if start_idx is None:
@@ -187,7 +191,7 @@ class Eval:
             "Predictability ($\\%$)",
         ]
         clean_policy = {
-            "legitable": "LPNav",
+            "lpnav": "LPNav",
             "social_momentum": "SM",
             "sa_cadrl": "SA-CADRL",
             "ga3c_cadrl": "GA3C-CADRL",
@@ -197,7 +201,7 @@ class Eval:
         tbl = PrettyTable()
         tbl.field_names = headers
         tbl.align["Policy"] = "l"
-        for policy in self.config.policies:
+        for policy in self.conf.env.policies:
             if np.all(self.extra_ttg_log[policy] == np.inf):
                 extra_ttg = np.nan
                 path_efficiency = np.nan
@@ -227,14 +231,14 @@ class Eval:
             print(f"Average over {self.trial_cnt} trials")
         print(tbl)
 
-        if self.config.save_tbl:
-            os.makedirs(self.config.tbl_dir, exist_ok=True)
-            with open(os.path.join(self.config.tbl_dir, f"{str(self)}.tex"), "w") as f:
+        if self.conf.eval.save_tbl:
+            os.makedirs(self.conf.eval.tbl_dir, exist_ok=True)
+            with open(os.path.join(self.conf.eval.tbl_dir, f"{str(self)}.tex"), "w") as f:
                 newline_char = " \\\\\n\t\t\t\t"
                 f.write(
                     f"""
 \\begin{{table*}}
-    \\caption{{Performance metrics averaged over {self.config.random_scenarios} random scenarios with {self.config.num_of_agents} {"homogeneous " if self.config.homogeneous else ""}agents}}
+    \\caption{{Performance metrics averaged over {self.conf.env.random_scenarios} random scenarios with {self.conf.env.num_of_agents} {"homogeneous " if self.conf.env.homogeneous else ""}agents}}
     \\label{{tbl:results}}
     \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(headers) - 1)}}}{{Y}}@{{}}}}
         \\toprule

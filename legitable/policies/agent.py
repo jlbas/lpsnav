@@ -12,26 +12,27 @@ class Patches:
 
 
 class Agent:
-    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
-        self.config = config
+    def __init__(self, config, env, id, policy, start, goal=None):
+        self.env_conf = config.env
         self.env = env
         self.id = id
         self.policy = policy
+        self.conf = getattr(config, self.policy)
         self.start = np.array(start, dtype=float)
         self.goal = self.start if goal is None else np.array(goal, dtype=float)
         self.heading = helper.angle(self.goal - self.start)
-        self.heading_samples = self.config.heading_samples
-        self.heading_span = self.config.heading_span
-        self.min_speed = self.config.min_speed
-        self.max_speed = max_speed if max_speed is not None else self.config.max_speed
+        self.heading_samples = self.conf.heading_samples
+        self.heading_span = self.conf.heading_span
+        self.min_speed = self.conf.min_speed
+        self.max_speed = self.conf.max_speed
         self.speed = self.max_speed
         # self.speed = 0
         self.vel = self.speed * helper.unit_vec(self.heading)
-        self.speed_samples = self.config.speed_samples
-        self.prim_horiz = self.config.prim_horiz
-        self.kinematics = self.config.kinematics
-        self.max_accel = self.config.max_accel
-        self.max_ang_accel = self.config.max_ang_accel
+        self.speed_samples = self.conf.speed_samples
+        self.prim_horiz = self.conf.prim_horiz
+        self.kinematics = self.conf.kinematics
+        self.max_accel = self.conf.max_accel
+        self.max_ang_accel = self.conf.max_ang_accel
         self.speeds = np.linspace(self.max_speed, self.min_speed, self.speed_samples)
         self.rel_headings = np.linspace(
             -self.heading_span / 2, self.heading_span / 2, self.heading_samples
@@ -40,18 +41,24 @@ class Agent:
             self.speeds, helper.unit_vec(self.rel_headings)
         )
         self.pos = self.start.copy()
-        self.dt = self.config.timestep
-        self.goal_tol = self.config.goal_tol
-        self.radius = self.config.radius
+        self.dt = self.env_conf.timestep
+        self.goal_tol = self.conf.goal_tol
+        self.radius = self.conf.radius
         self.patches = Patches()
         self.pos_log = np.full(
-            (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
+            (int(self.env_conf.max_duration / self.env_conf.timestep) + 1, 2), np.inf
         )
-        self.heading_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
-        self.speed_log = np.full(int(self.config.max_duration / self.config.timestep) + 1, np.inf)
+        self.heading_log = np.full(
+            int(self.env_conf.max_duration / self.env_conf.timestep) + 1, np.inf
+        )
+        self.speed_log = np.full(
+            int(self.env_conf.max_duration / self.env_conf.timestep) + 1, np.inf
+        )
         self.vel_log = np.full(
-            (int(self.config.max_duration / self.config.timestep) + 1, 2), np.inf
+            (int(self.env_conf.max_duration / self.env_conf.timestep) + 1, 2), np.inf
         )
+        self.col_log = np.full(int(self.env_conf.max_duration / self.env_conf.timestep) + 1, False)
+        self.goal_log = np.full(int(self.env_conf.max_duration / self.env_conf.timestep) + 1, False)
         self.past_vels = self.vel * np.ones((2, 2))
         self.collided = False
         self.update_abs_prims()
@@ -82,7 +89,7 @@ class Agent:
 
     def collision_check(self):
         for a in self.other_agents.values():
-            self.collided |= helper.dist(self.pos, a.pos) <= 2 * self.config.radius
+            self.collided |= helper.dist(self.pos, a.pos) <= 2 * self.conf.radius
 
     def update_abs_prims(self):
         self.abs_prims = self.pos + helper.rotate(self.rel_prims, self.heading)

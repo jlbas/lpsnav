@@ -10,7 +10,7 @@ from utils import helper
 
 
 def snapshot(ego_agent, id):
-    if ego_agent.config.dark_bkg:
+    if ego_agent.config.animation.dark_bg:
         plt.style.use("dark_background")
     fig, ax = plt.subplots()
     fig.set_size_inches(4, 3)
@@ -44,7 +44,7 @@ def snapshot(ego_agent, id):
 
 
 def snap(*agents, istep=0, fstep=-1):
-    if agents[0].config.dark_bkg:
+    if agents[0].config.animation.dark_bg:
         plt.style.use("dark_background")
     _, ax = plt.subplots()
     ax.axis("equal")
@@ -75,8 +75,8 @@ class Animate:
             except IndexError:
                 pass
 
-            if self.config.debug:
-                if a.policy == "legitable" and i < min(
+            if self.conf.debug:
+                if a.policy == "lpnav" and i < min(
                     [len(log) - 1 for log in a.int_lines_log.values()]
                 ):
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
@@ -95,7 +95,7 @@ class Animate:
                             else:
                                 circle.set_radius(0.05)
                                 circle.center = pos
-                if a.policy == "legitable":
+                if a.policy == "lpnav":
                     for j, (prim, speed, col_row) in enumerate(
                         zip(a.patches.prims, a.abs_prims_log[i], a.col_mask_log[i])
                     ):
@@ -115,7 +115,7 @@ class Animate:
         return helper.flatten([p for a in agents for p in a.patches])
 
     def init_ani(self, agents, filename=None):
-        if self.config.dark_bkg:
+        if self.conf.dark_bkg:
             plt.style.use("dark_background")
         fig, ax = plt.subplots()
         fig.tight_layout()
@@ -154,13 +154,13 @@ class Animate:
             a.patches.body = Circle(
                 (a.pos), a.radius, color=a.color, zorder=i + 2, label=f"{type(a).__name__}"
             )
-            if self.config.debug:
-                if a.policy == "legitable":
+            if self.conf.debug:
+                if a.policy == "lpnav":
                     a.patches.prims = [
                         [Circle((0, 0), 0.04, color="#004D40", lw=0) for _ in a.rel_headings]
                         for _ in a.speeds
                     ]
-                if a.policy == "legitable":
+                if a.policy == "lpnav":
                     a.patches.int_lines = [
                         [
                             Circle((0, 0), 0, color="gray"),
@@ -183,23 +183,23 @@ class Animate:
             fig,
             self.ani,
             frames=max([len(a.pos_log) for a in agents]),
-            interval=int(1000 * self.config.timestep),
+            interval=int(1000 * self.config.env.timestep),
             fargs=(agents, max([len(a.pos_log) for a in agents]), plt, fig),
             blit=True,
             repeat=False,
         )
-        if self.config.show_ani:
+        if self.conf.show_ani:
             plt.show()
 
-        if self.config.save_ani:
-            os.makedirs(self.config.ani_dir, exist_ok=True)
+        if self.conf.save_ani:
+            os.makedirs(self.conf.ani_dir, exist_ok=True)
             if filename is None:
                 filename = f"{self.scenario}_overlay"
-            vidname = os.path.join(self.config.ani_dir, f"{filename}.mp4")
-            ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.timestep)))
+            vidname = os.path.join(self.conf.ani_dir, f"{filename}.mp4")
+            ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.env.timestep)))
 
     def plot(self, agents, filename=None):
-        if self.config.dark_bkg:
+        if self.conf.dark_bkg:
             plt.style.use("dark_background")
         plt.rcParams.update(
             {
@@ -231,25 +231,27 @@ class Animate:
         x_max = np.max(pos_logs[:, 0])
         y_min = np.min(pos_logs[:, 1])
         y_max = np.max(pos_logs[:, 1])
-        padding = 2 * self.config.radius
+        padding = 2 * self.config.agent.radius
         ax.axis([x_min - padding, x_max + padding, y_min - padding, y_max + padding])
         sampled_len = 0
         for a in agents:
-            a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
+            a.sampled_traj = a.pos_log[
+                :: int(self.config.env.body_interval / self.config.env.timestep)
+            ]
             sampled_len = max(sampled_len, len(a.sampled_traj))
         first_inattentive = True
         for i, a in enumerate(list(agents)[::-1]):
             ax.add_patch(
                 Circle(
                     a.goal,
-                    self.config.goal_tol,
+                    self.config.env.goal_tol,
                     ec=a.color,
                     fill=None,
                     lw=0.5,
                     zorder=2 * len(agents) + i,
                 )
             )
-            if self.config.plot_traj:
+            if self.conf.plot_traj:
                 if (a.policy != "inattentive") or (a.policy == "inattentive" and first_inattentive):
                     label = a.policy
                     first_inattentive = False
@@ -264,7 +266,7 @@ class Animate:
                     zorder=len(agents) + i,
                     label=label,
                 )
-            if self.config.plot_body:
+            if self.config.animation.plot_body:
                 hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
                 lightness_range = np.linspace(
                     hls_color[1] + 0.1 * (1 - hls_color[1]),
@@ -275,21 +277,23 @@ class Animate:
                 for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
                     ax.add_patch(
-                        Circle(pos, self.config.radius, fc=c, ec=a.color, lw=0.1, zorder=zorder)
+                        Circle(
+                            pos, self.config.agent.radius, fc=c, ec=a.color, lw=0.1, zorder=zorder
+                        )
                     )
         # ax.legend()
-        if self.config.save_plot:
+        if self.config.animation.save_plot:
             os.makedirs(self.config.plot_dir, exist_ok=True)
             if filename is None:
                 filename = f"{self.scenario}_overlay"
             plotname = os.path.join(self.config.plot_dir, filename)
             plt.savefig(plotname + ".pdf", backend="pgf")
-        if self.config.show_plot:
+        if self.config.animation.show_plot:
             plt.show()
 
     def plot_inferences(self, iter, agents, goal_inference, traj_inference, filename=None):
         for (goal_scores, traj_scores) in zip(goal_inference.values(), traj_inference.values()):
-            if self.config.dark_bkg:
+            if self.config.animation.dark_bg:
                 plt.style.use("dark_background")
             fig1, ax1 = plt.subplots()
             fig2, ax2 = plt.subplots()
@@ -317,7 +321,9 @@ class Animate:
             ax1.set_ylim(y_min - padding, y_max + padding)
             sampled_len = 0
             for a in agents:
-                a.sampled_traj = a.pos_log[:: int(self.config.body_interval / self.config.timestep)]
+                a.sampled_traj = a.pos_log[
+                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                ]
                 sampled_len = max(sampled_len, len(a.sampled_traj))
             for i, a in enumerate(list(agents)[::-1]):
                 if self.config.plot_traj:
@@ -329,7 +335,7 @@ class Animate:
                         solid_capstyle="round",
                         zorder=len(agents) + i,
                     )
-                if self.config.plot_body:
+                if self.config.animation.plot_body:
                     hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
                     lightness_range = np.linspace(
                         hls_color[1] + 0.2 * (1 - hls_color[1]),
@@ -338,47 +344,57 @@ class Animate:
                     )
                     for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
                         c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
-                        ax1.add_patch(Circle(pos, self.config.radius, fc=c, ec=a.color, zorder=i))
+                        ax1.add_patch(
+                            Circle(pos, self.config.agent.radius, fc=c, ec=a.color, zorder=i)
+                        )
             for v in goal_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.timestep, len(v))
+                t = np.linspace(0, len(v) * self.config.env.timestep, len(v))
                 ax2.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
                 ax2.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
                 ax2.legend(loc=3)
-                sampled_inf = v[:: int(self.config.body_interval / self.config.timestep)]
-                sampled_t = t[:: int(self.config.body_interval / self.config.timestep)]
+                sampled_inf = v[
+                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                ]
+                sampled_t = t[
+                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                ]
                 ax2.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
                 ax2.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
             for v in traj_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.timestep, len(v))
+                t = np.linspace(0, len(v) * self.config.env.timestep, len(v))
                 ax3.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
                 ax3.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
                 ax3.legend(loc=3)
-                sampled_inf = v[:: int(self.config.body_interval / self.config.timestep)]
-                sampled_t = t[:: int(self.config.body_interval / self.config.timestep)]
+                sampled_inf = v[
+                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                ]
+                sampled_t = t[
+                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                ]
                 ax3.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
                 ax3.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
-            if self.config.show_inferences:
+            if self.config.animation.show_inferences:
                 plt.show()
-            if self.config.save_inferences:
-                os.makedirs(self.config.inferences_dir, exist_ok=True)
+            if self.config.animation.save_inferences:
+                os.makedirs(self.config.animation.inferences_dir, exist_ok=True)
                 if filename is None:
                     filename = f"{self.scenario}_goal_inference"
-                plotname = os.path.join(self.config.inferences_dir, filename)
+                plotname = os.path.join(self.config.animation.inferences_dir, filename)
                 # fig1.savefig(plotname + "_traj.pdf", bbox_inches="tight", pad_inches=0)
                 # fig2.savefig(plotname + "_inf.pdf", bbox_inches="tight", pad_inches=0)
 
     def overlay(self):
-        if self.config.show_ani or self.config.save_ani:
+        if self.config.animation.show_ani or self.config.animation.save_ani:
             self.init_ani(self.agents_log.values())
-        if self.config.show_plot or self.config.save_plot:
+        if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(self.agents_log.values())
 
     def animate(self, iter, env, eval):
-        if self.config.show_ani or self.config.save_ani:
+        if self.config.animation.show_ani or self.config.animation.save_ani:
             self.init_ani(env.agents.values(), str(env))
-        if self.config.show_plot or self.config.save_plot:
+        if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(env.agents.values(), str(env))
-        if self.config.show_inferences or self.config.save_inferences:
+        if self.config.animation.show_inferences or self.config.animation.save_inferences:
             self.plot_inferences(
                 iter, env.agents.values(), eval.goal_inference, eval.traj_inference, str(env)
             )

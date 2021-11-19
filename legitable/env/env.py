@@ -5,8 +5,8 @@ from env.agent_factory import init_agents
 class Env:
     def __init__(self, config, ego_policy, iter, scenario, policy_id=0):
         self.config = config
-        self.timestep = self.config.timestep
-        self.max_duration = self.config.max_duration
+        self.timestep = self.config.env.timestep
+        self.max_duration = self.config.env.max_duration
         self.done = False
         self.time = 0
         self.step = 0

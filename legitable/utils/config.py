@@ -7,14 +7,11 @@ import tomli
 DEFAULT_CONFIG = "../default_config.toml"
 
 
-def flatten_dict(config):
-    r = dict()
-    for k, v in config.items():
+def namedtuple_from_dict(d):
+    for k, v in d.items():
         if isinstance(v, dict):
-            r.update(flatten_dict(v))
-        else:
-            r[k] = v
-    return r
+            d[k] = namedtuple_from_dict(v)
+    return namedtuple("obj", d.keys())(*d.values())
 
 
 def load_config(config_file):
@@ -23,8 +20,14 @@ def load_config(config_file):
     try:
         with open(config_file, "rb") as f:
             print(f"Reading config file {abs_config}")
-            config = flatten_dict(tomli.load(f))
-            return namedtuple("Config", config.keys())(**config)
+            config = tomli.load(f)
+            for policy in config["env"]["policies"]:
+                if policy not in config:
+                    config[policy] = dict()
+                for k, v in config["agent"].items():
+                    if k not in config[policy]:
+                        config[policy][k] = v
+            return namedtuple_from_dict(config)
     except OSError as e:
         print(f"OSError opening {abs_config}")
         print(e)
