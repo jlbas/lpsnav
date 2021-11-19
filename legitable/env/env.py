@@ -3,7 +3,7 @@ from env.agent_factory import init_agents
 
 
 class Env:
-    def __init__(self, config, ego_policy, iter, scenario, policy_id=0):
+    def __init__(self, config, rng, ego_policy, iter, scenario, policy_id=0):
         self.config = config
         self.timestep = self.config.env.timestep
         self.max_duration = self.config.env.max_duration
@@ -15,7 +15,7 @@ class Env:
         self.scenario = scenario
         self.policy_id = policy_id
         self.ego_agent, self.agents = init_agents(
-            self.config, self, self.ego_policy, self.scenario, self.policy_id
+            self.config, self, rng, self.ego_policy, self.scenario, self.policy_id
         )
         for agent in self.agents.values():
             print(agent)

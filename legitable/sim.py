@@ -21,8 +21,8 @@ def main():
             print(f"ITERATION {i}")
             ani = Animate(config, scenario)
             for policy_id, ego_policy in enumerate(config.env.policies):
-                np.random.seed(i)
-                env = Env(config, ego_policy, i, scenario, policy_id)
+                rng = np.random.default_rng(i)
+                env = Env(config, rng, ego_policy, i, scenario, policy_id)
                 while not env.done:
                     env.update()
                 env.trim_logs()

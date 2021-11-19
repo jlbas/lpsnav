@@ -27,8 +27,8 @@ def far_enough(starts, goals):
     return np.all(helper.dist(starts, goals) > 2)
 
 
-def init_agents(config, env, ego_policy, scenario, iter):
-    starts, goals = get_starts_goals(config, scenario)
+def init_agents(config, env, rng, ego_policy, scenario, iter):
+    starts, goals = get_starts_goals(config, rng, scenario)
     agents = dict()
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (config.env.num_of_agents - 1) * [other_policy]
@@ -40,7 +40,7 @@ def init_agents(config, env, ego_policy, scenario, iter):
     return agents[ids[0]], agents
 
 
-def get_starts_goals(config, scenario):
+def get_starts_goals(config, rng, scenario):
     if scenario == "swap":
         starts = [[-config.env.interaction_dist / 2, 0], [config.env.interaction_dist / 2, 0]]
         goals = starts[::-1]
@@ -111,8 +111,8 @@ def get_starts_goals(config, scenario):
     elif scenario == "random":
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
         for _ in range(100):
-            starts = config.env.workspace_length * np.random.rand(config.env.num_of_agents, 2)
-            goals = config.env.workspace_length * np.random.rand(config.env.num_of_agents, 2)
+            starts = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
+            goals = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
             if (
                 is_feasible(starts, min_dist)
                 and is_feasible(goals, min_dist)
@@ -126,7 +126,7 @@ def get_starts_goals(config, scenario):
 
     # Without noise, RVO might not work properly
     bound = 0.01
-    starts += np.random.uniform(-bound, bound, np.shape(starts))
-    goals += np.random.uniform(-bound, bound, np.shape(goals))
+    starts += rng.uniform(-bound, bound, np.shape(starts))
+    goals += rng.uniform(-bound, bound, np.shape(goals))
 
     return starts, goals
