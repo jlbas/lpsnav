@@ -10,8 +10,6 @@ from utils import helper
 
 
 def snapshot(ego_agent, id):
-    if ego_agent.config.animation.dark_bg:
-        plt.style.use("dark_background")
     fig, ax = plt.subplots()
     fig.set_size_inches(4, 3)
     # fig.canvas.manager.window.wm_geometry("+1150+950")
@@ -44,8 +42,6 @@ def snapshot(ego_agent, id):
 
 
 def snap(*agents, istep=0, fstep=-1):
-    if agents[0].config.animation.dark_bg:
-        plt.style.use("dark_background")
     _, ax = plt.subplots()
     ax.axis("equal")
     if fstep == -1:
@@ -75,7 +71,7 @@ class Animate:
             except IndexError:
                 pass
 
-            if self.conf.debug:
+            if self.config.animation.debug:
                 if a.policy == "lpnav" and i < min(
                     [len(log) - 1 for log in a.int_lines_log.values()]
                 ):
@@ -115,7 +111,7 @@ class Animate:
         return helper.flatten([p for a in agents for p in a.patches])
 
     def init_ani(self, agents, filename=None):
-        if self.conf.dark_bkg:
+        if self.config.animation.dark_bg:
             plt.style.use("dark_background")
         fig, ax = plt.subplots()
         fig.tight_layout()
@@ -154,7 +150,7 @@ class Animate:
             a.patches.body = Circle(
                 (a.pos), a.radius, color=a.color, zorder=i + 2, label=f"{type(a).__name__}"
             )
-            if self.conf.debug:
+            if self.config.animation.debug:
                 if a.policy == "lpnav":
                     a.patches.prims = [
                         [Circle((0, 0), 0.04, color="#004D40", lw=0) for _ in a.rel_headings]
@@ -188,18 +184,18 @@ class Animate:
             blit=True,
             repeat=False,
         )
-        if self.conf.show_ani:
+        if self.config.animation.show_ani:
             plt.show()
 
-        if self.conf.save_ani:
-            os.makedirs(self.conf.ani_dir, exist_ok=True)
+        if self.config.animation.save_ani:
+            os.makedirs(self.config.animation.ani_dir, exist_ok=True)
             if filename is None:
                 filename = f"{self.scenario}_overlay"
-            vidname = os.path.join(self.conf.ani_dir, f"{filename}.mp4")
+            vidname = os.path.join(self.config.animation.ani_dir, f"{filename}.mp4")
             ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.env.timestep)))
 
     def plot(self, agents, filename=None):
-        if self.conf.dark_bkg:
+        if self.config.animation.dark_bg:
             plt.style.use("dark_background")
         plt.rcParams.update(
             {
@@ -251,7 +247,7 @@ class Animate:
                     zorder=2 * len(agents) + i,
                 )
             )
-            if self.conf.plot_traj:
+            if self.config.animation.plot_traj:
                 if (a.policy != "inattentive") or (a.policy == "inattentive" and first_inattentive):
                     label = a.policy
                     first_inattentive = False

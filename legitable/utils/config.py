@@ -21,7 +21,7 @@ def load_config(config_file):
         with open(config_file, "rb") as f:
             print(f"Reading config file {abs_config}")
             config = tomli.load(f)
-            for policy in config["env"]["policies"]:
+            for policy in config["env"]["policies"] + [config["env"]["human_policy"]]:
                 if policy not in config:
                     config[policy] = dict()
                 for k, v in config["agent"].items():
