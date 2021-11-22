@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 
+import matplotlib.pyplot as plt
 import numpy as np
 from prettytable import PrettyTable
 from utils import helper
@@ -20,6 +21,7 @@ class Eval:
         self.conf = config
         self.trial_cnt = trial_cnt
         self.scenario = scenario
+        self.colors = {policy: "" for policy in self.conf.env.policies}
         self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
         self.failure_log = {policy: 0 for policy in self.conf.env.policies}
         self.path_efficiency_log = {
@@ -48,6 +50,7 @@ class Eval:
         return ret
 
     def evaluate(self, iter, env):
+        self.colors[env.ego_policy] = env.ego_agent.color
         if hasattr(env.ego_agent, "time_to_goal"):
             self.extra_ttg_log[env.ego_policy][iter] = self.compute_extra_ttg(env.ego_agent)
             self.path_efficiency_log[env.ego_policy][iter] = self.compute_path_efficiency(
@@ -180,17 +183,25 @@ class Eval:
             )
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
-    def get_summary(self):
+    def get_table(self):
+        clean_policies = {
+            "lpnav": "LPNav",
+            "social_momentum": "SM",
+            "sa_cadrl": "SA-CADRL",
+            "ga3c_cadrl": "GA3C-CADRL",
+            "rvo": "ORCA",
+        }
         tbl_dict = {
             "policy": {
                 "header": "Policy",
-                "vals": ["LPNav", "SM", "SA-CADRL", "GA3C-CADRL", "ORCA"],
+                "vals": [clean_policies[p] for p in self.conf.env.policies],
             },
             "extra_ttg": {
                 "header": "Extra TTG ($\\%$)",
                 "decimals": 2,
                 "function": min,
                 "raw_vals": [],
+                "stds": [],
                 "vals": [],
             },
             "failure_rate": {
@@ -205,6 +216,7 @@ class Eval:
                 "decimals": 2,
                 "function": max,
                 "raw_vals": [],
+                "stds": [],
                 "vals": [],
             },
             "path_irregularity": {
@@ -212,6 +224,7 @@ class Eval:
                 "decimals": 4,
                 "function": min,
                 "raw_vals": [],
+                "stds": [],
                 "vals": [],
             },
             "legibility": {
@@ -219,6 +232,7 @@ class Eval:
                 "decimals": 2,
                 "function": max,
                 "raw_vals": [],
+                "stds": [],
                 "vals": [],
             },
             "predictability": {
@@ -226,20 +240,26 @@ class Eval:
                 "decimals": 2,
                 "function": max,
                 "raw_vals": [],
+                "stds": [],
                 "vals": [],
             },
         }
 
-        for i, policy in enumerate(self.conf.env.policies):
+        for policy in self.conf.env.policies:
             if np.all(self.extra_ttg_log[policy] == np.inf):
                 tbl_dict["extra_ttg"]["raw_vals"].append(np.nan)
+                tbl_dict["extra_ttg"]["stds"].append(np.nan)
                 tbl_dict["path_efficiency"]["raw_vals"].append(np.nan)
+                tbl_dict["path_efficiency"]["stds"].append(np.nan)
             else:
                 tbl_dict["extra_ttg"]["raw_vals"].append(
                     100
                     * np.mean(
                         self.extra_ttg_log[policy], where=self.extra_ttg_log[policy] != np.inf
                     )
+                )
+                tbl_dict["extra_ttg"]["stds"].append(
+                    np.std(self.extra_ttg_log[policy], where=self.extra_ttg_log[policy] != np.inf)
                 )
                 tbl_dict["path_efficiency"]["raw_vals"].append(
                     100
@@ -248,12 +268,23 @@ class Eval:
                         where=self.path_efficiency_log[policy] != 0,
                     )
                 )
-            tbl_dict["failure_rate"]["raw_vals"].append(100 * self.failure_log[policy] / self.trial_cnt)
+                tbl_dict["path_efficiency"]["stds"].append(
+                    np.std(
+                        self.path_efficiency_log[policy],
+                        where=self.path_efficiency_log[policy] != 0,
+                    )
+                )
+            tbl_dict["failure_rate"]["raw_vals"].append(
+                100 * self.failure_log[policy] / self.trial_cnt
+            )
             tbl_dict["path_irregularity"]["raw_vals"].append(
                 np.mean(self.path_irregularity_log[policy])
             )
+            tbl_dict["path_irregularity"]["stds"].append(np.std(self.path_irregularity_log[policy]))
             tbl_dict["legibility"]["raw_vals"].append(100 * np.mean(self.leg_log[policy]))
+            tbl_dict["legibility"]["stds"].append(100 * np.std(self.leg_log[policy]))
             tbl_dict["predictability"]["raw_vals"].append(100 * np.mean(self.pred_log[policy]))
+            tbl_dict["predictability"]["stds"].append(100 * np.std(self.pred_log[policy]))
 
         for k, v in tbl_dict.items():
             if "function" in v:
@@ -264,6 +295,9 @@ class Eval:
                         formatted_val = f"\\textbf{{{formatted_val}}}"
                     tbl_dict[k]["vals"].append(formatted_val)
 
+        return tbl_dict
+
+    def show_tbl(self, tbl_dict):
         if self.trial_cnt > 1:
             print(f"Average over {self.trial_cnt} trials")
         tbl = PrettyTable()
@@ -271,28 +305,79 @@ class Eval:
             tbl.add_column(col["header"], col["vals"])
         print(tbl)
 
-        if self.conf.eval.save_tbl:
-            rows = []
-            for i in range(len(self.conf.env.policies)):
-                row = []
-                for v in tbl_dict.values():
-                    row.append(v["vals"][i])
-                rows.append(row)
-            os.makedirs(self.conf.eval.tbl_dir, exist_ok=True)
-            with open(os.path.join(self.conf.eval.tbl_dir, f"{str(self)}.tex"), "w") as f:
-                newline_char = " \\\\\n\t\t\t\t"
-                f.write(
-                    f"""
-\\begin{{table*}}
-    \\caption{{Performance metrics averaged over {self.conf.env.random_scenarios} random scenarios with {self.conf.env.num_of_agents} {"homogeneous " if self.conf.env.homogeneous else ""}agents}}
-    \\label{{tbl:results}}
-    \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(tbl_dict) - 1)}}}{{Y}}@{{}}}}
-        \\toprule
-        {" & ".join([v["header"] for v in tbl_dict.values()])} \\\\
-        \\midrule
-        {newline_char.join([" & ".join(row) for row in rows])} \\\\
-        \\bottomrule
-    \\end{{tabularx}}
-\\end{{table*}}
+    def save_tbl(self, tbl_dict):
+        rows = []
+        for i in range(len(self.conf.env.policies)):
+            row = []
+            for v in tbl_dict.values():
+                row.append(v["vals"][i])
+            rows.append(row)
+        os.makedirs(self.conf.eval.tbl_dir, exist_ok=True)
+        with open(os.path.join(self.conf.eval.tbl_dir, f"{str(self)}.tex"), "w") as f:
+            newline_char = " \\\\\n\t\t\t\t"
+            f.write(
+                f"""
+                \\begin{{table*}}
+                \\caption{{Performance metrics averaged over {self.conf.env.random_scenarios} random scenarios with {self.conf.env.num_of_agents} {"homogeneous " if self.conf.env.homogeneous else ""}agents}}
+                \\label{{tbl:results}}
+                \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(tbl_dict) - 1)}}}{{Y}}@{{}}}}
+                    \\toprule
+                    {" & ".join([v["header"] for v in tbl_dict.values()])} \\\\
+                    \\midrule
+                    {newline_char.join([" & ".join(row) for row in rows])} \\\\
+                    \\bottomrule
+                \\end{{tabularx}}
+                \\end{{table*}}
                 """.strip()
+            )
+
+    def make_bar_chart(self, tbl_dict):
+        plt.rcParams.update(
+            {
+                "pgf.texsystem": "pdflatex",
+                "text.usetex": True,
+                "font.family": "serif",
+                "font.serif": ["Times"],
+            }
+        )
+        for k, metric in tbl_dict.items():
+            if "stds" in metric:
+                fig, ax = plt.subplots(constrained_layout=True)
+                fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
+                fig.set_size_inches(3, 2)
+                policies = []
+                color = []
+                height = []
+                yerr = []
+                for policy, c, val, std in zip(
+                    tbl_dict["policy"]["vals"],
+                    self.colors.values(),
+                    metric["raw_vals"],
+                    metric["stds"],
+                ):
+                    if np.isfinite(val):
+                        policies.append(policy)
+                        color.append(c)
+                        height.append(val)
+                        yerr.append(std)
+                ax.bar(
+                    np.arange(len(policies)),
+                    height,
+                    yerr=yerr,
+                    color=color,
+                    tick_label=policies,
+                    capsize=10,
                 )
+                ax.set_ylabel(metric["header"])
+                self.conf.eval.show_bar_chart and plt.show()
+                if self.conf.eval.save_bar_chart:
+                    os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
+                filename = f"{str(self)}.pdf"
+                fullpath = os.path.join(self.conf.eval.bar_chart_dir, filename)
+                plt.savefig(fullpath, backend="pgf")
+
+    def get_summary(self):
+        tbl_dict = self.get_table()
+        self.conf.eval.show_tbl and self.show_tbl(tbl_dict)
+        self.conf.eval.save_tbl and self.save_tbl(tbl_dict)
+        self.make_bar_chart(tbl_dict)
