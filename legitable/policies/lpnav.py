@@ -76,14 +76,11 @@ class Lpnav(Agent):
         self.interacting_agents = dict()
         for id, agent in self.other_agents.items():
             self.int_lines[id] = agent.pos + self.int_pts
-            in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
-            in_horizon = (
-                helper.cost_to_line(self.pos, self.speed, self.int_lines[id], agent.vel)
-                < self.conf.sensing_horizon
+            time_to_interaction = helper.cost_to_line(
+                self.pos, self.speed, self.int_lines[id], agent.vel
             )
-            outside_goal = helper.dist(self.pos, agent.pos) > helper.dist(self.pos, self.goal)
-            stopped = agent.speed == 0
-            if in_front and in_horizon and not (outside_goal and stopped):
+            in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
+            if in_front and time_to_interaction < self.sensing_horiz:
                 self.interacting_agents[id] = agent
 
     def remove_col_prims(self):
