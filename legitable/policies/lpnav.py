@@ -7,8 +7,8 @@ from utils.animation import snapshot
 class Lpnav(Agent):
     def __init__(self, config, env, id, policy, start, goal):
         super().__init__(config, env, id, policy, start, goal)
-        self.sensing_dist = self.conf.sensing_dist
         self.receding_horiz = self.conf.receding_horiz
+        self.sensing_horiz = self.conf.sensing_horiz
         self.receding_steps = int(self.receding_horiz / self.env.timestep)
         self.speed_samples = self.conf.speed_samples
         self.heading_samples = self.conf.heading_samples
@@ -16,6 +16,7 @@ class Lpnav(Agent):
         self.int_baseline = np.array([[0, -col_width], [0, col_width]])
         self.subgoal_priors = np.array(self.conf.subgoal_priors)
         self.leg_tol = self.conf.legibility_tol
+        self.beta = self.conf.beta
         self.color = "#785EF0"
         self.color = "#774db9"
         self.pred_pos = dict()
@@ -29,6 +30,7 @@ class Lpnav(Agent):
         self.cost_sg = dict()
         self.cost_tpg = dict()
         self.cost_spg = dict()
+        self.cost_stg = dict()
         self.prim_leg_score = dict()
         self.prim_pred_score = dict()
         self.current_leg_score = dict()
@@ -52,7 +54,6 @@ class Lpnav(Agent):
     def post_init(self):
         super().post_init()
         self.taus = {id: 0 for id in self.other_agents}
-        self.pred_int_t = {id: -1 for id in self.other_agents}
         self.int_start_t = {id: -1 for id in self.other_agents}
         self.int_t = {id: -1 for id in self.other_agents}
         self.int_lines_log = {
@@ -100,18 +101,9 @@ class Lpnav(Agent):
     def update_pred_int_t(self, id, agent):
         if id in self.interacting_agents:
             if self.int_start_t[id] == -1:
-                ttg = helper.dynamic_pt_cost(
-                    self.pos,
-                    self.max_speed,
-                    self.int_lines[id],
-                    self.int_line_heading,
-                    agent.vel,
-                )
-                self.pred_int_t[id] = np.min(np.delete(ttg, 1))
                 self.int_start_t[id] = self.env.time
             self.int_t[id] = self.env.time - self.int_start_t[id]
         else:
-            self.pred_int_t[id] = -1
             self.int_start_t[id] = -1
 
     def get_int_costs(self, id, agent):
@@ -193,20 +185,17 @@ class Lpnav(Agent):
         # print('')
 
     def check_if_legible(self, id):
-        passing_ratio = np.max(self.current_leg_score[id]) / np.min(
+        self.passing_ratio = np.max(self.current_leg_score[id]) / np.min(
             self.current_leg_score[id], where=self.current_leg_score[id] > 0, initial=1
         )
-        self.is_legible[id] = passing_ratio > self.leg_tol
+        self.is_legible[id] = self.passing_ratio > self.leg_tol
 
     def update_tau(self, id, agent):
-        if (self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)) or agent.at_goal:
+        if self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1) or agent.speed == 0:
             self.taus[id] = 1
         else:
-            lb = 0.0
-            ub = 1.0
-            tau = self.int_t[id] / max(0.01, self.pred_int_t[id])
-            tau = tau * (ub - lb) + lb
-            self.taus[id] = min(ub, tau)
+            x = min(self.passing_ratio - 1, 10)
+            self.taus[id] = -1 + 2 / (1 + np.exp(-self.beta * x))
 
     def get_leg_pred_prims(self):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
