@@ -141,23 +141,22 @@ class Lpnav(Agent):
             )
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
         self.cost_spg[id] = self.cost_st + self.cost_tpg[id]
+        self.cost_stg[id] = self.cost_st + self.cost_tg[id]
 
     def compute_prim_leg(self, id):
-        # snapshot(self, id)
-        arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
+        scale = np.min(
+            self.cost_spg[id] / self.cost_sg[id][..., None, None], axis=(1, 2), keepdims=True
+        )
+        arg = scale * self.cost_sg[id][..., None, None] - self.cost_spg[id]
         assert np.all(np.around(arg, 5) <= 0), "Error in legibility computation"
-        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
-        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
         self.prim_leg_score[id] /= np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
         assert np.all(np.around(self.prim_leg_score[id], 5) <= 1), "Error in legibility computation"
 
     def compute_leg(self, id):
-        arg = self.cost_sg[id] - (self.cost_st + self.cost_tg[id])
+        arg = self.cost_sg[id] - self.cost_stg[id]
         assert np.all(np.around(arg, 5) <= 0), "Error in current legibility computation"
-        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
-        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
         self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
         self.current_leg_score[id] /= np.sum(self.current_leg_score[id])
         self.current_leg_score[id] = np.delete(self.current_leg_score[id], 1)
@@ -166,20 +165,16 @@ class Lpnav(Agent):
         ), "Error in current legibility computation"
 
     def compute_prim_pred(self, id):
-        arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
+        scale = np.min(
+            self.cost_tpg[id] / self.cost_tg[id][..., None, None], axis=(1, 2), keepdims=True
+        )
+        arg = scale * self.cost_tg[id][..., None, None] - self.cost_tpg[id]
         assert np.all(np.around(arg, 5) <= 0), "Error in predictability computation"
-        bound = 2 * np.min(arg, where=np.isfinite(arg), initial=0)
-        arg = np.nan_to_num(arg, nan=bound, posinf=bound, neginf=bound)
-        # arg = np.where(self.prim_leg_score[id][0] > self.prim_leg_score[id][1], arg[0], arg[2])
         arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
         self.prim_pred_score[id] = np.exp(arg)
         assert np.all(
             np.around(self.prim_pred_score[id], 5) <= 1
         ), "Error in predictability computation"
-        # print("Predictability Score:")
-        # print(self.prim_pred_score[id])
-        # print(20 * '-')
-        # print('')
 
     def check_if_legible(self, id):
         self.passing_ratio = np.max(self.current_leg_score[id]) / np.min(
