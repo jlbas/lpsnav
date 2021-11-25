@@ -207,14 +207,15 @@ class Lpnav(Agent):
         score = np.where(self.col_mask, -np.inf, score)
         is_max = score == np.max(score)
         if np.sum(is_max) > 1:
-            goal_score = 1 / helper.dist(self.abs_prims, self.goal)
-            score = np.where(is_max, goal_score, -np.inf)
-        self.speed_idx, self.heading_idx = np.unravel_index(np.argmax(score), score.shape)
+            self.get_goal_prims(~is_max)
+        else:
+            self.speed_idx, self.heading_idx = np.unravel_index(np.argmax(score), score.shape)
 
-    def get_goal_prims(self):
+    def get_goal_prims(self, mask=None):
         delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
         goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
-        goal_cost = np.where(self.col_mask, np.inf, goal_cost)
+        inf_mask = self.col_mask if mask is None else self.col_mask | mask
+        goal_cost = np.where(inf_mask, np.inf, goal_cost)
         self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
 
     def get_action(self):
