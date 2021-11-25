@@ -17,22 +17,25 @@ class Agent:
         self.env = env
         self.id = id
         self.policy = policy
-        self.conf = getattr(config, self.policy)
         self.start = np.array(start, dtype=float)
         self.goal = self.start if goal is None else np.array(goal, dtype=float)
-        self.heading = helper.angle(self.goal - self.start)
-        self.heading_samples = self.conf.heading_samples
-        self.heading_span = self.conf.heading_span
+        self.conf = getattr(config, self.policy)
+        self.radius = self.conf.radius
         self.min_speed = self.conf.min_speed
         self.max_speed = self.conf.max_speed
+        self.max_accel = self.conf.max_accel
+        self.max_ang_accel = self.conf.max_ang_accel
+        self.goal_tol = self.conf.goal_tol
+        self.speed_samples = self.conf.speed_samples
+        self.heading_span = self.conf.heading_span
+        self.heading_samples = self.conf.heading_samples
+        self.prim_horiz = self.conf.prim_horiz
+        self.kinematics = self.conf.kinematics
+        self.sensing_dist = self.conf.sensing_dist
+        self.heading = helper.angle(self.goal - self.start)
         self.speed = self.max_speed
         # self.speed = 0
         self.vel = self.speed * helper.unit_vec(self.heading)
-        self.speed_samples = self.conf.speed_samples
-        self.prim_horiz = self.conf.prim_horiz
-        self.kinematics = self.conf.kinematics
-        self.max_accel = self.conf.max_accel
-        self.max_ang_accel = self.conf.max_ang_accel
         self.speeds = np.linspace(self.max_speed, self.min_speed, self.speed_samples)
         self.rel_headings = np.linspace(
             -self.heading_span / 2, self.heading_span / 2, self.heading_samples
@@ -42,8 +45,6 @@ class Agent:
         )
         self.pos = self.start.copy()
         self.dt = self.env_conf.timestep
-        self.goal_tol = self.conf.goal_tol
-        self.radius = self.conf.radius
         self.patches = Patches()
         self.pos_log = np.full(
             (int(self.env_conf.max_duration / self.env_conf.timestep) + 1, 2), np.inf
