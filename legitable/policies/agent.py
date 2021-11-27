@@ -12,7 +12,7 @@ class Patches:
 
 
 class Agent:
-    def __init__(self, config, env, id, policy, start, goal=None):
+    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
         self.env_conf = config.env
         self.env = env
         self.id = id
@@ -22,7 +22,7 @@ class Agent:
         self.conf = getattr(config, self.policy)
         self.radius = self.conf.radius
         self.min_speed = self.conf.min_speed
-        self.max_speed = self.conf.max_speed
+        self.max_speed = self.conf.max_speed if max_speed is None else max_speed
         self.max_accel = self.conf.max_accel
         self.max_ang_accel = self.conf.max_ang_accel
         self.goal_tol = self.conf.goal_tol
