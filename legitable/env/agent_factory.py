@@ -64,6 +64,12 @@ def get_starts_goals(config, rng, scenario):
     elif scenario == "2_agent_t_junction":
         starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
         goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
+    elif scenario == "frp":
+        y_max = 0.5 * (config.agent.radius + config.env.lat_dist) * (config.env.num_of_agents - 1)
+        y_starts = np.linspace(-y_max, y_max, config.env.num_of_agents)
+        starts = np.column_stack((np.full(y_starts.shape, start_sep), y_starts))
+        starts = np.vstack(([-start_sep, 0], starts))
+        goals = np.array([-1, 1]) * starts
     elif scenario == "custom":
         starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
         goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
