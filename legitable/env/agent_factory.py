@@ -23,101 +23,61 @@ def is_feasible(positions, min_dist):
     return True
 
 
-def far_enough(starts, goals):
-    return np.all(helper.dist(starts, goals) > 2)
-
-
 def init_agents(config, env, rng, ego_policy, scenario, iter):
     starts, goals = get_starts_goals(config, rng, scenario)
     agents = dict()
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
-    policies = [ego_policy] + (config.env.num_of_agents - 1) * [other_policy]
+    policies = [ego_policy] + (len(starts) - 1) * [other_policy]
     ids = range(iter * len(policies), iter * len(policies) + len(policies))
     for id, start, goal, policy in zip(ids, starts, goals, policies):
         module = importlib.import_module(f"policies.{policy}")
         cls = getattr(module, "".join(wd.capitalize() for wd in policy.split("_")))
-        agents[id] = cls(config, env, id, policy, start, goal)
+        if scenario == "random":
+            max_speed = rng.uniform(*config.env.speed_range)
+        else:
+            max_speed = config.agent.max_speed
+        agents[id] = cls(config, env, id, policy, start, goal=goal, max_speed=max_speed)
     return agents[ids[0]], agents
 
 
 def get_starts_goals(config, rng, scenario):
+    start_sep = config.env.interaction_dist / 2
+    lat_sep = 2 * config.agent.radius + config.env.lat_dist
     if scenario == "swap":
-        starts = [[-config.env.interaction_dist / 2, 0], [config.env.interaction_dist / 2, 0]]
+        starts = np.array([[-start_sep, 0], [start_sep, 0]])
         goals = starts[::-1]
     elif scenario == "passing":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [config.env.interaction_dist / 2, 2 * config.agent.radius + config.agent.lat_dist],
-        ]
-        goals = [
-            [config.env.interaction_dist / 2, 0],
-            [-config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
-        ]
+        starts = np.array([[-start_sep, 0], [start_sep, lat_sep]])
+        goals = np.array([-1, 1]) * starts
     elif scenario == "acute":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [-config.env.interaction_dist / 2, -1.5],
-        ]
-        goals = [
-            [config.env.interaction_dist / 2, 0],
-            [config.env.interaction_dist / 2 - 2, 1.5],
-        ]
+        starts = np.array([[-start_sep, 0], [-start_sep + 0.5, -lat_sep]])
+        goals = -starts
     elif scenario == "obtuse":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [config.env.interaction_dist / 2 + 1, 2],
-        ]
-        goals = [
-            [config.env.interaction_dist / 2, 0],
-            [-config.env.interaction_dist / 2 + 1, -2],
-        ]
+        starts = np.array([[-start_sep, 0], [start_sep - 0.5, lat_sep]])
+        goals = -starts
     elif scenario == "2_agent_split":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
-            [config.env.interaction_dist / 2, -(2 * config.agent.radius + config.env.lat_dist)],
-        ]
-        goals = [
-            [config.env.interaction_dist / 2, 0],
-            [-config.env.interaction_dist / 2, 2 * config.agent.radius + config.env.lat_dist],
-            [-config.env.interaction_dist / 2, -(2 * config.agent.radius + config.env.lat_dist)],
-        ]
+        starts = np.array([[-start_sep, 0], [start_sep, lat_sep], [start_sep, -lat_sep]])
+        goals = np.array([-1, 1]) * starts
     elif scenario == "t_junction":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [0, -config.env.interaction_dist / 2],
-        ]
-        goals = [[config.env.interaction_dist / 2, 0], [0, config.env.interaction_dist / 2]]
+        starts = [[-start_sep, 0], [0, -start_sep]]
+        goals = np.array([[-1, 1], [1, -1]]) * starts
     elif scenario == "2_agent_t_junction":
-        starts = [
-            [-config.env.interaction_dist / 2, 0],
-            [-0.5, config.env.interaction_dist / 2 - 1],
-            [0.5 * config.agent.radius + config.env.lat_dist, -config.env.interaction_dist / 2],
-        ]
-        goals = [
-            [config.env.interaction_dist / 2, 0],
-            [-0.5, -config.env.interaction_dist / 2],
-            [0.5 * config.agent.radius + config.env.lat_dist, config.env.interaction_dist / 2],
-        ]
+        starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
+        goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
     elif scenario == "custom":
-        starts = [start_goal[0] for start_goal in config.env.custom_pos]
-        goals = [start_goal[1] for start_goal in config.env.custom_pos]
+        starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
+        goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
     elif scenario == "circle":
-        thetas = np.linspace(
-            0, 2 * np.pi - 2 * np.pi / config.env.num_of_agents, config.env.num_of_agents
-        )
+        agent_cnt = config.env.num_of_agents
+        thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
         starts = config.env.circle_radius * helper.unit_vec(thetas)
-        goals = config.env.circle_radius * helper.unit_vec(thetas + np.pi)
+        goals = -starts
     elif scenario == "random":
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
         for _ in range(100):
             starts = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
             goals = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
-            if (
-                is_feasible(starts, min_dist)
-                and is_feasible(goals, min_dist)
-                and far_enough(starts, goals)
-            ):
+            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist):
                 break
         else:
             raise AttemptsExceededError(100)
