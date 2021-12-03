@@ -107,21 +107,21 @@ class Agent:
                 self.speed = self.des_speed
                 self.heading = self.des_heading
             elif self.kinematics == "second_order_unicycle":
-                self.speed += self.dt * np.clip(
-                    (self.des_speed - self.speed) / self.dt,
+                self.speed += self.env.dt * np.clip(
+                    (self.des_speed - self.speed) / self.env.dt,
                     -self.max_accel,
                     self.max_accel,
                 )
-                self.heading += self.dt * np.clip(
-                    helper.wrap_to_pi(self.des_heading - self.heading) / self.dt,
+                self.heading += self.env.dt * np.clip(
+                    helper.wrap_to_pi(self.des_heading - self.heading) / self.env.dt,
                     -self.max_ang_accel,
                     self.max_ang_accel,
                 )
                 self.heading = helper.wrap_to_pi(self.heading)
             else:
                 raise NotImplementedError
-            self.pos += self.dt * self.vel
             self.vel = self.speed * helper.vec(self.heading)
+            self.pos += self.env.dt * self.vel
         else:
             self.speed = 0
             self.vel = np.array([0, 0])
