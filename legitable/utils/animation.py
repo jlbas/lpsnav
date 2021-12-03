@@ -4,7 +4,8 @@ import os
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FFMpegWriter, FuncAnimation
+from matplotlib.animation import FuncAnimation
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Circle, Polygon
 from utils import helper
 
@@ -60,7 +61,7 @@ class Animate:
         self.scenario = scenario
         self.agents_log = dict()
 
-    def ani(self, i, agents, last_frame, plt, fig):
+    def ani(self, i, agents, last_frame, plt, fig, pdf):
         for a in agents:
             a.patches.path.set_xy(a.pos_log[: i + 1])
             try:
@@ -107,6 +108,8 @@ class Animate:
         if i == last_frame - 1:
             pass
             # plt.close(fig)
+        if pdf is not None:
+            pdf.savefig(fig)
 
         return helper.flatten([p for a in agents for p in a.patches])
 
@@ -174,13 +177,14 @@ class Animate:
         for patch in helper.flatten([p for a in agents for p in a.patches]):
             ax.add_patch(patch)
         ax.legend()
+        pdf = PdfPages(f"{vidname}.pdf") if self.config.animation.save_ani_as_pdf else None
 
         ani = FuncAnimation(
             fig,
             self.ani,
             frames=max([len(a.pos_log) for a in agents]),
-            fargs=(agents, max([len(a.pos_log) for a in agents]), plt, fig),
             interval=int(1000 * self.config.env.dt),
+            fargs=(agents, max([len(a.pos_log) for a in agents]), plt, fig, pdf),
             blit=True,
             repeat=False,
         )
@@ -189,10 +193,11 @@ class Animate:
 
         if self.config.animation.save_ani:
             os.makedirs(self.config.animation.ani_dir, exist_ok=True)
-            if filename is None:
-                filename = f"{self.scenario}_overlay"
-            vidname = os.path.join(self.config.animation.ani_dir, f"{filename}.mp4")
-            ani.save(vidname, writer=FFMpegWriter(fps=int(1 / self.config.env.timestep)))
+            ani.save(f"{vidname}.mp4", writer="ffmpeg", fps=int(1 / self.config.env.dt))
+            plt.savefig(f"{vidname}.pdf")
+
+        if pdf is not None:
+            pdf.close()
 
     def plot(self, agents, filename=None):
         if self.config.animation.dark_bg:
