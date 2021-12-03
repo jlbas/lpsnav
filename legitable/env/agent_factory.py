@@ -76,7 +76,7 @@ def get_starts_goals(config, rng, scenario):
     elif scenario == "circle":
         agent_cnt = config.env.num_of_agents
         thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
-        starts = config.env.circle_radius * helper.unit_vec(thetas)
+        starts = config.env.circle_radius * helper.vec(thetas)
         goals = -starts
     elif scenario == "random":
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer

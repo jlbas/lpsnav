@@ -35,13 +35,13 @@ class Agent:
         self.heading = helper.angle(self.goal - self.start)
         self.speed = self.max_speed
         # self.speed = 0
-        self.vel = self.speed * helper.unit_vec(self.heading)
+        self.vel = self.speed * helper.vec(self.heading)
         self.speeds = np.linspace(self.max_speed, self.min_speed, self.speed_samples)
         self.rel_headings = np.linspace(
             -self.heading_span / 2, self.heading_span / 2, self.heading_samples
         )
         self.rel_prims = self.prim_horiz * np.multiply.outer(
-            self.speeds, helper.unit_vec(self.rel_headings)
+            self.speeds, helper.vec(self.rel_headings)
         )
         self.pos = self.start.copy()
         self.dt = self.env_conf.timestep
@@ -121,8 +121,8 @@ class Agent:
                 self.heading = helper.wrap_to_pi(self.heading)
             else:
                 raise NotImplementedError
-            self.vel = self.speed * helper.unit_vec(self.heading)
             self.pos += self.dt * self.vel
+            self.vel = self.speed * helper.vec(self.heading)
         else:
             self.speed = 0
             self.vel = np.array([0, 0])

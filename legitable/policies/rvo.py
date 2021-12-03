@@ -31,7 +31,7 @@ class Rvo(Agent):
     def get_action(self):
         for id, agent in self.rvo_agents.items():
             self.rvo_sim.setAgentPosition(agent, tuple(self.env.agents[id].pos))
-            pref_vel = self.env.agents[id].max_speed * helper.unit_vec(
+            pref_vel = self.env.agents[id].max_speed * helper.vec(
                 helper.angle(self.env.agents[id].goal - self.env.agents[id].pos)
             )
             self.rvo_sim.setAgentPrefVelocity(agent, tuple(pref_vel))

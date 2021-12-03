@@ -31,12 +31,17 @@ def wrap_to_pi(th):
     return np.arctan2(np.sin(th), np.cos(th))
 
 
-def unit_vec(th):
+def vec(th):
     return np.squeeze(np.column_stack((np.cos(th), np.sin(th))))
 
 
+def unit_vec(vec):
+    return vec / np.linalg.norm(vec, axis=-1)
+
+
 def in_front(pos, th, pt):
-    return np.dot(pt - pos, unit_vec(th)) > 0
+    return np.sum((pt - pos) * vec(th), axis=-1) > 0
+    # return np.dot(pt - pos, vec(th)) > 0
 
 
 def interpolate(arr):
@@ -150,7 +155,7 @@ def directed_intersection_pt(pos, vel, line, line_vel, t_to_line):
 
 
 def p_intersect(pos, v, line_pts, line_th, pt_vel, t_to_line):
-    vel = v * unit_vec(wrap_to_pi(line_th + np.pi))
+    vel = v * vec(wrap_to_pi(line_th + np.pi))
     r_pred = pos + vel * t_to_line[..., None]
     p0_pred = line_pts[0] + pt_vel * t_to_line[..., None]
     p1_pred = line_pts[1] + pt_vel * t_to_line[..., None]

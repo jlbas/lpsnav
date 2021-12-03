@@ -46,7 +46,7 @@ class Lpnav(Agent):
         )
         self.opt_log = list()
         self.col_mask_log = list()
-        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
+        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
         self.speed_idx = 0
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
@@ -66,7 +66,7 @@ class Lpnav(Agent):
         }
 
     def update_abs_prim_vels(self):
-        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.unit_vec(self.abs_headings))
+        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
 
     def update_int_line(self):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
