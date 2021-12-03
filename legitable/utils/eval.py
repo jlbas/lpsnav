@@ -3,7 +3,9 @@ from dataclasses import dataclass, field
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sympy as smp
 from prettytable import PrettyTable
+from scipy.ndimage import gaussian_filter
 from utils import helper
 
 
@@ -38,6 +40,7 @@ class Eval:
         self.traj_inference = {
             policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
         }
+        self.nav_load_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
 
     def __repr__(self):
         ret = f"{self.scenario}"
@@ -69,6 +72,7 @@ class Eval:
             self.goal_inference[env.ego_policy][iter],
             self.traj_inference[env.ego_policy][iter],
         ) = self.compute_leg_pred(env)
+        self.nav_load_log[env.ego_policy][iter] = self.compute_mpd(env)
 
     def compute_extra_ttg(self, agent):
         opt_ttg = (
@@ -183,6 +187,98 @@ class Eval:
             )
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
+    def compute_mpd(self, env):
+        # fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        # fig.set_size_inches(16, 5)
+        nav_load = []
+        for agent in [a for a in env.agents.values() if a is not env.ego_agent]:
+            int_idx = helper.in_front(agent.pos_log, agent.heading_log, env.ego_agent.pos_log)
+            start_idx = np.argmax(int_idx)
+            end_idx = np.argmin(int_idx[start_idx:])
+            end_idx = -1 if end_idx == 0 and int_idx[end_idx] else end_idx + start_idx
+            if end_idx - start_idx > 1:
+                prx, pry, vr, thr, phx, phy, vh, thh = smp.symbols(
+                    "prx pry vr thr phx phy vh thh", real=True
+                )
+                dvx = vh * smp.cos(thh) - vr * smp.cos(thr)
+                dvy = vr * smp.sin(thr) - vh * smp.sin(thh)
+                dpx = phx - prx
+                dpy = phy - pry
+                mpd = smp.sqrt((dvx * dpy + dvy * dpx) ** 2 / (dvx ** 2 + dvy ** 2))
+                fns = [
+                    mpd,
+                    smp.diff(mpd, vr),
+                    smp.diff(mpd, thr),
+                    smp.diff(mpd, vh),
+                    smp.diff(mpd, thh),
+                ]
+                mpd, *partials = [
+                    smp.lambdify((prx, pry, vr, thr, phx, phy, vh, thh), p) for p in fns
+                ]
+                args = [
+                    env.ego_agent.pos_log[start_idx:end_idx, 0],
+                    env.ego_agent.pos_log[start_idx:end_idx, 1],
+                    env.ego_agent.speed_log[start_idx:end_idx],
+                    env.ego_agent.heading_log[start_idx:end_idx],
+                    agent.pos_log[start_idx:end_idx, 0],
+                    agent.pos_log[start_idx:end_idx, 1],
+                    agent.speed_log[start_idx:end_idx],
+                    agent.heading_log[start_idx:end_idx],
+                ]
+                dvx = args[6] * np.cos(args[7]) - args[2] * np.cos(args[3])
+                dvy = args[2] * np.sin(args[3]) - args[6] * np.sin(args[7])
+                if not np.any((dvx == 0) & (dvy == 0)):
+                    params = [
+                        env.ego_agent.speed_log,
+                        env.ego_agent.heading_log,
+                        agent.speed_log,
+                        agent.heading_log,
+                    ]
+                    if start_idx:
+                        dparams = [np.diff(p[start_idx - 1 : end_idx]) for p in params]
+                    else:
+                        dparams = [
+                            np.diff(np.pad(p[start_idx:end_idx], (1, 0), mode="edge"))
+                            for p in params
+                        ]
+                    dparams[1::2] = helper.wrap_to_pi(dparams[1::2])
+                    eps = [
+                        gaussian_filter(partial(*args) * dp, sigma=3)
+                        for partial, dp in zip(partials, dparams)
+                    ]
+                    cum = [
+                        np.trapz(e / self.conf.env.dt, dx=self.conf.env.dt) for e in eps
+                    ]
+                    nav_load.append(sum(cum[:2]) / sum(cum))
+                    # contribs = [c / sum(cum) for c in cum]
+                    # print(f"{env.ego_policy}: {contribs}")
+
+                    # mpd_vals = gaussian_filter(mpd(*args), sigma=3)
+
+                    # fig.suptitle(str(env))
+                    # t = np.linspace(0, self.conf.env.dt * len(mpd_vals), len(mpd_vals))
+                #     ax1.plot(t, mpd_vals, label=env.ego_agent.policy, c=env.ego_agent.color, lw=2)
+                #     ax2.plot(t, eps[0], c=env.ego_agent.color, lw=2)
+                #     ax2.plot(t, eps[1], c=env.ego_agent.color, lw=2)
+                #     ax2.plot(t, eps[2], c=agent.color, lw=2)
+                #     ax2.plot(t, eps[3], c=agent.color, lw=2)
+                #     ax3.plot(t, env.dt * np.cumsum(eps[0]), c=env.ego_agent.color)
+                #     ax3.plot(t, env.dt * np.cumsum(eps[1]), c=env.ego_agent.color, lw=2)
+                #     ax3.plot(t, env.dt * np.cumsum(eps[2]), c=agent.color, lw=2)
+                #     ax3.plot(t, env.dt * np.cumsum(eps[3]), c=agent.color, lw=2)
+        # ax1.set_ylabel("MPD (m)")
+        # ax2.set_ylabel("Instantaneous effect on MPD (m/s)")
+        # ax3.set_ylabel("Cumulative effect on MPD (m)")
+        # for ax in [ax1, ax2, ax3]:
+        #     ax.set_xlabel("Time (s)")
+        # if self.conf.eval.show_mpd_plot:
+        #     plt.show()
+        # if self.conf.eval.save_mpd_plot:
+        #     dir = self.conf.eval.mpd_plot_dir
+        #     os.makedirs(dir, exist_ok=True)
+        #     fig.savefig(os.path.join(dir, "mpd.pdf"), backend="pgf")
+        return np.mean(nav_load)
+
     def get_table(self):
         clean_policies = {
             "lpnav": "LPNav",
@@ -243,6 +339,14 @@ class Eval:
                 "stds": [],
                 "vals": [],
             },
+            "nav_load": {
+                "header": "Navigation Load ($\\%$)",
+                "decimals": 2,
+                "function": max,
+                "raw_vals": [],
+                "stds": [],
+                "vals": [],
+            },
         }
 
         for policy in self.conf.env.policies:
@@ -285,6 +389,8 @@ class Eval:
             tbl_dict["legibility"]["stds"].append(100 * np.std(self.leg_log[policy]))
             tbl_dict["predictability"]["raw_vals"].append(100 * np.mean(self.pred_log[policy]))
             tbl_dict["predictability"]["stds"].append(100 * np.std(self.pred_log[policy]))
+            tbl_dict["nav_load"]["raw_vals"].append(100 * np.mean(self.nav_load_log[policy]))
+            tbl_dict["nav_load"]["stds"].append(100 * np.std(self.nav_load_log[policy]))
 
         for k, v in tbl_dict.items():
             if "function" in v:
