@@ -9,7 +9,7 @@ class Lpnav(Agent):
         super().__init__(config, env, id, policy, start, goal=goal, max_speed=max_speed)
         self.receding_horiz = self.conf.receding_horiz
         self.sensing_horiz = self.conf.sensing_horiz
-        self.receding_steps = int(self.receding_horiz / self.env.timestep)
+        self.receding_steps = int(self.receding_horiz / self.env.dt)
         self.speed_samples = self.conf.speed_samples
         self.heading_samples = self.conf.heading_samples
         col_width = 2 * self.radius + self.conf.col_buffer
@@ -37,7 +37,7 @@ class Lpnav(Agent):
         self.is_legible = dict()
         self.abs_prims_log = np.full(
             (
-                int(self.env.max_duration / self.env.timestep) + 1,
+                int(self.env.max_duration / self.env.dt) + 1,
                 self.speed_samples,
                 self.heading_samples,
                 2,
@@ -57,11 +57,11 @@ class Lpnav(Agent):
         self.int_start_t = {id: -1 for id in self.other_agents}
         self.int_t = {id: -1 for id in self.other_agents}
         self.int_lines_log = {
-            id: np.full((int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf)
+            id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
         self.pred_int_lines_log = {
-            id: np.full((int(self.env.max_duration / self.env.timestep) + 1, 2, 2), np.inf)
+            id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
 

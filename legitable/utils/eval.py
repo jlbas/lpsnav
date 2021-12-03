@@ -87,8 +87,8 @@ class Eval:
     def compute_leg_pred(self, env):
         legibility = Score()
         predictability = Score()
-        receding_steps = int(self.conf.lpnav.receding_horiz / env.timestep)
         col_width = 2 * env.ego_agent.radius + self.conf.lpnav.col_buffer
+        receding_steps = int(self.conf.lpnav.receding_horiz / env.dt)
         int_baseline = np.array([[0, -col_width], [0, col_width]])
         cost_st = self.conf.lpnav.receding_horiz
         for id, agent in {id: a for id, a in env.agents.items() if a is not env.ego_agent}.items():
@@ -113,7 +113,7 @@ class Eval:
                     if ego_in_front and a_in_front and in_radius:
                         if i < receding_steps:
                             receded_pos = env.ego_agent.pos_log[0] - env.ego_agent.vel_log[0] * (
-                                self.conf.lpnav.receding_horiz - i * self.conf.env.timestep
+                                self.conf.lpnav.receding_horiz - i * self.conf.env.dt
                             )
                         else:
                             receded_pos = env.ego_agent.pos_log[i - receding_steps]
@@ -142,7 +142,7 @@ class Eval:
                         legibility.vals[id][i] = np.delete(goal_inference, 1)
                         if start_idx is None:
                             start_idx = i
-                        int_time = (i - start_idx) * env.timestep
+                        int_time = (i - start_idx) * env.dt
                         start_line = int_line - agent.vel_log[i] * int_time
                         cost_sg = helper.dynamic_pt_cost(
                             env.ego_agent.pos_log[start_idx],
@@ -160,7 +160,7 @@ class Eval:
                     if not a_in_front and not ego_in_front and start_idx is not None:
                         start_idx = None
             lvals = helper.split_interactions(legibility.vals[id])
-            t = [np.linspace(0, len(stride) * env.timestep, len(stride)) for stride in lvals]
+            t = [np.linspace(0, len(stride) * env.dt, len(stride)) for stride in lvals]
             for i, (sub_goal_inference, sub_t) in enumerate(zip(lvals, t)):
                 discount = sub_t[-1] - sub_t if sub_t[-1] else 1
                 lvals[i] = np.sum(sub_goal_inference * discount)

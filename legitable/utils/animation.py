@@ -179,8 +179,8 @@ class Animate:
             fig,
             self.ani,
             frames=max([len(a.pos_log) for a in agents]),
-            interval=int(1000 * self.config.env.timestep),
             fargs=(agents, max([len(a.pos_log) for a in agents]), plt, fig),
+            interval=int(1000 * self.config.env.dt),
             blit=True,
             repeat=False,
         )
@@ -232,7 +232,7 @@ class Animate:
         sampled_len = 0
         for a in agents:
             a.sampled_traj = a.pos_log[
-                :: int(self.config.env.body_interval / self.config.env.timestep)
+                :: int(self.config.env.body_interval / self.config.env.dt)
             ]
             sampled_len = max(sampled_len, len(a.sampled_traj))
         first_inattentive = True
@@ -318,7 +318,7 @@ class Animate:
             sampled_len = 0
             for a in agents:
                 a.sampled_traj = a.pos_log[
-                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                    :: int(self.config.animation.body_interval / self.config.env.dt)
                 ]
                 sampled_len = max(sampled_len, len(a.sampled_traj))
             for i, a in enumerate(list(agents)[::-1]):
@@ -344,28 +344,28 @@ class Animate:
                             Circle(pos, self.config.agent.radius, fc=c, ec=a.color, zorder=i)
                         )
             for v in goal_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.env.timestep, len(v))
+                t = np.linspace(0, len(v) * self.config.env.dt, len(v))
                 ax2.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
                 ax2.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
                 ax2.legend(loc=3)
                 sampled_inf = v[
-                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                    :: int(self.config.animation.body_interval / self.config.env.dt)
                 ]
                 sampled_t = t[
-                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                    :: int(self.config.animation.body_interval / self.config.env.dt)
                 ]
                 ax2.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
                 ax2.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
             for v in traj_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.env.timestep, len(v))
+                t = np.linspace(0, len(v) * self.config.env.dt, len(v))
                 ax3.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
                 ax3.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
                 ax3.legend(loc=3)
                 sampled_inf = v[
-                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                    :: int(self.config.animation.body_interval / self.config.env.dt)
                 ]
                 sampled_t = t[
-                    :: int(self.config.animation.body_interval / self.config.env.timestep)
+                    :: int(self.config.animation.body_interval / self.config.env.dt)
                 ]
                 ax3.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
                 ax3.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)

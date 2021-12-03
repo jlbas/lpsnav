@@ -44,22 +44,21 @@ class Agent:
             self.speeds, helper.vec(self.rel_headings)
         )
         self.pos = self.start.copy()
-        self.dt = self.env_conf.timestep
         self.patches = Patches()
         self.pos_log = np.full(
-            (int(self.env_conf.max_duration / self.env_conf.timestep) + 1, 2), np.inf
+            (int(self.env_conf.max_duration / self.env_conf.dt) + 1, 2), np.inf
         )
         self.heading_log = np.full(
-            int(self.env_conf.max_duration / self.env_conf.timestep) + 1, np.inf
+            int(self.env_conf.max_duration / self.env_conf.dt) + 1, np.inf
         )
         self.speed_log = np.full(
-            int(self.env_conf.max_duration / self.env_conf.timestep) + 1, np.inf
+            int(self.env_conf.max_duration / self.env_conf.dt) + 1, np.inf
         )
         self.vel_log = np.full(
-            (int(self.env_conf.max_duration / self.env_conf.timestep) + 1, 2), np.inf
+            (int(self.env_conf.max_duration / self.env_conf.dt) + 1, 2), np.inf
         )
-        self.col_log = np.full(int(self.env_conf.max_duration / self.env_conf.timestep) + 1, False)
-        self.goal_log = np.full(int(self.env_conf.max_duration / self.env_conf.timestep) + 1, False)
+        self.col_log = np.full(int(self.env_conf.max_duration / self.env_conf.dt) + 1, False)
+        self.goal_log = np.full(int(self.env_conf.max_duration / self.env_conf.dt) + 1, False)
         self.past_vels = self.vel * np.ones((2, 2))
         self.collided = False
         self.update_abs_prims()

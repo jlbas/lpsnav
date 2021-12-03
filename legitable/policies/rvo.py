@@ -13,7 +13,7 @@ class Rvo(Agent):
         self.max_neighbors = self.conf.max_neighbors
         self.time_horiz = self.conf.time_horiz
         self.rvo_sim = rvo2.PyRVOSimulator(
-            self.env.timestep,
+            self.env.dt,
             self.neighbor_dist,
             self.max_neighbors,
             self.time_horiz,
@@ -38,5 +38,5 @@ class Rvo(Agent):
         self.rvo_sim.doStep()
 
         dpos = self.rvo_sim.getAgentPosition(self.rvo_agents[self.id]) - self.pos
-        self.des_speed = np.linalg.norm(dpos) / self.env.timestep
+        self.des_speed = np.linalg.norm(dpos) / self.env.dt
         self.des_heading = helper.angle(dpos)

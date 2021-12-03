@@ -5,7 +5,7 @@ from env.agent_factory import init_agents
 class Env:
     def __init__(self, config, rng, ego_policy, iter, scenario, policy_id=0):
         self.config = config
-        self.timestep = self.config.env.timestep
+        self.dt = self.config.env.dt
         self.max_duration = self.config.env.max_duration
         self.done = False
         self.time = 0
@@ -38,7 +38,7 @@ class Env:
                 a.get_action()
         for a in self.agents.values():
             a.step()
-        self.time += self.timestep
+        self.time += self.dt
         self.step += 1
         for a in self.agents.values():
             a.collision_check()
@@ -52,7 +52,7 @@ class Env:
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
             print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
             self.done = True
-        elif self.time >= self.max_duration - self.timestep:
+        elif self.time >= self.max_duration - self.dt:
             print(
                 f"Simulation duration of {self.max_duration}s was reached. "
                 "Not all agents reached their goals."
