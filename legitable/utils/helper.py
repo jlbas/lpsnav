@@ -52,6 +52,11 @@ def remove_zero_arrs(list):
     return [arr for arr in list if not np.all(arr == 0)]
 
 
+def clip(vec, mag):
+    scale = min(1, mag / np.linalg.norm(vec))
+    return scale * vec
+
+
 def directed_masks(pt, pt_vel, line, line_vel, t_to_line):
     pred_pt = pt + t_to_line[..., None] * pt_vel
     pred_line = line[:, None, None, :] + t_to_line[..., None] * line_vel
