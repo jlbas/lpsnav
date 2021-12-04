@@ -175,9 +175,7 @@ class Lpnav(Agent):
         ), "Error in predictability computation"
 
     def check_if_legible(self, id):
-        self.passing_ratio = np.max(self.current_leg_score[id]) / np.min(
-            self.current_leg_score[id], where=self.current_leg_score[id] > 0, initial=1
-        )
+        self.passing_ratio = np.max(self.current_leg_score[id]) / np.min(self.current_leg_score[id])
         self.is_legible[id] = self.passing_ratio > self.leg_tol
 
     def update_tau(self, id, agent):
@@ -221,7 +219,7 @@ class Lpnav(Agent):
             self.get_int_costs(id, agent)
             self.compute_prim_leg(id)
             self.compute_leg(id)
-            self.compute_prim_pred(id)
+            self.compute_prim_pred(id, agent)
             self.check_if_legible(id)
             self.update_tau(id, agent)
         if np.all(self.col_mask):
