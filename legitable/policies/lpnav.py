@@ -95,7 +95,7 @@ class Lpnav(Agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
 
-    def update_pred_int_t(self, id, agent):
+    def update_int_t(self, id):
         if id in self.interacting_agents:
             if self.int_start_t[id] == -1:
                 self.int_start_t[id] = self.env.time
@@ -219,7 +219,7 @@ class Lpnav(Agent):
         self.remove_col_prims()
         for id, agent in self.interacting_agents.items():
             self.predict_pos(id, agent)
-            self.update_pred_int_t(id, agent)
+            self.update_int_t(id)
             self.get_int_costs(id, agent)
             self.compute_prim_leg(id)
             self.compute_leg(id)
