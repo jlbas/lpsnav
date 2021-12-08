@@ -40,7 +40,10 @@ class Eval:
         self.traj_inference = {
             policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
         }
-        self.nav_load_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+        self.nav_contrib_log = {
+            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
+        }
+        self.init_symbols()
 
     def __repr__(self):
         ret = f"{self.scenario}"
@@ -51,6 +54,19 @@ class Eval:
         if self.scenario == "random":
             ret += f"_iter_{self.conf.env.random_scenarios}"
         return ret
+
+    def init_symbols(self):
+        prx, pry, phx, phy, vr, thr, vh, thh = smp.symbols(
+            "prx pry phx phy vr thr vh thh", real=True
+        )
+        dvx = vh * smp.cos(thh) - vr * smp.cos(thr)
+        dvy = vr * smp.sin(thr) - vh * smp.sin(thh)
+        dpx = phx - prx
+        dpy = phy - pry
+        args = (prx, pry, phx, phy, vr, thr, vh, thh)
+        mpd = smp.sqrt((dvx * dpy + dvy * dpx) ** 2 / (dvx ** 2 + dvy ** 2))
+        self.mpd = smp.lambdify(args, mpd)
+        self.mpd_partials = [smp.lambdify(args, smp.diff(mpd, p)) for p in [vr, thr, vh, thh]]
 
     def evaluate(self, iter, env):
         self.colors[env.ego_policy] = env.ego_agent.color
@@ -66,13 +82,17 @@ class Eval:
         self.path_irregularity_log[env.ego_policy][iter] = self.compute_path_irregularity(
             env.ego_agent
         )
+        self.get_interactions(env)
+        self.compute_mpd(env)
         (
             self.leg_log[env.ego_policy][iter],
             self.pred_log[env.ego_policy][iter],
             self.goal_inference[env.ego_policy][iter],
             self.traj_inference[env.ego_policy][iter],
         ) = self.compute_leg_pred(env)
-        self.nav_load_log[env.ego_policy][iter] = self.compute_mpd(env)
+        self.nav_contrib_log[env.ego_policy][iter] = self.compute_nav_contrib(env)
+        if self.conf.eval.show_nav_contrib_plot or self.conf.eval.save_nav_contrib_plot:
+            self.make_nav_contrib_plot(env)
 
     def compute_extra_ttg(self, agent):
         opt_ttg = (
@@ -187,97 +207,116 @@ class Eval:
             )
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
+    def get_interactions(self, env):
+        self.int_idx = dict()
+        for id, agent in env.ego_agent.other_agents.items():
+            inter_dist = helper.dist(env.ego_agent.pos_log, agent.pos_log)
+            if np.any(env.ego_agent.col_log):
+                end_idx = np.minimum(np.argmax(env.ego_agent.col_log), np.argmin(inter_dist))
+            elif np.any(env.ego_agent.goal_log):
+                end_idx = np.minimum(np.argmax(env.ego_agent.goal_log), np.argmin(inter_dist))
+            else:
+                end_idx = np.argmin(inter_dist)
+            start_idx = np.argmax(
+                helper.in_front(env.ego_agent.pos_log, env.ego_agent.heading_log, agent.pos_log)
+            )
+            self.int_idx[id] = [start_idx, end_idx]
+
     def compute_mpd(self, env):
-        # fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-        # fig.set_size_inches(16, 5)
-        nav_load = []
-        for agent in [a for a in env.agents.values() if a is not env.ego_agent]:
-            int_idx = helper.in_front(agent.pos_log, agent.heading_log, env.ego_agent.pos_log)
-            start_idx = np.argmax(int_idx)
-            end_idx = np.argmin(int_idx[start_idx:])
-            end_idx = -1 if end_idx == 0 and int_idx[end_idx] else end_idx + start_idx
-            if end_idx - start_idx > 1:
-                prx, pry, vr, thr, phx, phy, vh, thh = smp.symbols(
-                    "prx pry vr thr phx phy vh thh", real=True
-                )
-                dvx = vh * smp.cos(thh) - vr * smp.cos(thr)
-                dvy = vr * smp.sin(thr) - vh * smp.sin(thh)
-                dpx = phx - prx
-                dpy = phy - pry
-                mpd = smp.sqrt((dvx * dpy + dvy * dpx) ** 2 / (dvx ** 2 + dvy ** 2))
-                fns = [
-                    mpd,
-                    smp.diff(mpd, vr),
-                    smp.diff(mpd, thr),
-                    smp.diff(mpd, vh),
-                    smp.diff(mpd, thh),
-                ]
-                mpd, *partials = [
-                    smp.lambdify((prx, pry, vr, thr, phx, phy, vh, thh), p) for p in fns
-                ]
-                args = [
-                    env.ego_agent.pos_log[start_idx:end_idx, 0],
-                    env.ego_agent.pos_log[start_idx:end_idx, 1],
-                    env.ego_agent.speed_log[start_idx:end_idx],
-                    env.ego_agent.heading_log[start_idx:end_idx],
-                    agent.pos_log[start_idx:end_idx, 0],
-                    agent.pos_log[start_idx:end_idx, 1],
-                    agent.speed_log[start_idx:end_idx],
-                    agent.heading_log[start_idx:end_idx],
-                ]
-                dvx = args[6] * np.cos(args[7]) - args[2] * np.cos(args[3])
-                dvy = args[2] * np.sin(args[3]) - args[6] * np.sin(args[7])
-                if not np.any((dvx == 0) & (dvy == 0)):
-                    params = [
-                        env.ego_agent.speed_log,
-                        env.ego_agent.heading_log,
-                        agent.speed_log,
-                        agent.heading_log,
-                    ]
-                    if start_idx:
-                        dparams = [np.diff(p[start_idx - 1 : end_idx]) for p in params]
-                    else:
-                        dparams = [
-                            np.diff(np.pad(p[start_idx:end_idx], (1, 0), mode="edge"))
-                            for p in params
-                        ]
-                    dparams[1::2] = helper.wrap_to_pi(dparams[1::2])
-                    eps = [
-                        gaussian_filter(partial(*args) * dp, sigma=3)
-                        for partial, dp in zip(partials, dparams)
-                    ]
-                    cum = [
-                        np.trapz(e / self.conf.env.dt, dx=self.conf.env.dt) for e in eps
-                    ]
-                    nav_load.append(sum(cum[:2]) / sum(cum))
-                    # contribs = [c / sum(cum) for c in cum]
-                    # print(f"{env.ego_policy}: {contribs}")
+        self.mpd_params = dict()
+        self.mpd_args = dict()
+        self.mpd_vals = dict()
+        for id, agent in env.ego_agent.other_agents.items():
+            self.mpd_params[id] = [
+                env.ego_agent.speed_log[self.int_idx[id][0] : self.int_idx[id][1]],
+                env.ego_agent.heading_log[self.int_idx[id][0] : self.int_idx[id][1]],
+                agent.speed_log[self.int_idx[id][0] : self.int_idx[id][1]],
+                agent.heading_log[self.int_idx[id][0] : self.int_idx[id][1]],
+            ]
+            self.mpd_args[id] = [
+                env.ego_agent.pos_log[:, 0][self.int_idx[id][0] : self.int_idx[id][1]],
+                env.ego_agent.pos_log[:, 1][self.int_idx[id][0] : self.int_idx[id][1]],
+                agent.pos_log[:, 0][self.int_idx[id][0] : self.int_idx[id][1]],
+                agent.pos_log[:, 1][self.int_idx[id][0] : self.int_idx[id][1]],
+                *self.mpd_params[id],
+            ]
+            with np.errstate(invalid="ignore"):
+                self.mpd_vals[id] = gaussian_filter(self.mpd(*self.mpd_args[id]), sigma=3)
 
-                    # mpd_vals = gaussian_filter(mpd(*args), sigma=3)
+    def compute_nav_contrib(self, env):
+        self.eps = dict()
+        nav_contrib = list()
+        for id in env.ego_agent.other_agents:
+            if np.all([a.size != 0 for a in self.mpd_params[id]]):
+                dparams = [np.diff(np.pad(p, (1, 0), mode="edge")) for p in self.mpd_params[id]]
+                dparams[1::2] = helper.wrap_to_pi(dparams[1::2])
+                with np.errstate(invalid="ignore"):
+                    self.eps[id] = [
+                        gaussian_filter(partial(*self.mpd_args[id]) * dp, sigma=3)
+                        for partial, dp in zip(self.mpd_partials, dparams)
+                    ]
+                cum_contrib = [
+                    np.trapz(e / self.conf.env.dt, dx=self.conf.env.dt) for e in self.eps[id]
+                ]
+                if np.any(cum_contrib):
+                    nav_contrib.append(sum(cum_contrib[:2]) / sum(cum_contrib))
+        return -np.inf if not nav_contrib else np.mean(nav_contrib)
 
-                    # fig.suptitle(str(env))
-                    # t = np.linspace(0, self.conf.env.dt * len(mpd_vals), len(mpd_vals))
-                #     ax1.plot(t, mpd_vals, label=env.ego_agent.policy, c=env.ego_agent.color, lw=2)
-                #     ax2.plot(t, eps[0], c=env.ego_agent.color, lw=2)
-                #     ax2.plot(t, eps[1], c=env.ego_agent.color, lw=2)
-                #     ax2.plot(t, eps[2], c=agent.color, lw=2)
-                #     ax2.plot(t, eps[3], c=agent.color, lw=2)
-                #     ax3.plot(t, env.dt * np.cumsum(eps[0]), c=env.ego_agent.color)
-                #     ax3.plot(t, env.dt * np.cumsum(eps[1]), c=env.ego_agent.color, lw=2)
-                #     ax3.plot(t, env.dt * np.cumsum(eps[2]), c=agent.color, lw=2)
-                #     ax3.plot(t, env.dt * np.cumsum(eps[3]), c=agent.color, lw=2)
-        # ax1.set_ylabel("MPD (m)")
-        # ax2.set_ylabel("Instantaneous effect on MPD (m/s)")
-        # ax3.set_ylabel("Cumulative effect on MPD (m)")
-        # for ax in [ax1, ax2, ax3]:
-        #     ax.set_xlabel("Time (s)")
-        # if self.conf.eval.show_mpd_plot:
-        #     plt.show()
-        # if self.conf.eval.save_mpd_plot:
-        #     dir = self.conf.eval.mpd_plot_dir
-        #     os.makedirs(dir, exist_ok=True)
-        #     fig.savefig(os.path.join(dir, "mpd.pdf"), backend="pgf")
-        return np.mean(nav_load)
+    def make_nav_contrib_plot(self, env):
+        self.conf.animation.dark_bg and plt.style.use("dark_background")
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig.set_size_inches(16, 4)
+        for ax in [ax1, ax2, ax3]:
+            ax.set_xlabel("Time (s)")
+        for id, agent in env.ego_agent.other_agents.items():
+            t = np.linspace(0, self.conf.env.dt * len(self.mpd_vals[id]), len(self.mpd_vals[id]))
+            ax1.plot(t, self.mpd_vals[id], label=r"$MPD(t)$", c=agent.color, lw=2)
+            ax2.plot(
+                t,
+                self.eps[id][0],
+                c=env.ego_agent.color,
+                lw=2,
+                label=r"$\frac{\partial MPD}{\partial v_R}$",
+            )
+            ax2.plot(
+                t,
+                self.eps[id][1],
+                c=env.ego_agent.color,
+                lw=2,
+                ls="--",
+                label=r"$\frac{\partial MPD}{\partial \theta_R}$",
+            )
+            ax2.plot(
+                t,
+                self.eps[id][2],
+                c=agent.color,
+                lw=2,
+                label=r"$\frac{\partial MPD}{\partial v_H}$",
+            )
+            ax2.plot(
+                t,
+                self.eps[id][3],
+                c=agent.color,
+                lw=2,
+                ls="--",
+                label=r"$\frac{\partial MPD}{\partial \theta_H}$",
+            )
+            ax3.plot(t, env.dt * np.cumsum(self.eps[id][0]), c=env.ego_agent.color)
+            ax3.plot(t, env.dt * np.cumsum(self.eps[id][1]), c=env.ego_agent.color, ls="--", lw=2)
+            ax3.plot(t, env.dt * np.cumsum(self.eps[id][2]), c="gray", lw=2)
+            ax3.plot(t, env.dt * np.cumsum(self.eps[id][3]), c="gray", ls="--", lw=2)
+        fig.suptitle(str(env).replace("_", " "))
+        ax1.set_ylabel(r"$MPD(t)$ (m)")
+        ax1.legend()
+        ax2.set_ylabel("Instantaneous effect on MPD (m/s)")
+        ax2.legend()
+        ax3.set_ylabel("Cumulative effect on MPD (m)")
+        if self.conf.eval.save_nav_contrib_plot:
+            dir = self.conf.eval.nav_contrib_plot_dir
+            os.makedirs(dir, exist_ok=True)
+            fig.savefig(os.path.join(dir, f"{str(env)}.pdf"), backend="pgf")
+        if self.conf.eval.show_nav_contrib_plot:
+            plt.show()
 
     def get_table(self):
         clean_policies = {
@@ -339,8 +378,8 @@ class Eval:
                 "stds": [],
                 "vals": [],
             },
-            "nav_load": {
-                "header": "Navigation Load ($\\%$)",
+            "nav_contrib": {
+                "header": "Navigation Contribution ($\\%$)",
                 "decimals": 2,
                 "function": max,
                 "raw_vals": [],
@@ -389,8 +428,18 @@ class Eval:
             tbl_dict["legibility"]["stds"].append(100 * np.std(self.leg_log[policy]))
             tbl_dict["predictability"]["raw_vals"].append(100 * np.mean(self.pred_log[policy]))
             tbl_dict["predictability"]["stds"].append(100 * np.std(self.pred_log[policy]))
-            tbl_dict["nav_load"]["raw_vals"].append(100 * np.mean(self.nav_load_log[policy]))
-            tbl_dict["nav_load"]["stds"].append(100 * np.std(self.nav_load_log[policy]))
+            tbl_dict["nav_contrib"]["raw_vals"].append(
+                100
+                * np.mean(
+                    self.nav_contrib_log[policy], where=np.isfinite(self.nav_contrib_log[policy])
+                )
+            )
+            tbl_dict["nav_contrib"]["stds"].append(
+                100
+                * np.std(
+                    self.nav_contrib_log[policy], where=np.isfinite(self.nav_contrib_log[policy])
+                )
+            )
 
         for k, v in tbl_dict.items():
             if "function" in v:
