@@ -135,7 +135,7 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
 
 
 def cost_to_line(pt, pt_speed, line, line_vel):
-    v0 = np.full(pt.shape, rotate(line[1] - line[0], np.pi / 2))
+    v0 = rotate(line[1] - line[0], np.pi / 2)
     v1 = -v0
     r = pt - line[0]
     v = np.where(np.sum(v0 * r, axis=-1)[..., None] > 0, v0, v1)
