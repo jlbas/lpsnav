@@ -58,6 +58,7 @@ def clip(vec, mag):
 
 
 def directed_masks(pt, pt_vel, line, line_vel, t_to_line):
+    t_to_line = np.clip(t_to_line, a_min=None, a_max=1e5)
     pred_pt = pt + t_to_line[..., None] * pt_vel
     pred_line = line[:, None, None, :] + t_to_line[..., None] * line_vel
     w = pred_pt - pred_line[0]
