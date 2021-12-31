@@ -224,16 +224,16 @@ class Lpnav(Agent):
         self.update_abs_prim_vels()
         self.update_int_line()
         self.get_interacting_agents()
-        self.remove_col_prims()
         for id, agent in self.interacting_agents.items():
             self.predict_pos(id, agent)
             self.update_int_t(id)
             self.get_int_costs(id, agent)
-            self.compute_prim_leg(id)
             self.compute_leg(id)
+            self.compute_prim_leg(id)
             self.compute_prim_pred(id, agent)
             self.check_if_legible(id)
             self.update_tau(id, agent)
+        self.remove_col_prims()
         if np.all(self.col_mask):
             self.des_speed = 0
             self.des_heading = self.heading
