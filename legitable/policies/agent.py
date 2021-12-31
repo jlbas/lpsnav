@@ -88,7 +88,7 @@ class Agent:
 
     def collision_check(self):
         for a in self.other_agents.values():
-            self.collided |= helper.dist(self.pos, a.pos) <= 2 * self.conf.radius
+            self.collided |= helper.dist(self.pos, a.pos) <= 2 * self.radius
 
     def update_abs_prims(self):
         self.abs_prims = self.pos + helper.rotate(self.rel_prims, self.heading)
