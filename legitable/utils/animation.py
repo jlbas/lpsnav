@@ -118,10 +118,13 @@ class Animate:
                             is_opt = [j, k] == a.opt_log[i]
                             pt.set_zorder(1 if is_opt else 0)
                             pt.set_radius(0.08 if is_opt else 0.04)
+                if a.policy == "sfm":
+                    a.patches.f_goal.set_xy([a.pos_log[i], a.pos_log[i] + a.goal_force_log[i]])
+                    a.patches.f_ped.set_xy([a.pos_log[i], a.pos_log[i] + a.ped_force_log[i]])
+                    a.patches.f_tot.set_xy([a.pos_log[i], a.pos_log[i] + a.tot_force_log[i]])
         pdf is not None and pdf.savefig(fig)
         i == last_frame - 1 and self.config.animation.autoplay and plt.close(fig)
         return helper.flatten([p for a in env.agents.values() for p in a.patches])
-
 
     def init_ani(self, env, eval=None, fname=None):
         self.config.animation.dark_bg and plt.style.use("dark_background")
@@ -160,6 +163,12 @@ class Animate:
                     a.patches.pred_int_lines = copy.deepcopy(a.patches.int_lines)
                     cws = a.col_width.values()
                     a.patches.col_circle = [Circle(c, cw, fill=False, ec="red") for cw in cws]
+                if a.policy == "sfm":
+                    p = Polygon(((0, 0), (0, 0)), closed=False, fill=False, lw=3, zorder=10)
+                    for attr, c in zip(["f_goal", "f_ped", "f_tot"], ["blue", "red", "purple"]):
+                        poly = copy.deepcopy(p)
+                        poly.set_color(c)
+                        setattr(a.patches, attr, poly)
         for patch in helper.flatten([p for a in env.agents.values() for p in a.patches]):
             ax.add_patch(patch)
         if fname is None:

@@ -344,6 +344,7 @@ class Eval:
             "sa_cadrl": "SA-CADRL",
             "ga3c_cadrl": "GA3C-CADRL",
             "rvo": "ORCA",
+            "sfm": "SFM",
         }
         tbl_dict = {
             "policy": {
