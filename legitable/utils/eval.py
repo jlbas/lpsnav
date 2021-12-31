@@ -103,7 +103,7 @@ class Eval:
     def compute_path_efficiency(self, agent):
         path_len = np.sum(np.linalg.norm(np.diff(agent.pos_log, axis=0), axis=-1))
         opt_path = helper.dist(agent.start, agent.goal) - agent.goal_tol
-        return opt_path / path_len
+        return 0 if not path_len else opt_path / path_len
 
     def compute_path_irregularity(self, agent):
         return np.mean(np.abs(agent.heading_log - helper.angle(agent.goal - agent.pos_log)))
