@@ -150,18 +150,6 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     return np.nan_to_num(t)
 
 
-def directed_intersection_pt(pos, vel, line, line_vel, t_to_line):
-    t_to_line = np.clip(t_to_line, a_min=None, a_max=1e5)
-    r_pred = pos + vel * t_to_line[..., None]
-    p0_pred = line[0] + line_vel * t_to_line[..., None]
-    p1_pred = line[1] + line_vel * t_to_line[..., None]
-    w = r_pred - p0_pred
-    v = p1_pred - p0_pred
-    c0 = np.sum(w * v, axis=-1)
-    c1 = np.sum(v * v, axis=-1)
-    return np.array([c0 <= 0, (c0 > 0) & (c1 > c0), c1 <= c0])
-
-
 def p_intersect(pos, v, line_pts, line_th, pt_vel, t_to_line):
     t_to_line = np.clip(t_to_line, a_min=None, a_max=1e5)
     vel = v * vec(wrap_to_pi(line_th + np.pi))
