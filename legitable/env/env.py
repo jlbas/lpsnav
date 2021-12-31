@@ -72,5 +72,3 @@ class Env:
                 a.heading_log = a.heading_log[:max_idx]
                 a.vel_log = a.vel_log[:max_idx]
                 a.speed_log = a.speed_log[:max_idx]
-                a.col_log = a.col_log[:max_idx]
-                a.goal_log = a.goal_log[:max_idx]

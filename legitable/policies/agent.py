@@ -57,8 +57,6 @@ class Agent:
         self.vel_log = np.full(
             (int(self.env_conf.max_duration / self.env_conf.dt) + 1, 2), np.inf
         )
-        self.col_log = np.full(int(self.env_conf.max_duration / self.env_conf.dt) + 1, False)
-        self.goal_log = np.full(int(self.env_conf.max_duration / self.env_conf.dt) + 1, False)
         self.past_vels = self.vel * np.ones((2, 2))
         self.collided = False
         self.update_abs_prims()
