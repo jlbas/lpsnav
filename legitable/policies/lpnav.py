@@ -32,6 +32,7 @@ class Lpnav(Agent):
         self.prim_leg_score = dict()
         self.prim_pred_score = dict()
         self.current_leg_score = dict()
+        self.passing_ratio = dict()
         self.is_legible = dict()
         self.abs_prims_log = np.full(
             (
@@ -179,8 +180,10 @@ class Lpnav(Agent):
         ), "Error in predictability computation"
 
     def check_if_legible(self, id):
-        self.passing_ratio = np.max(self.current_leg_score[id]) / np.min(self.current_leg_score[id])
-        self.is_legible[id] = self.passing_ratio > self.leg_tol
+        self.passing_ratio[id] = np.max(self.current_leg_score[id]) / max(
+            np.min(self.current_leg_score[id]), self.env_conf.epsilon
+        )
+        self.is_legible[id] = self.passing_ratio[id] > self.leg_tol
 
     def update_tau(self, id, agent):
         if self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1) or agent.speed == 0:
