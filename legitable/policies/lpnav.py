@@ -191,11 +191,11 @@ class Lpnav(Agent):
         self.is_legible[id] = self.passing_ratio[id] > self.leg_tol
 
     def update_tau(self, id, agent):
-        if self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1) or agent.speed == 0:
+        legible_at_start = self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)
+        if legible_at_start or agent.speed == 0:
             self.taus[id] = 1
         else:
-            x = min(self.passing_ratio - 1, 10)
-            self.taus[id] = -1 + 2 / (1 + np.exp(-self.beta * x))
+            self.taus[id] = 1 - np.exp(max(-self.beta * (self.passing_ratio[id] - 1), -1e2))
 
     def get_leg_pred_prims(self):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
