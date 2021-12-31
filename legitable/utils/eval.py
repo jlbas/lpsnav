@@ -106,6 +106,38 @@ class Eval:
     def compute_path_irregularity(self, agent):
         return np.mean(np.abs(agent.heading_log - helper.angle(agent.goal - agent.pos_log)))
 
+    def get_interactions(self, env):
+        self.int_idx = dict()
+        self.int_slice = dict()
+        self.int_t = dict()
+        self.int_line = dict()
+        self.int_line_heading = helper.wrap_to_pi(
+            helper.angle(env.ego_agent.pos_log - env.ego_agent.goal)
+        )
+        for id, agent in env.ego_agent.other_agents.items():
+            in_front = helper.in_front(agent.pos_log, self.int_line_heading, env.ego_agent.pos_log)
+            inter_dist = helper.dist(env.ego_agent.pos_log, agent.pos_log)
+            in_radius = inter_dist < self.conf.agent.sensing_dist
+            col_width = env.ego_agent.radius + agent.radius
+            rel_int_line = np.array([[0, -col_width], [0, col_width]])
+            abs_int_line = helper.rotate(rel_int_line, self.int_line_heading)
+            self.int_line[id] = abs_int_line + agent.pos_log
+            feasible = (
+                helper.cost_to_line(
+                    env.ego_agent.pos_log, env.ego_agent.max_speed, self.int_line[id], agent.vel_log
+                )
+                < 1e2
+            )
+            is_interacting = in_front & in_radius & feasible
+            if ~np.any(is_interacting) or env.dt * np.sum(is_interacting) < 1:
+                start_idx, end_idx = (0, 0)
+            else:
+                start_idx = np.argmax(is_interacting)
+                end_idx = np.nonzero(is_interacting)[0][-1]
+            self.int_idx[id] = [start_idx, end_idx]
+            self.int_slice[id] = slice(start_idx, end_idx + 1)
+            self.int_t[id] = env.dt * np.arange(start_idx, end_idx + 1)
+
     def compute_leg_pred(self, env):
         legibility = Score()
         predictability = Score()
@@ -202,37 +234,22 @@ class Eval:
             predictability.tot_score = np.mean([s for s in predictability.scores.values()])
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
-    def get_interactions(self, env):
-        self.int_idx = dict()
-        for id, agent in env.ego_agent.other_agents.items():
-            inter_dist = helper.dist(env.ego_agent.pos_log, agent.pos_log)
-            if np.any(env.ego_agent.col_log):
-                end_idx = np.minimum(np.argmax(env.ego_agent.col_log), np.argmin(inter_dist))
-            elif np.any(env.ego_agent.goal_log):
-                end_idx = np.minimum(np.argmax(env.ego_agent.goal_log), np.argmin(inter_dist))
-            else:
-                end_idx = np.argmin(inter_dist)
-            start_idx = np.argmax(
-                helper.in_front(env.ego_agent.pos_log, env.ego_agent.heading_log, agent.pos_log)
-            )
-            self.int_idx[id] = [start_idx, end_idx]
-
     def compute_mpd(self, env):
         self.mpd_params = dict()
         self.mpd_args = dict()
         self.mpd_vals = dict()
         for id, agent in env.ego_agent.other_agents.items():
             self.mpd_params[id] = [
-                env.ego_agent.speed_log[self.int_idx[id][0] : self.int_idx[id][1]],
-                env.ego_agent.heading_log[self.int_idx[id][0] : self.int_idx[id][1]],
-                agent.speed_log[self.int_idx[id][0] : self.int_idx[id][1]],
-                agent.heading_log[self.int_idx[id][0] : self.int_idx[id][1]],
+                env.ego_agent.speed_log[self.int_slice[id]],
+                env.ego_agent.heading_log[self.int_slice[id]],
+                agent.speed_log[self.int_slice[id]],
+                agent.heading_log[self.int_slice[id]],
             ]
             self.mpd_args[id] = [
-                env.ego_agent.pos_log[:, 0][self.int_idx[id][0] : self.int_idx[id][1]],
-                env.ego_agent.pos_log[:, 1][self.int_idx[id][0] : self.int_idx[id][1]],
-                agent.pos_log[:, 0][self.int_idx[id][0] : self.int_idx[id][1]],
-                agent.pos_log[:, 1][self.int_idx[id][0] : self.int_idx[id][1]],
+                env.ego_agent.pos_log[:, 0][self.int_slice[id]],
+                env.ego_agent.pos_log[:, 1][self.int_slice[id]],
+                agent.pos_log[:, 0][self.int_slice[id]],
+                agent.pos_log[:, 1][self.int_slice[id]],
                 *self.mpd_params[id],
             ]
             with np.errstate(invalid="ignore"):
