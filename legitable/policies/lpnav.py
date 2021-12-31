@@ -67,10 +67,10 @@ class Lpnav(Agent):
             id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2), np.inf)
             for id in self.other_agents
         }
-        col_width = {
+        self.col_width = {
             id: self.radius + a.radius + self.conf.col_buffer for id, a in self.other_agents.items()
         }
-        self.rel_int_line = {id: np.array([[0, -cw], [0, cw]]) for id, cw in col_width.items()}
+        self.rel_int_line = {id: np.array([[0, -cw], [0, cw]]) for id, cw in self.col_width.items()}
 
     def update_abs_prim_vels(self):
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
@@ -99,6 +99,7 @@ class Lpnav(Agent):
             for a in self.other_agents.values():
                 a_pred = a.pos + t * (a.pos + a.vel * self.prim_horiz - a.pos)
                 self.col_mask |= helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius / 2
+                    self.col_mask |= helper.dist(ego_pred, a_pred) < self.col_width[id]
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
