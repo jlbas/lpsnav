@@ -11,11 +11,9 @@ from utils import helper
 
 @dataclass
 class Score:
-    tot_score: float = 0
-    tot_weights: list[float] = field(default_factory=list)
-    scores: list[float] = field(default_factory=list)
+    tot_score: float = np.nan
     vals: dict[int, np.ndarray] = field(default_factory=dict)
-    weights: dict[int, list] = field(default_factory=dict)
+    scores: dict[int, float] = field(default_factory=dict)
 
 
 class Eval:
@@ -200,11 +198,8 @@ class Eval:
                 predictability.scores.append(np.average(pvals, weights=predictability.weights[id]))
                 predictability.tot_weights.append(np.sum(predictability.weights[id]))
         if legibility.scores:
-            legibility.tot_score = np.average(legibility.scores, weights=legibility.tot_weights)
-        if predictability.scores:
-            predictability.tot_score = np.average(
-                predictability.scores, weights=predictability.tot_weights
-            )
+            legibility.tot_score = np.mean([s for s in legibility.scores.values()])
+            predictability.tot_score = np.mean([s for s in predictability.scores.values()])
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
     def get_interactions(self, env):
