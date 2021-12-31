@@ -102,8 +102,8 @@ def cost_to_pt(pos_0, speed_0, pos_1, vel_1):
     d_vec = pos_0 - pos_1
     d = np.linalg.norm(d_vec, axis=-1)
     d_vec_hat = d_vec / d[..., None]
-    speed_1_t = np.abs(np.dot(rotate(d_vec_hat, np.pi / 2), vel_1))
-    speed_1_r = np.dot(d_vec_hat, vel_1)  # sign is important
+    speed_1_t = np.abs(np.sum(rotate(d_vec_hat, np.pi / 2) * vel_1, axis=-1))
+    speed_1_r = np.sum(d_vec_hat * vel_1, axis=-1)  # sign is important
     if not speed_0:
         speed_0_r = 0
     else:
@@ -137,7 +137,7 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     v = np.where(np.sum(v0 * r, axis=-1)[..., None] > 0, v0, v1)
     v_hat = v / np.linalg.norm(v, axis=-1)[..., None]
     d = np.abs(np.sum(r * v_hat, axis=-1))
-    proj_line_speed = np.dot(v_hat, line_vel)  # Sign is important
+    proj_line_speed = np.sum(v_hat * line_vel, axis=-1)  # Sign is important
     den = pt_speed + proj_line_speed
     t = d / np.where(den == 0, 1e-5, den)
     return np.where(t <= 0, 1e5, t)
