@@ -281,42 +281,47 @@ class Eval:
         for ax in [ax1, ax2, ax3]:
             ax.set_xlabel("Time (s)")
         for id, agent in env.ego_agent.other_agents.items():
-            t = np.linspace(0, self.conf.env.dt * len(self.mpd_vals[id]), len(self.mpd_vals[id]))
-            ax1.plot(t, self.mpd_vals[id], label=r"$MPD(t)$", c=agent.color, lw=2)
-            ax2.plot(
-                t,
-                self.eps[id][0],
-                c=env.ego_agent.color,
-                lw=2,
-                label=r"$\frac{\partial MPD}{\partial v_R}$",
-            )
-            ax2.plot(
-                t,
-                self.eps[id][1],
-                c=env.ego_agent.color,
-                lw=2,
-                ls="--",
-                label=r"$\frac{\partial MPD}{\partial \theta_R}$",
-            )
-            ax2.plot(
-                t,
-                self.eps[id][2],
-                c=agent.color,
-                lw=2,
-                label=r"$\frac{\partial MPD}{\partial v_H}$",
-            )
-            ax2.plot(
-                t,
-                self.eps[id][3],
-                c=agent.color,
-                lw=2,
-                ls="--",
-                label=r"$\frac{\partial MPD}{\partial \theta_H}$",
-            )
-            ax3.plot(t, env.dt * np.cumsum(self.eps[id][0]), c=env.ego_agent.color)
-            ax3.plot(t, env.dt * np.cumsum(self.eps[id][1]), c=env.ego_agent.color, ls="--", lw=2)
-            ax3.plot(t, env.dt * np.cumsum(self.eps[id][2]), c="gray", lw=2)
-            ax3.plot(t, env.dt * np.cumsum(self.eps[id][3]), c="gray", ls="--", lw=2)
+            if self.mpd_vals[id].size != 0:
+                t = np.linspace(
+                    0, self.conf.env.dt * len(self.mpd_vals[id]), len(self.mpd_vals[id])
+                )
+                ax1.plot(t, self.mpd_vals[id], label=r"$MPD(t)$", c=agent.color, lw=2)
+                ax2.plot(
+                    t,
+                    self.eps[id][0],
+                    c=env.ego_agent.color,
+                    lw=2,
+                    label=r"$\frac{\partial MPD}{\partial v_R}$",
+                )
+                ax2.plot(
+                    t,
+                    self.eps[id][1],
+                    c=env.ego_agent.color,
+                    lw=2,
+                    ls="--",
+                    label=r"$\frac{\partial MPD}{\partial \theta_R}$",
+                )
+                ax2.plot(
+                    t,
+                    self.eps[id][2],
+                    c=agent.color,
+                    lw=2,
+                    label=r"$\frac{\partial MPD}{\partial v_H}$",
+                )
+                ax2.plot(
+                    t,
+                    self.eps[id][3],
+                    c=agent.color,
+                    lw=2,
+                    ls="--",
+                    label=r"$\frac{\partial MPD}{\partial \theta_H}$",
+                )
+                ax3.plot(t, env.dt * np.cumsum(self.eps[id][0]), c=env.ego_agent.color)
+                ax3.plot(
+                    t, env.dt * np.cumsum(self.eps[id][1]), c=env.ego_agent.color, ls="--", lw=2
+                )
+                ax3.plot(t, env.dt * np.cumsum(self.eps[id][2]), c="gray", lw=2)
+                ax3.plot(t, env.dt * np.cumsum(self.eps[id][3]), c="gray", ls="--", lw=2)
         fig.suptitle(str(env).replace("_", " "))
         ax1.set_ylabel(r"$MPD(t)$ (m)")
         ax1.legend()
