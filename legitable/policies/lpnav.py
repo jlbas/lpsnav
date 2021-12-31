@@ -12,8 +12,6 @@ class Lpnav(Agent):
         self.receding_steps = int(self.receding_horiz / self.env.dt)
         self.speed_samples = self.conf.speed_samples
         self.heading_samples = self.conf.heading_samples
-        col_width = 2 * self.radius + self.conf.col_buffer
-        self.int_baseline = np.array([[0, -col_width], [0, col_width]])
         self.subgoal_priors = np.array(self.conf.subgoal_priors)
         self.leg_tol = self.conf.legibility_tol
         self.beta = self.conf.beta
@@ -64,18 +62,24 @@ class Lpnav(Agent):
             id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
+        col_width = {
+            id: self.radius + a.radius + self.conf.col_buffer for id, a in self.other_agents.items()
+        }
+        self.rel_int_line = {id: np.array([[0, -cw], [0, cw]]) for id, cw in col_width.items()}
 
     def update_abs_prim_vels(self):
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
 
     def update_int_line(self):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
-        self.int_pts = helper.rotate(self.int_baseline, self.int_line_heading)
+        self.rel_int_lines = dict()
+        for id, agent in self.other_agents.items():
+            self.rel_int_lines[id] = helper.rotate(self.rel_int_line[id], self.int_line_heading)
+            self.int_lines[id] = self.rel_int_lines[id] + agent.pos
 
     def get_interacting_agents(self):
         self.interacting_agents = dict()
         for id, agent in self.other_agents.items():
-            self.int_lines[id] = agent.pos + self.int_pts
             time_to_interaction = helper.cost_to_line(
                 self.pos, self.speed, self.int_lines[id], agent.vel
             )
@@ -93,7 +97,7 @@ class Lpnav(Agent):
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
-        self.pred_int_lines[id] = self.pred_pos[id] + self.int_pts
+        self.pred_int_lines[id] = self.pred_pos[id] + self.rel_int_lines[id]
 
     def update_int_t(self, id):
         if id in self.interacting_agents:
