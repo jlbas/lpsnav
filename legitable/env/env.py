@@ -46,7 +46,10 @@ class Env:
         self.check_if_done()
 
     def check_if_done(self):
-        if all([a.at_goal for a in self.agents.values()]):
+        if self.ego_agent.at_goal and not self.config.env.homogeneous:
+            print(f"Simulation ended at {self.time:.2f}s. Ego agent reached its goal.")
+            self.done = True
+        elif all([a.at_goal for a in self.agents.values()]) and self.config.env.homogeneous:
             print(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
             self.done = True
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
