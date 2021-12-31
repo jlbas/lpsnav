@@ -10,11 +10,11 @@ from matplotlib.patches import Circle, Polygon
 from utils import helper
 
 
-def snapshot(ego_agent, id):
-    fig, ax = plt.subplots()
-    fig.set_size_inches(4, 3)
-    # fig.canvas.manager.window.wm_geometry("+1150+950")
-    fig.canvas.manager.window.wm_geometry("+1510+450")
+
+def snapshot(ego_agent, id, agent):
+    plt.close("all")
+    plt.style.use("dark_background")
+    _, ax = plt.subplots()
     ax.axis("equal")
     plt.ion()
     ax.scatter(ego_agent.int_lines[id][:, 0], ego_agent.int_lines[id][:, 1], color="gray")
@@ -23,7 +23,7 @@ def snapshot(ego_agent, id):
     ax.scatter(
         ego_agent.pred_int_lines[id][:, 0],
         ego_agent.pred_int_lines[id][:, 1],
-        color=ego_agent.other_agents[id].color,
+        color=agent.color,
     )
     plt.pause(0.1)
     ax.scatter(*ego_agent.pos, color=ego_agent.color)
@@ -39,20 +39,35 @@ def snapshot(ego_agent, id):
                 ax.scatter(*pos, c="green")
             plt.pause(0.1)
     plt.pause(0.1)
-    plt.close("all")
+    ax.scatter(*ego_agent.pos, c=ego_agent.color, s=100)
+    plt.pause(0.1)
+    ax.scatter(*agent.pos, c=agent.color, s=100)
+    plt.pause(0.3)
+    ax.add_patch(Circle(agent.pos, ego_agent.col_width[id], fill=False, ec="red"))
+    plt.pause(0.3)
 
 
-def snap(*agents, istep=0, fstep=-1):
-    _, ax = plt.subplots()
-    ax.axis("equal")
+def snap(*agents, istep=0, fstep=-1, ion=False):
     if fstep == -1:
         fstep = agents[0].env.step + 1
     else:
         fstep += 1
-    for a in agents:
-        ax.scatter(*a.goal, c=a.color)
-        ax.plot(a.pos_log[istep:fstep, 0], a.pos_log[istep:fstep, 1], c=a.color, lw=3)
-    plt.show()
+    plt.style.use("dark_background")
+    _, ax = plt.subplots()
+    ax.axis("equal")
+    if ion:
+        plt.ion()
+        for a in agents:
+            ax.scatter(*a.goal, c=a.color)
+            plt.pause(0.1)
+            ax.plot(a.pos_log[istep:fstep, 0], a.pos_log[istep:fstep, 1], c=a.color, lw=3)
+            plt.pause(0.1)
+        plt.close("all")
+    else:
+        for a in agents:
+            ax.scatter(*a.goal, c=a.color)
+            ax.plot(a.pos_log[istep:fstep, 0], a.pos_log[istep:fstep, 1], c=a.color, lw=3)
+        plt.show()
 
 
 class Animate:
