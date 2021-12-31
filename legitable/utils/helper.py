@@ -154,19 +154,19 @@ def p_intersect(pos, v, line_pts, line_th, pt_vel, t_to_line):
     t_to_line = np.clip(t_to_line, a_min=None, a_max=1e5)
     vel = v * vec(wrap_to_pi(line_th + np.pi))
     r_pred = pos + vel * t_to_line[..., None]
-    p0_pred = line_pts[0] + pt_vel * t_to_line[..., None]
-    p1_pred = line_pts[1] + pt_vel * t_to_line[..., None]
-    w = r_pred - p0_pred
-    v = p1_pred - p0_pred
+    p0_pred = line_pts[0] + pt_vel * np.expand_dims(t_to_line, axis=-1)
+    p1_pred = line_pts[1] + pt_vel * np.expand_dims(t_to_line, axis=-1)
+    w = np.nan_to_num(r_pred - p0_pred)
+    v = np.nan_to_num(p1_pred - p0_pred)
     c0 = np.sum(w * v, axis=-1)
     c1 = np.sum(v * v, axis=-1)
-    return np.array([c0 <= 0, (c0 > 0) & (c1 > c0), c1 <= c0])
+    return np.stack((c0 <= 0, (c0 > 0) & (c1 > c0), c1 <= c0))
 
 
 def masked_cost(masks, cost_col_0, cost_col_1, cost_line):
-    left = np.multiply(masks[0], np.nan_to_num(np.array([cost_line, cost_col_0, cost_col_1])))
-    center = np.multiply(masks[1], np.nan_to_num(np.array([cost_col_0, cost_line, cost_col_1])))
-    right = np.multiply(masks[2], np.nan_to_num(np.array([cost_col_0, cost_col_1, cost_line])))
+    left = masks[0] * np.stack((cost_line, cost_col_0, cost_col_1))
+    center = masks[1] * np.stack((cost_col_0, cost_line, cost_col_1))
+    right = masks[2] * np.stack((cost_col_0, cost_col_1, cost_line))
     return left + center + right
 
 
