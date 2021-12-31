@@ -63,6 +63,10 @@ class Lpnav(Agent):
             id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2, 2), np.inf)
             for id in self.other_agents
         }
+        self.col_circle_log = {
+            id: np.full((int(self.env.max_duration / self.env.dt) + 1, 2), np.inf)
+            for id in self.other_agents
+        }
         col_width = {
             id: self.radius + a.radius + self.conf.col_buffer for id, a in self.other_agents.items()
         }
@@ -249,6 +253,8 @@ class Lpnav(Agent):
             if id in self.interacting_agents:
                 self.int_lines_log[id][step] = self.int_lines[id]
                 self.pred_int_lines_log[id][step] = self.pred_int_lines[id]
+                self.col_circle_log[id][step] = agent.pos
             else:
                 self.int_lines_log[id][step] = 2 * [None]
                 self.pred_int_lines_log[id][step] = 2 * [None]
+                self.col_circle_log[id][step] = None

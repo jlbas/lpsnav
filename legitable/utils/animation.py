@@ -93,6 +93,11 @@ class Animate:
                                 circle.set_radius(0.05)
                                 circle.center = pos
                 if a.policy == "lpnav":
+                    for log, circle in zip(a.col_circle_log.values(), a.patches.col_circle):
+                        if log[i] is None:
+                            circle.center = log[i]
+                        else:
+                            circle.center = log[i]
                     for j, (prim, speed, col_row) in enumerate(
                         zip(a.patches.prims, a.abs_prims_log[i], a.col_mask_log[i])
                     ):
