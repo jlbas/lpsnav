@@ -24,25 +24,22 @@ def is_feasible(positions, min_dist):
 
 
 def init_agents(config, env, rng, ego_policy, scenario, iter):
-    starts, goals = get_starts_goals(config, rng, scenario)
+    starts, goals, max_speeds = get_init_configs(config, rng, scenario)
     agents = dict()
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
     ids = range(iter * len(policies), iter * len(policies) + len(policies))
-    for id, start, goal, policy in zip(ids, starts, goals, policies):
+    for id, start, goal, max_speed, policy in zip(ids, starts, goals, max_speeds, policies):
         module = importlib.import_module(f"policies.{policy}")
         cls = getattr(module, "".join(wd.capitalize() for wd in policy.split("_")))
-        if scenario == "random":
-            max_speed = rng.uniform(*config.env.speed_range)
-        else:
-            max_speed = config.agent.max_speed
         agents[id] = cls(config, env, id, policy, start, goal=goal, max_speed=max_speed)
     return agents[ids[0]], agents
 
 
-def get_starts_goals(config, rng, scenario):
+def get_init_configs(config, rng, scenario):
     start_sep = config.env.interaction_dist / 2
     lat_sep = 2 * config.agent.radius + config.env.lat_dist
+    max_speeds = np.full(config.env.num_of_agents, config.agent.max_speed)
     if scenario == "swap":
         starts = np.array([[-start_sep, 0], [start_sep, 0]])
         goals = starts[::-1]
@@ -73,12 +70,18 @@ def get_starts_goals(config, rng, scenario):
     elif scenario == "custom":
         starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
         goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
+        max_speeds = (
+            config.env.custom_speed
+            if isinstance(config.env.custom_speed, list)
+            else np.full(len(config.env.custom_pos), config.env.custom_speed)
+        )
     elif scenario == "circle":
         agent_cnt = config.env.num_of_agents
         thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
         starts = config.env.circle_radius * helper.vec(thetas)
         goals = -starts
     elif scenario == "random":
+        max_speeds = rng.uniform(*config.env.speed_range, size=config.env.num_of_agents)
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
         for _ in range(100):
             starts = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
@@ -95,4 +98,4 @@ def get_starts_goals(config, rng, scenario):
     starts += rng.uniform(-bound, bound, np.shape(starts))
     goals += rng.uniform(-bound, bound, np.shape(goals))
 
-    return starts, goals
+    return starts, goals, max_speeds
