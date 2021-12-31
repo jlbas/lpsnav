@@ -1,4 +1,5 @@
 import colorsys
+import copy
 import os
 
 import matplotlib.colors as mc
@@ -92,11 +93,8 @@ class Animate:
                 if a.policy == "lpnav" and a is env.ego_agent:
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
                         for pos, circle in zip(log[i], circles):
-                            if pos is None or np.all(np.isnan(pos)):
-                                circle.set_radius(0)
-                            else:
-                                circle.set_radius(0.05)
-                                circle.center = pos
+                            r = 0 if pos is None else 0.05
+                            circle.set(center=pos, radius=r)
                     for log, circles in zip(
                         a.pred_int_lines_log.values(), a.patches.pred_int_lines
                     ):
@@ -106,7 +104,6 @@ class Animate:
                             else:
                                 circle.set_radius(0.05)
                                 circle.center = pos
-                if a.policy == "lpnav":
                     for log, circle in zip(a.col_circle_log.values(), a.patches.col_circle):
                         if log[i] is None:
                             circle.center = log[i]
@@ -116,45 +113,29 @@ class Animate:
                         zip(a.patches.prims, a.abs_prims_log[i], a.col_mask_log[i])
                     ):
                         for k, (pt, coord, col) in enumerate(zip(prim, speed, col_row)):
-                            pt.center = coord
-                            zorder, r = [1, 0.08] if [j, k] == a.opt_log[i] else [0, 0.04]
-                            pt.set_zorder(zorder)
-                            pt.set_radius(r)
-                            fc = "lightgray" if [j, k] == a.opt_log[i] else "#004D40"
-                            fc = "red" if col else "green"
-                            pt.set_facecolor(fc)
-
-        if i == last_frame - 1:
-            pass
-            # plt.close(fig)
-        if pdf is not None:
-            pdf.savefig(fig)
+                            pt.set_center(coord)
+                            pt.set_color("red" if col else "green")
+                            is_opt = [j, k] == a.opt_log[i]
+                            pt.set_zorder(1 if is_opt else 0)
+                            pt.set_radius(0.08 if is_opt else 0.04)
+        pdf is not None and pdf.savefig(fig)
+        i == last_frame - 1 and self.config.animation.autoplay and plt.close(fig)
         return helper.flatten([p for a in env.agents.values() for p in a.patches])
 
 
-    def init_ani(self, agents, filename=None):
-        if self.config.animation.dark_bg:
-            plt.style.use("dark_background")
-        fig, ax = plt.subplots()
-        fig.tight_layout()
-        fig.set_size_inches(16, 9)
-        # fig.subplots_adjust(left=0.05, right=1, bottom=0.075, top=0.95, wspace=0, hspace=0.3)
-        ax.set_xlabel("x (m)")
-        ax.set_ylabel("y (m)")
+    def init_ani(self, env, eval=None, fname=None):
+        self.config.animation.dark_bg and plt.style.use("dark_background")
+        fig, ax = plt.subplots(constrained_layout=True)
+        fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
+        fig.set_size_inches(9, 9)
         ax.axis("scaled")
-        # ax.axis('off')
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
-        pos_logs = np.concatenate([a.pos_log for a in agents])
-        x_min = np.min(pos_logs[:, 0])
-        x_max = np.max(pos_logs[:, 0])
-        y_min = np.min(pos_logs[:, 1])
-        y_max = np.max(pos_logs[:, 1])
-        ax.axis([x_min - 2, x_max + 2, y_min - 2, y_max + 2])
-        # colors = sns.color_palette(n_colors=len(agents))
-        for i, a in enumerate(agents):
-        # ax.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)", title=self.iter)
         ax.set(title=self.iter)
+        ax.axis("off")
+        x, y = np.concatenate([a.pos_log for a in env.agents.values()]).T
+        x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
+        pad = 2 * self.config.agent.radius
+        ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
+        for i, a in enumerate(env.agents.values()):
             a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
             a.patches.path = Polygon(
                 ((0, 0), (0, 0)),
@@ -165,82 +146,52 @@ class Animate:
                 color=a.color,
                 capstyle="round",
             )
-            x = 0.9 * a.radius * np.cos(np.pi / 6)
-            y = 0.9 * a.radius * np.sin(np.pi / 6)
-            a.body_coords = [(0.9 * a.radius, 0), (-x, y), (-x, -y)]
-            a.patches.body_poly = Polygon(
-                a.body_coords, facecolor=ax.get_facecolor(), linewidth=4, zorder=i + 3
-            )
-            a.patches.body = Circle(
-                (a.pos), a.radius, color=a.color, zorder=i + 2, label=f"{type(a).__name__}"
-            )
+            r = 0.9 * a.radius
+            x = r * np.cos(np.pi / 6)
+            y = r * np.sin(np.pi / 6)
+            a.body_coords = [(r, 0), (-x, y), (-x, -y)]
+            a.patches.triangle = Polygon(a.body_coords, fc=ax.get_facecolor(), lw=4, zorder=i + 3)
+            a.patches.body = Circle((a.pos), a.radius, color=a.color, zorder=i + 2)
             if self.config.animation.debug:
-                if a.policy == "lpnav":
-                    a.patches.prims = [
-                        [Circle((0, 0), 0.04, color="#004D40", lw=0) for _ in a.rel_headings]
-                        for _ in a.speeds
-                    ]
-                if a.policy == "lpnav":
-                    a.patches.int_lines = [
-                        [
-                            Circle((0, 0), 0, color="gray"),
-                            Circle((0, 0), 0, color="gray"),
-                        ]
-                        for _ in a.int_lines_log
-                    ]
-                    a.patches.pred_int_lines = [
-                        [
-                            Circle((0, 0), 0, color=a.other_agents[id].color)
-                            for _ in a.pred_int_lines_log[id][0]
-                        ]
-                        for id in a.pred_int_lines_log
-                    ]
-        for patch in helper.flatten([p for a in agents for p in a.patches]):
+                if a.policy == "lpnav" and a is env.ego_agent:
+                    c = (0, 0)
+                    a.patches.prims = [[Circle(c) for _ in a.rel_headings] for _ in a.speeds]
+                    a.patches.int_lines = [[Circle(c), Circle(c)] for _ in a.int_lines_log]
+                    a.patches.pred_int_lines = copy.deepcopy(a.patches.int_lines)
+                    cws = a.col_width.values()
+                    a.patches.col_circle = [Circle(c, cw, fill=False, ec="red") for cw in cws]
+        for patch in helper.flatten([p for a in env.agents.values() for p in a.patches]):
             ax.add_patch(patch)
-        ax.legend()
-        pdf = PdfPages(f"{vidname}.pdf") if self.config.animation.save_ani_as_pdf else None
-
+        if fname is None:
+            fname = f"{self.scenario}_overlay"
+        fname = os.path.join(self.config.animation.ani_dir, fname)
+        pdf = PdfPages(f"{fname}.pdf") if self.config.animation.save_ani_as_pdf else None
+        frames = max([len(a.pos_log) for a in env.agents.values()])
         ani = FuncAnimation(
             fig,
             self.ani,
-            frames=max([len(a.pos_log) for a in agents]),
-            interval=int(1000 * self.config.env.dt),
-            fargs=(agents, max([len(a.pos_log) for a in agents]), plt, fig, pdf),
+            frames=frames,
+            interval=int(1000 / self.config.animation.speed * self.config.env.dt),
+            fargs=(env, frames, eval, plt, fig, pdf),
             blit=True,
             repeat=False,
         )
-        if self.config.animation.show_ani:
-            plt.show()
-
         if self.config.animation.save_ani:
             os.makedirs(self.config.animation.ani_dir, exist_ok=True)
-            ani.save(f"{vidname}.mp4", writer="ffmpeg", fps=int(1 / self.config.env.dt))
-            plt.savefig(f"{vidname}.pdf")
+            fps = int(self.config.animation.speed / self.config.env.dt)
+            ani.save(f"{fname}.mp4", writer="ffmpeg", fps=fps)
+            plt.savefig(f"{fname}.pdf")
+        self.config.animation.show_ani and plt.show()
+        pdf is not None and pdf.close()
 
-        if pdf is not None:
-            pdf.close()
-
-    def plot(self, agents, filename=None):
-        if self.config.animation.dark_bg:
-            plt.style.use("dark_background")
-        plt.rcParams.update(
-            {
-                "pgf.texsystem": "pdflatex",
-                "text.usetex": True,
-                "font.family": "serif",
-                "font.serif": ["Times"],
-                "xtick.labelsize": 5,
-                "ytick.labelsize": 5,
-                "axes.labelsize": 5,
-            }
-        )
+    def plot(self, agents, fname=None):
+        self.config.animation.dark_bg and plt.style.use("dark_background")
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         fig.set_size_inches(1.6, 1.6)
         ax.axis("square")
         # fig.subplots_adjust(left=0.15, right=0.97, bottom=0.06, top=1)
-        ax.set_xlabel(r"$x$ (m)")
-        ax.set_ylabel(r"$y$ (m)")
+        ax.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)")
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         ax.spines["left"].set_linewidth(0.5)
@@ -248,17 +199,14 @@ class Animate:
         ax.tick_params(length=0, pad=2)
         ax.xaxis.labelpad = 1
         ax.yaxis.labelpad = 1
-        pos_logs = np.concatenate([a.pos_log for a in agents])
-        x_min = np.min(pos_logs[:, 0])
-        x_max = np.max(pos_logs[:, 0])
-        y_min = np.min(pos_logs[:, 1])
-        y_max = np.max(pos_logs[:, 1])
-        padding = 2 * self.config.agent.radius
-        ax.axis([x_min - padding, x_max + padding, y_min - padding, y_max + padding])
+        x, y = np.concatenate([a.pos_log for a in list(agents)]).T
+        x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
+        pad = 2 * self.config.agent.radius
+        ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
         sampled_len = 0
         for a in agents:
             a.sampled_traj = a.pos_log[
-                :: int(self.config.env.body_interval / self.config.env.dt)
+                :: int(self.config.animation.body_interval / self.config.env.dt)
             ]
             sampled_len = max(sampled_len, len(a.sampled_traj))
         first_inattentive = True
@@ -266,7 +214,7 @@ class Animate:
             ax.add_patch(
                 Circle(
                     a.goal,
-                    self.config.env.goal_tol,
+                    self.config.agent.goal_tol,
                     ec=a.color,
                     fill=None,
                     lw=0.5,
@@ -305,42 +253,38 @@ class Animate:
                     )
         # ax.legend()
         if self.config.animation.save_plot:
-            os.makedirs(self.config.plot_dir, exist_ok=True)
-            if filename is None:
-                filename = f"{self.scenario}_overlay"
-            plotname = os.path.join(self.config.plot_dir, filename)
-            plt.savefig(plotname + ".pdf", backend="pgf")
-        if self.config.animation.show_plot:
-            plt.show()
+            os.makedirs(self.config.animation.plot_dir, exist_ok=True)
+            if fname is None:
+                fname = f"{self.scenario}_overlay"
+            fname = os.path.join(self.config.animation.plot_dir, fname)
+            plt.savefig(fname + ".pdf")
+        self.config.animation.show_plot and plt.show()
 
-    def plot_inferences(self, iter, agents, goal_inference, traj_inference, filename=None):
+    def plot_inferences(self, iter, agents, goal_inference, traj_inference, fname=None):
         for (goal_scores, traj_scores) in zip(goal_inference.values(), traj_inference.values()):
-            if self.config.animation.dark_bg:
-                plt.style.use("dark_background")
             fig1, ax1 = plt.subplots()
             fig2, ax2 = plt.subplots()
             fig3, ax3 = plt.subplots()
-            # fig.set_size_inches(3.4, 3.4)
             for fig in [fig1, fig2, fig3]:
                 fig.set_dpi(300)
+                fig.set_size_inches(4, 3)
             # plt.tight_layout()
-            ax1.set_xlabel(r"$x$ (m)")
-            ax1.set_ylabel(r"$y$ (m)")
-            ax2.set_title("Interaction Goal Inference")
-            ax2.set_xlabel("Time (s)")
-            ax2.set_ylabel(r"$P(\mathcal{I}_i\mid\xi_{s\rightarrow{t}})$")
-            ax3.set_title("Trajectory Inference")
-            ax3.set_xlabel("Time (s)")
-            ax3.set_ylabel(r"$P(\xi_{s\rightarrow{t}}\mid\mathcal{I}_i)$")
-            pos_logs = np.concatenate([a.pos_log for a in agents])
-            x_min = np.min(pos_logs[:, 0])
-            x_max = np.max(pos_logs[:, 0])
-            y_min = np.min(pos_logs[:, 1])
-            y_max = np.max(pos_logs[:, 1])
-            padding = 0.5
+            ax1.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)")
+            ax2.set(
+                title="Interaction Goal Inference",
+                xlabel=r"Time (s)",
+                ylabel=r"$P(\mathcal{I}_i\mid\xi_{s\rightarrow{t}})$",
+            )
+            ax3.set(
+                title="Trajectory Inference",
+                xlabel=r"Time (s)",
+                ylabel=r"$P(\xi_{s\rightarrow{t}}\mid\mathcal{I}_i)$",
+            )
             ax1.axis("square")
-            ax1.set_xlim(x_min - padding, x_max + padding)
-            ax1.set_ylim(y_min - padding, y_max + padding)
+            x, y = np.concatenate([a.pos_log for a in list(agents)]).T
+            x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
+            pad = 2 * self.config.agent.radius
+            ax1.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
             sampled_len = 0
             for a in agents:
                 a.sampled_traj = a.pos_log[
@@ -348,7 +292,7 @@ class Animate:
                 ]
                 sampled_len = max(sampled_len, len(a.sampled_traj))
             for i, a in enumerate(list(agents)[::-1]):
-                if self.config.plot_traj:
+                if self.config.animation.plot_traj:
                     ax1.plot(
                         np.array(a.pos_log)[:, 0],
                         np.array(a.pos_log)[:, 1],
@@ -369,41 +313,27 @@ class Animate:
                         ax1.add_patch(
                             Circle(pos, self.config.agent.radius, fc=c, ec=a.color, zorder=i)
                         )
-            for v in goal_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.env.dt, len(v))
-                ax2.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
-                ax2.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
-                ax2.legend(loc=3)
-                sampled_inf = v[
-                    :: int(self.config.animation.body_interval / self.config.env.dt)
-                ]
-                sampled_t = t[
-                    :: int(self.config.animation.body_interval / self.config.env.dt)
-                ]
-                ax2.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
-                ax2.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
-            for v in traj_scores[iter].values():
-                t = np.linspace(0, len(v) * self.config.env.dt, len(v))
-                ax3.plot(t, v[:, 0], lw=2, ls="--", c="k", label="pass left")
-                ax3.plot(t, v[:, 1], lw=2, ls="-", c="k", label="pass right")
-                ax3.legend(loc=3)
-                sampled_inf = v[
-                    :: int(self.config.animation.body_interval / self.config.env.dt)
-                ]
-                sampled_t = t[
-                    :: int(self.config.animation.body_interval / self.config.env.dt)
-                ]
-                ax3.scatter(sampled_t, sampled_inf[:, 0], c="k", linewidths=2)
-                ax3.scatter(sampled_t, sampled_inf[:, 1], c="k", linewidths=2)
-            if self.config.animation.show_inferences:
-                plt.show()
+            c = "w" if self.config.animation.dark_bg else "k"
+            for inf, ax in zip([goal_scores[iter], traj_scores[iter]], [ax2, ax3]):
+                for v in inf.values():
+                    t = np.linspace(0, v.shape[1] * self.config.env.dt, v.shape[1])
+                    ax.plot(t, v[0, :], lw=2, ls="--", color=c, label="pass left")
+                    ax.plot(t, v[1, :], lw=2, ls="-", color=c, label="pass right")
+                    ax.legend(loc=3)
+                    sampled_inf = v[
+                        :, :: int(self.config.animation.body_interval / self.config.env.dt)
+                    ]
+                    sampled_t = t[:: int(self.config.animation.body_interval / self.config.env.dt)]
+                    ax.scatter(sampled_t, sampled_inf[0, :], color=c, linewidths=2)
+                    ax.scatter(sampled_t, sampled_inf[1, :], color=c, linewidths=2)
             if self.config.animation.save_inferences:
                 os.makedirs(self.config.animation.inferences_dir, exist_ok=True)
-                if filename is None:
-                    filename = f"{self.scenario}_goal_inference"
-                plotname = os.path.join(self.config.animation.inferences_dir, filename)
-                # fig1.savefig(plotname + "_traj.pdf", bbox_inches="tight", pad_inches=0)
-                # fig2.savefig(plotname + "_inf.pdf", bbox_inches="tight", pad_inches=0)
+                if fname is None:
+                    fname = f"{self.scenario}"
+                fname = os.path.join(self.config.animation.inferences_dir, fname)
+                for fig, suf in zip([fig1, fig2, fig3], ["traj", "goal_inf", "traj_inf"]):
+                    fig.savefig(f"{fname}_{suf}.pdf")
+            self.config.animation.show_inferences and plt.show()
 
     def overlay(self):
         if self.config.animation.show_ani or self.config.animation.save_ani:
@@ -416,7 +346,9 @@ class Animate:
             self.init_ani(env, eval, str(env))
         if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(env.agents.values(), str(env))
-        if self.config.animation.show_inferences or self.config.animation.save_inferences:
+        if eval and (
+            self.config.animation.show_inferences or self.config.animation.save_inferences
+        ):
             self.plot_inferences(
                 iter, env.agents.values(), eval.goal_inference, eval.traj_inference, str(env)
             )
