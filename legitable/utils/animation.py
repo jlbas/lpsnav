@@ -71,9 +71,10 @@ def snap(*agents, istep=0, fstep=-1, ion=False):
 
 
 class Animate:
-    def __init__(self, config, scenario):
+    def __init__(self, config, scenario, iter):
         self.config = config
         self.scenario = scenario
+        self.iter = iter
         self.agents_log = dict()
 
     def ani(self, i, agents, last_frame, plt, fig, pdf):
@@ -154,6 +155,8 @@ class Animate:
         ax.axis([x_min - 2, x_max + 2, y_min - 2, y_max + 2])
         # colors = sns.color_palette(n_colors=len(agents))
         for i, a in enumerate(agents):
+        # ax.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)", title=self.iter)
+        ax.set(title=self.iter)
             a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
             a.patches.path = Polygon(
                 ((0, 0), (0, 0)),
