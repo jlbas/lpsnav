@@ -250,7 +250,7 @@ class Lpnav(Agent):
         self.abs_prims_log[step] = self.abs_prims
         self.opt_log.append([self.speed_idx, self.heading_idx])
         self.col_mask_log.append(self.col_mask)
-        for id in self.other_agents:
+        for id, agent in self.other_agents.items():
             if id in self.interacting_agents:
                 self.int_lines_log[id][step] = self.int_lines[id]
                 self.pred_int_lines_log[id][step] = self.pred_int_lines[id]
