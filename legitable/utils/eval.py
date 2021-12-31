@@ -485,23 +485,21 @@ class Eval:
                 row.append(v["vals"][i])
             rows.append(row)
         os.makedirs(self.conf.eval.tbl_dir, exist_ok=True)
+        newline_char = " \\\\\n\t\t\t\t"
+        contents = f"""\\begin{{table*}}
+    \\caption{{Performance metrics averaged over {self.conf.env.random_scenarios} random scenarios with {self.conf.env.num_of_agents} {"homogeneous " if self.conf.env.homogeneous else ""}agents}}
+    \\label{{tbl:results}}
+    \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(tbl_dict) - 1)}}}{{Y}}@{{}}}}
+        \\toprule
+        {" & ".join([v["header"] for v in tbl_dict.values()])} \\\\
+        \\midrule
+        {newline_char.join([" & ".join(row) for row in rows])} \\\\
+        \\bottomrule
+    \\end{{tabularx}}
+\\end{{table*}}
+"""
         with open(os.path.join(self.conf.eval.tbl_dir, f"{str(self)}.tex"), "w") as f:
-            newline_char = " \\\\\n\t\t\t\t"
-            f.write(
-                f"""
-                \\begin{{table*}}
-                \\caption{{Performance metrics averaged over {self.conf.env.random_scenarios} random scenarios with {self.conf.env.num_of_agents} {"homogeneous " if self.conf.env.homogeneous else ""}agents}}
-                \\label{{tbl:results}}
-                \\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{(len(tbl_dict) - 1)}}}{{Y}}@{{}}}}
-                    \\toprule
-                    {" & ".join([v["header"] for v in tbl_dict.values()])} \\\\
-                    \\midrule
-                    {newline_char.join([" & ".join(row) for row in rows])} \\\\
-                    \\bottomrule
-                \\end{{tabularx}}
-                \\end{{table*}}
-                """.strip()
-            )
+            f.write(contents)
 
     def make_bar_chart(self, tbl_dict):
         plt.rcParams.update(
