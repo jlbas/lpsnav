@@ -57,9 +57,7 @@ class Eval:
         return ret
 
     def init_symbols(self):
-        prx, pry, phx, phy, vr, thr, vh, thh = smp.symbols(
-            "prx pry phx phy vr thr vh thh", real=True
-        )
+        prx, pry, phx, phy, vr, thr, vh, thh = smp.symbols("prx pry phx phy vr thr vh thh")
         dvx = vh * smp.cos(thh) - vr * smp.cos(thr)
         dvy = vr * smp.sin(thr) - vh * smp.sin(thh)
         dpx = phx - prx
@@ -529,9 +527,9 @@ class Eval:
                 self.conf.eval.show_bar_chart and plt.show()
                 if self.conf.eval.save_bar_chart:
                     os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
-                filename = f"{str(self)}.pdf"
-                fullpath = os.path.join(self.conf.eval.bar_chart_dir, filename)
-                plt.savefig(fullpath, backend="pgf")
+                    filename = f"{str(self)}.pdf"
+                    fullpath = os.path.join(self.conf.eval.bar_chart_dir, filename)
+                    plt.savefig(fullpath, backend="pgf")
 
     def get_summary(self):
         tbl_dict = self.get_table()
