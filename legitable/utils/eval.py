@@ -138,97 +138,96 @@ class Eval:
             self.int_slice[id] = slice(start_idx, end_idx + 1)
             self.int_t[id] = env.dt * np.arange(start_idx, end_idx + 1)
 
+    def compute_int_costs(self, dt, ego_agent, id, agent, receding_steps):
+        init_receded_pos = (
+            ego_agent.pos_log[0]
+            - dt * np.arange(receding_steps + 1, 1, -1)[:, None] * ego_agent.vel_log[0]
+        )
+        receded_pos = np.concatenate((init_receded_pos, ego_agent.pos_log[:-receding_steps]))[
+            self.int_slice[id]
+        ]
+        receded_line = (
+            self.int_line[id][:, self.int_slice[id]]
+            - agent.vel_log[self.int_slice[id]] * self.conf.lpnav.receding_horiz
+        )
+        receded_start_line = (
+            self.int_line[id][:, self.int_slice[id]]
+            - agent.vel_log[self.int_slice[id]] * self.int_t[id][:, None]
+        )
+        scaled_speed = max(ego_agent.max_speed, agent.max_speed + 0.1)
+        cost_rg = helper.dynamic_pt_cost(
+            receded_pos,
+            scaled_speed,
+            receded_line,
+            self.int_line_heading[self.int_slice[id]],
+            agent.vel_log[self.int_slice[id]],
+        )
+        cost_tg = helper.dynamic_pt_cost(
+            ego_agent.pos_log[self.int_slice[id]],
+            scaled_speed,
+            self.int_line[id][:, self.int_slice[id]],
+            self.int_line_heading[self.int_slice[id]],
+            agent.vel_log[self.int_slice[id]],
+        )
+        cost_rtg = self.conf.lpnav.receding_horiz + cost_tg
+        cost_sg = helper.dynamic_pt_cost(
+            ego_agent.pos_log[self.int_idx[id][0]],
+            scaled_speed,
+            receded_start_line,
+            self.int_line_heading[self.int_slice[id]],
+            agent.vel_log[self.int_slice[id]],
+        )
+        return (cost_rg, cost_rtg, cost_tg, cost_sg)
+
     def compute_leg_pred(self, env):
         legibility = Score()
         predictability = Score()
-        col_width = 2 * env.ego_agent.radius + self.conf.lpnav.col_buffer
         receding_steps = int(self.conf.lpnav.receding_horiz / env.dt)
-        int_baseline = np.array([[0, -col_width], [0, col_width]])
-        cost_st = self.conf.lpnav.receding_horiz
-        for id, agent in {id: a for id, a in env.agents.items() if a is not env.ego_agent}.items():
-            legibility.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
-            predictability.vals[id] = np.zeros((len(env.ego_agent.pos_log), 2))
-            start_idx = None
-            for i in range(len(legibility.vals[id])):
-                if not env.ego_agent.goal_log[i]:
-                    int_line_heading = helper.wrap_to_pi(
-                        helper.angle(env.ego_agent.pos_log[i] - env.ego_agent.goal)
+        for id, agent in env.ego_agent.other_agents.items():
+            if np.diff(self.int_idx[id]) > 1:
+                cost_rg, cost_rtg, cost_tg, cost_sg = self.compute_int_costs(
+                    env.dt, env.ego_agent, id, agent, receding_steps
+                )
+                arg = cost_rg - cost_rtg
+                # arg = np.where(cost_rtg > 100, -np.inf, arg)
+                # arg = np.clip(arg, -100, 0)
+                with np.errstate(under="ignore"):
+                    legibility.vals[id] = np.exp(arg) * np.expand_dims(
+                        self.conf.lpnav.subgoal_priors, axis=-1
                     )
-                    ego_in_front = helper.in_front(
-                        agent.pos_log[i], agent.heading_log[i], env.ego_agent.pos_log[i]
+                legibility.vals[id] /= np.sum(legibility.vals[id], axis=0)
+                legibility.vals[id] = np.delete(legibility.vals[id], 1, 0)
+                num = np.trapz(
+                    self.int_t[id][::-1] * np.max(legibility.vals[id], axis=0), dx=env.dt
+                )
+                den = np.trapz(self.int_t[id][::-1], dx=env.dt)
+                legibility.scores[id] = num / den
+                cost_stg = self.int_t[id] + cost_tg
+                arg = cost_sg - cost_stg
+                # arg = np.where(cost_stg > 100, -np.inf, arg)
+                # arg = np.clip(arg, -100, 0)
+                with np.errstate(under="ignore"):
+                    predictability.vals[id] = np.delete(np.exp(arg), 1, 0)
+                predictability.scores[id] = np.max(predictability.vals[id][:, -1])
+                if self.conf.eval.normalize_lp:
+                    min_leg, max_leg = get_opt_traj(
+                        self.int_idx[id],
+                        self.int_slice[id],
+                        env.dt,
+                        env.ego_agent,
+                        agent,
+                        receding_steps,
+                        self.conf.lpnav.receding_horiz,
+                        self.conf.lpnav.subgoal_priors,
                     )
-                    a_in_front = helper.in_front(
-                        env.ego_agent.pos_log[i], env.ego_agent.heading_log[i], agent.pos_log[i]
-                    )
-                    in_radius = (
-                        helper.dist(env.ego_agent.pos_log[i], agent.pos_log[i])
-                        <= self.conf.agent.sensing_dist
-                    )
-                    if ego_in_front and a_in_front and in_radius:
-                        if i < receding_steps:
-                            receded_pos = env.ego_agent.pos_log[0] - env.ego_agent.vel_log[0] * (
-                                self.conf.lpnav.receding_horiz - i * self.conf.env.dt
-                            )
-                        else:
-                            receded_pos = env.ego_agent.pos_log[i - receding_steps]
-                        scaled_speed = max(env.ego_agent.max_speed, agent.speed_log[i] + 0.1)
-                        int_pts = helper.rotate(int_baseline, int_line_heading)
-                        int_line = agent.pos_log[i] + int_pts
-                        receded_line = int_line - agent.vel_log[i] * self.conf.lpnav.receding_horiz
-                        cost_rg = helper.dynamic_pt_cost(
-                            receded_pos,
-                            scaled_speed,
-                            receded_line,
-                            int_line_heading,
-                            agent.vel_log[i],
+                    if min_leg is not None and max_leg is not None:
+                        legibility.scores[id] = (legibility.scores[id] - min_leg) / (
+                            max_leg - min_leg
                         )
-                        cost_tg = helper.dynamic_pt_cost(
-                            env.ego_agent.pos_log[i],
-                            scaled_speed,
-                            int_line,
-                            int_line_heading,
-                            agent.vel_log[i],
-                        )
-                        arg = cost_rg - (cost_st + cost_tg)
-                        assert np.all(np.around(arg, 1) <= 0), "Error in legibility eval"
-                        goal_inference = np.exp(arg) * self.conf.lpnav.subgoal_priors
-                        goal_inference /= np.sum(goal_inference)
-                        legibility.vals[id][i] = np.delete(goal_inference, 1)
-                        if start_idx is None:
-                            start_idx = i
-                        int_time = (i - start_idx) * env.dt
-                        start_line = int_line - agent.vel_log[i] * int_time
-                        cost_sg = helper.dynamic_pt_cost(
-                            env.ego_agent.pos_log[start_idx],
-                            scaled_speed,
-                            start_line,
-                            int_line_heading,
-                            agent.vel_log[i],
-                        )
-                        traj_arg = cost_sg - (int_time + cost_tg)
-                        assert np.all(np.around(traj_arg, 0) <= 0), "Error in predictability eval"
-                        with np.errstate(under="ignore", over="ignore"):
-                            predictability.vals[id][i] = np.delete(np.exp(traj_arg), 1)
-                        if not np.all(np.isfinite(predictability.vals[id])):
-                            print("here")
-                    if not a_in_front and not ego_in_front and start_idx is not None:
-                        start_idx = None
-            lvals = helper.split_interactions(legibility.vals[id])
-            t = [np.linspace(0, len(stride) * env.dt, len(stride)) for stride in lvals]
-            for i, (sub_goal_inference, sub_t) in enumerate(zip(lvals, t)):
-                discount = sub_t[-1] - sub_t if sub_t[-1] else 1
-                lvals[i] = np.sum(sub_goal_inference * discount)
-                lvals[i] /= np.sum(discount)
-            if lvals:
-                legibility.weights[id] = helper.sub_lengths(t)
-                legibility.scores.append(np.average(lvals, weights=legibility.weights[id]))
-                legibility.tot_weights.append(np.sum(legibility.weights[id]))
-            pvals = helper.split_interactions(predictability.vals[id])
-            if pvals:
-                predictability.weights[id] = helper.sub_lengths(pvals)
-                pvals = np.array([stride[-1] for stride in pvals])
-                predictability.scores.append(np.average(pvals, weights=predictability.weights[id]))
-                predictability.tot_weights.append(np.sum(predictability.weights[id]))
+                        if np.any(legibility.scores[id] > 1):
+                            print("Error in L comp")
+                    else:
+                        legibility.scores[id] = np.nan
         if legibility.scores:
             legibility.tot_score = np.mean([s for s in legibility.scores.values()])
             predictability.tot_score = np.mean([s for s in predictability.scores.values()])
