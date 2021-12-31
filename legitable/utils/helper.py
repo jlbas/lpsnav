@@ -110,8 +110,10 @@ def cost_to_pt(pos_0, speed_0, pos_1, vel_1):
         arg = 1 - (speed_1_t / speed_0) ** 2
         speed_0_r = speed_0 * np.sqrt(np.where(arg < 0, 0, arg))
     den = speed_0_r + speed_1_r
-    t = d / np.where(den == 0, 1e-5, den)
-    return np.where((t <= 0) | (speed_0 <= speed_1_t), np.inf, t)
+    with np.errstate(divide="ignore"):
+        t = d / den
+    t = np.where((t <= 0) | (speed_0 <= speed_1_t), np.inf, t)
+    return np.nan_to_num(t)
 
 
 def directed_cost_to_line(pos, pt_vel, line, line_vel):
@@ -125,9 +127,11 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
     proj_pt_speed = np.dot(pt_vel, -v_hat)  # use other v_hat
     proj_line_speed = np.dot(line_vel, v_hat)  # Sign is important
     den = proj_pt_speed + proj_line_speed
-    t = d / np.where(den == 0, 1e-5, den)
-    return np.where(t <= 0, 1e5, t)
+    with np.errstate(divide="ignore"):
+        t = d / den
+    t = np.where(t <= 0, np.inf, t)
     # return d / np.where(den == 0, 1e-5, den)
+    return np.nan_to_num(t)
 
 
 def cost_to_line(pt, pt_speed, line, line_vel):
@@ -139,9 +143,11 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     d = np.abs(np.sum(r * v_hat, axis=-1))
     proj_line_speed = np.sum(v_hat * line_vel, axis=-1)  # Sign is important
     den = pt_speed + proj_line_speed
-    t = d / np.where(den == 0, 1e-5, den)
-    return np.where(t <= 0, 1e5, t)
+    with np.errstate(divide="ignore"):
+        t = d / den
+    t = np.where(t <= 0, np.inf, t)
     # return d / (pt_speed + proj_line_speed)
+    return np.nan_to_num(t)
 
 
 def directed_intersection_pt(pos, vel, line, line_vel, t_to_line):
