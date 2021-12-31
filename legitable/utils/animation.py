@@ -77,21 +77,19 @@ class Animate:
         self.iter = iter
         self.agents_log = dict()
 
-    def ani(self, i, agents, last_frame, plt, fig, pdf):
-        for a in agents:
+    def ani(self, i, env, last_frame, eval, plt, fig, pdf):
+        for id, a in env.agents.items():
             a.patches.path.set_xy(a.pos_log[: i + 1])
-            try:
-                a.patches.body_poly.set_xy(
-                    helper.rotate(a.body_coords, a.heading_log[i]) + a.pos_log[i]
-                )
-                a.patches.body.center = a.pos_log[i]
-            except IndexError:
-                pass
-
+            a.patches.triangle.set_xy(helper.rotate(a.body_coords, a.heading_log[i]) + a.pos_log[i])
+            a.patches.body.center = a.pos_log[i]
+            if a is not env.ego_agent:
+                if eval:
+                    c = a.color if eval.int_idx[id][0] <= i <= eval.int_idx[id][1] else "grey"
+                else:
+                    c = a.color
+                a.patches.body.set_color(c)
             if self.config.animation.debug:
-                if a.policy == "lpnav" and i < min(
-                    [len(log) - 1 for log in a.int_lines_log.values()]
-                ):
+                if a.policy == "lpnav" and a is env.ego_agent:
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
                         for pos, circle in zip(log[i], circles):
                             if pos is None or np.all(np.isnan(pos)):
@@ -131,8 +129,8 @@ class Animate:
             # plt.close(fig)
         if pdf is not None:
             pdf.savefig(fig)
+        return helper.flatten([p for a in env.agents.values() for p in a.patches])
 
-        return helper.flatten([p for a in agents for p in a.patches])
 
     def init_ani(self, agents, filename=None):
         if self.config.animation.dark_bg:
@@ -413,9 +411,9 @@ class Animate:
         if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(self.agents_log.values())
 
-    def animate(self, iter, env, eval):
+    def animate(self, iter, env, eval=None):
         if self.config.animation.show_ani or self.config.animation.save_ani:
-            self.init_ani(env.agents.values(), str(env))
+            self.init_ani(env, eval, str(env))
         if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(env.agents.values(), str(env))
         if self.config.animation.show_inferences or self.config.animation.save_inferences:
