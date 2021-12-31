@@ -8,6 +8,8 @@ from prettytable import PrettyTable
 from scipy.ndimage import gaussian_filter
 from utils import helper
 
+from legitable.utils.opt_traj import get_opt_traj
+
 
 @dataclass
 class Score:
