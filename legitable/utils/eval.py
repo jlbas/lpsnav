@@ -32,14 +32,15 @@ class Eval:
         self.path_irregularity_log = {
             policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
         }
-        self.leg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
-        self.pred_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
-        self.goal_inference = {
-            policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
-        }
-        self.traj_inference = {
-            policy: [Score() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
-        }
+        if self.scenario != "random" and self.scenario != "circle":
+            self.leg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+            self.pred_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+            self.goal_inference = {
+                policy: [dict() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
+            }
+            self.traj_inference = {
+                policy: [dict() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
+            }
         self.nav_contrib_log = {
             policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
         }
@@ -47,7 +48,7 @@ class Eval:
 
     def __repr__(self):
         ret = f"{self.scenario}"
-        if self.scenario == "random" or self.scenario == "circle":
+        if self.scenario in ("random", "circle"):
             ret += f"_{self.conf.env.num_of_agents}"
         if self.conf.env.homogeneous:
             ret += "_homogeneous"
@@ -83,13 +84,14 @@ class Eval:
             env.ego_agent
         )
         self.get_interactions(env)
+        if hasattr(self, "leg_log"):
+            (
+                self.leg_log[env.ego_policy][iter],
+                self.pred_log[env.ego_policy][iter],
+                self.goal_inference[env.ego_policy][iter],
+                self.traj_inference[env.ego_policy][iter],
+            ) = self.compute_leg_pred(env)
         self.compute_mpd(env)
-        (
-            self.leg_log[env.ego_policy][iter],
-            self.pred_log[env.ego_policy][iter],
-            self.goal_inference[env.ego_policy][iter],
-            self.traj_inference[env.ego_policy][iter],
-        ) = self.compute_leg_pred(env)
         self.nav_contrib_log[env.ego_policy][iter] = self.compute_nav_contrib(env)
         if self.conf.eval.show_nav_contrib_plot or self.conf.eval.save_nav_contrib_plot:
             self.make_nav_contrib_plot(env)
@@ -362,22 +364,6 @@ class Eval:
                 "stds": [],
                 "vals": [],
             },
-            "legibility": {
-                "header": "Legibility ($\\%$)",
-                "decimals": 2,
-                "function": max,
-                "raw_vals": [],
-                "stds": [],
-                "vals": [],
-            },
-            "predictability": {
-                "header": "Predictability ($\\%$)",
-                "decimals": 2,
-                "function": max,
-                "raw_vals": [],
-                "stds": [],
-                "vals": [],
-            },
             "nav_contrib": {
                 "header": "Navigation Contribution ($\\%$)",
                 "decimals": 2,
@@ -387,6 +373,27 @@ class Eval:
                 "vals": [],
             },
         }
+        if hasattr(self, "leg_log"):
+            tbl_dict.update(
+                {
+                    "legibility": {
+                        "header": "Legibility ($\\%$)",
+                        "decimals": 2,
+                        "function": max,
+                        "raw_vals": [],
+                        "stds": [],
+                        "vals": [],
+                    },
+                    "predictability": {
+                        "header": "Predictability ($\\%$)",
+                        "decimals": 2,
+                        "function": max,
+                        "raw_vals": [],
+                        "stds": [],
+                        "vals": [],
+                    },
+                }
+            )
 
         for policy in self.conf.env.policies:
             if np.all(self.extra_ttg_log[policy] == np.inf):
@@ -424,22 +431,17 @@ class Eval:
                 np.mean(self.path_irregularity_log[policy])
             )
             tbl_dict["path_irregularity"]["stds"].append(np.std(self.path_irregularity_log[policy]))
-            tbl_dict["legibility"]["raw_vals"].append(100 * np.mean(self.leg_log[policy]))
-            tbl_dict["legibility"]["stds"].append(100 * np.std(self.leg_log[policy]))
-            tbl_dict["predictability"]["raw_vals"].append(100 * np.mean(self.pred_log[policy]))
-            tbl_dict["predictability"]["stds"].append(100 * np.std(self.pred_log[policy]))
+            if hasattr(self, "leg_log"):
+                tbl_dict["legibility"]["raw_vals"].append(100 * np.nanmean(self.leg_log[policy]))
+                tbl_dict["legibility"]["stds"].append(100 * np.nanstd(self.leg_log[policy]))
+                tbl_dict["predictability"]["raw_vals"].append(
+                    100 * np.nanmean(self.pred_log[policy])
+                )
+                tbl_dict["predictability"]["stds"].append(100 * np.nanstd(self.pred_log[policy]))
             tbl_dict["nav_contrib"]["raw_vals"].append(
-                100
-                * np.mean(
-                    self.nav_contrib_log[policy], where=np.isfinite(self.nav_contrib_log[policy])
-                )
+                100 * np.nanmean(self.nav_contrib_log[policy])
             )
-            tbl_dict["nav_contrib"]["stds"].append(
-                100
-                * np.std(
-                    self.nav_contrib_log[policy], where=np.isfinite(self.nav_contrib_log[policy])
-                )
-            )
+            tbl_dict["nav_contrib"]["stds"].append(100 * np.nanstd(self.nav_contrib_log[policy]))
 
         for k, v in tbl_dict.items():
             if "function" in v:
