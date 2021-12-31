@@ -256,7 +256,7 @@ class Eval:
 
     def compute_nav_contrib(self, env):
         self.eps = dict()
-        nav_contrib = list()
+        nav_contrib = [np.nan]
         for id in env.ego_agent.other_agents:
             if np.all([a.size != 0 for a in self.mpd_params[id]]):
                 dparams = [np.diff(np.pad(p, (1, 0), mode="edge")) for p in self.mpd_params[id]]
@@ -266,12 +266,13 @@ class Eval:
                         gaussian_filter(partial(*self.mpd_args[id]) * dp, sigma=3)
                         for partial, dp in zip(self.mpd_partials, dparams)
                     ]
-                cum_contrib = [
-                    np.trapz(e / self.conf.env.dt, dx=self.conf.env.dt) for e in self.eps[id]
-                ]
-                if np.any(cum_contrib):
-                    nav_contrib.append(sum(cum_contrib[:2]) / sum(cum_contrib))
-        return -np.inf if not nav_contrib else np.mean(nav_contrib)
+                if np.all(np.isfinite(self.eps[id])):
+                    cum_contrib = [
+                        np.trapz(e / self.conf.env.dt, dx=self.conf.env.dt) for e in self.eps[id]
+                    ]
+                    if np.any(cum_contrib):
+                        nav_contrib.append(sum(cum_contrib[:2]) / sum(cum_contrib))
+        return np.nanmean(nav_contrib)
 
     def make_nav_contrib_plot(self, env):
         self.conf.animation.dark_bg and plt.style.use("dark_background")
