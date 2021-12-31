@@ -21,14 +21,14 @@ class Lpnav(Agent):
         self.int_lines = dict()
         self.pred_int_lines = dict()
         self.interacting_agents = dict()
-        self.cost_st = self.receding_horiz
+        self.cost_rt = self.receding_horiz
         self.cost_tp = self.prim_horiz
         self.cost_tg = dict()
         self.cost_pg = dict()
-        self.cost_sg = dict()
+        self.cost_rg = dict()
         self.cost_tpg = dict()
-        self.cost_spg = dict()
-        self.cost_stg = dict()
+        self.cost_rpg = dict()
+        self.cost_rtg = dict()
         self.prim_leg_score = dict()
         self.prim_pred_score = dict()
         self.current_leg_score = dict()
@@ -113,7 +113,7 @@ class Lpnav(Agent):
         else:
             receded_pos = self.pos_log[self.env.step - self.receding_steps]
         receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
-        self.cost_sg[id] = helper.dynamic_pt_cost(
+        self.cost_rg[id] = helper.dynamic_pt_cost(
             receded_pos,
             self.max_speed,
             receded_line,
@@ -143,8 +143,6 @@ class Lpnav(Agent):
                 self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
             )
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
-        self.cost_spg[id] = self.cost_st + self.cost_tpg[id]
-        self.cost_stg[id] = self.cost_st + self.cost_tg[id]
 
     def compute_prim_leg(self, id):
         arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
@@ -154,9 +152,11 @@ class Lpnav(Agent):
         self.prim_leg_score[id] = self.prim_leg_score[id] / np.sum(self.prim_leg_score[id], axis=0)
         self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
         assert np.all(np.around(self.prim_leg_score[id], 5) <= 1), "Error in legibility computation"
+        self.cost_rpg[id] = self.cost_rt + self.cost_tpg[id]
+        self.cost_rtg[id] = self.cost_rt + self.cost_tg[id]
 
     def compute_leg(self, id):
-        arg = self.cost_sg[id] - self.cost_stg[id]
+        arg = self.cost_rg[id] - self.cost_rtg[id]
         with np.errstate(under="ignore"):
             self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
         self.current_leg_score[id][
