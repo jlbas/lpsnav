@@ -212,8 +212,8 @@ class Lpnav(Agent):
             self.speed_idx, self.heading_idx = np.unravel_index(np.argmax(score), score.shape)
 
     def get_goal_prims(self, mask=None):
-        delta_heading = np.abs(self.abs_headings - helper.angle(self.goal - self.pos))
-        goal_cost = np.tile(delta_heading, (self.speed_samples, 1))
+        next_pos = self.pos + self.env.dt * self.abs_prim_vels
+        goal_cost = helper.dist(next_pos, self.goal)
         inf_mask = self.col_mask if mask is None else self.col_mask | mask
         goal_cost = np.where(inf_mask, np.inf, goal_cost)
         self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
