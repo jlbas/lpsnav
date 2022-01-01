@@ -10,6 +10,15 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Circle, Polygon
 from utils import helper
 
+plt.rcParams.update(
+    {
+        "pgf.texsystem": "pdflatex",
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Times"],
+        "text.latex.preamble": r"\usepackage{amsmath}",
+    }
+)
 
 
 def snapshot(ego_agent, id, agent):
