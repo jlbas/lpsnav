@@ -19,7 +19,7 @@ def main():
         eval = Eval(trial_cnt, config, scenario)
         for i in range(trial_cnt):
             print(f"ITERATION {i}")
-            ani = Animate(config, scenario)
+            ani = Animate(config, scenario, i)
             for policy_id, ego_policy in enumerate(config.env.policies):
                 rng = np.random.default_rng(i)
                 env = Env(config, rng, ego_policy, i, scenario, policy_id)
