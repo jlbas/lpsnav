@@ -73,8 +73,7 @@ class Eval:
                 env.ego_agent
             )
         else:
-            self.extra_ttg_log[env.ego_policy][iter] = np.inf
-            self.failure_log[env.ego_policy] += 1
+            self.failure_mask[env.ego_policy][iter] = True
             self.path_efficiency_log[env.ego_policy][iter] = 0
         self.path_irregularity_log[env.ego_policy][iter] = self.compute_path_irregularity(
             env.ego_agent
@@ -412,36 +411,32 @@ class Eval:
             )
 
         for policy in self.conf.env.policies:
-            if np.all(self.extra_ttg_log[policy] == np.inf):
+            fair = ~np.bitwise_or.reduce(np.array(list(self.failure_mask.values())), axis=0)
+            if not np.any(fair):
                 tbl_dict["extra_ttg"]["raw_vals"].append(np.nan)
                 tbl_dict["extra_ttg"]["stds"].append(np.nan)
                 tbl_dict["path_efficiency"]["raw_vals"].append(np.nan)
                 tbl_dict["path_efficiency"]["stds"].append(np.nan)
             else:
                 tbl_dict["extra_ttg"]["raw_vals"].append(
-                    100
-                    * np.mean(
-                        self.extra_ttg_log[policy], where=self.extra_ttg_log[policy] != np.inf
-                    )
+                    100 * np.mean(self.extra_ttg_log[policy], where=fair)
                 )
-                tbl_dict["extra_ttg"]["stds"].append(
-                    np.std(self.extra_ttg_log[policy], where=self.extra_ttg_log[policy] != np.inf)
-                )
+                tbl_dict["extra_ttg"]["stds"].append(np.std(self.extra_ttg_log[policy], where=fair))
                 tbl_dict["path_efficiency"]["raw_vals"].append(
                     100
                     * np.mean(
                         self.path_efficiency_log[policy],
-                        where=self.path_efficiency_log[policy] != 0,
+                        where=fair,
                     )
                 )
                 tbl_dict["path_efficiency"]["stds"].append(
                     np.std(
                         self.path_efficiency_log[policy],
-                        where=self.path_efficiency_log[policy] != 0,
+                        where=fair,
                     )
                 )
             tbl_dict["failure_rate"]["raw_vals"].append(
-                100 * self.failure_log[policy] / self.trial_cnt
+                100 * np.sum(self.failure_mask[policy]) / self.trial_cnt
             )
             tbl_dict["path_irregularity"]["raw_vals"].append(
                 np.mean(self.path_irregularity_log[policy])
