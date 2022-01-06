@@ -23,27 +23,25 @@ class Eval:
         self.conf = config
         self.trial_cnt = trial_cnt
         self.scenario = scenario
-        self.colors = {policy: "" for policy in self.conf.env.policies}
-        self.extra_ttg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
-        self.failure_log = {policy: 0 for policy in self.conf.env.policies}
+        self.colors = {p: "" for p in self.conf.env.policies}
+        self.extra_ttg_log = {p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies}
+        self.failure_mask = {p: np.full(self.trial_cnt, False) for p in self.conf.env.policies}
         self.path_efficiency_log = {
-            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
+            p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies
         }
         self.path_irregularity_log = {
-            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
+            p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies
         }
         if self.scenario != "random" and self.scenario != "circle":
-            self.leg_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
-            self.pred_log = {policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies}
+            self.leg_log = {p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies}
+            self.pred_log = {p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies}
             self.goal_inference = {
-                policy: [dict() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
+                p: [dict() for _ in range(self.trial_cnt)] for p in self.conf.env.policies
             }
             self.traj_inference = {
-                policy: [dict() for _ in range(self.trial_cnt)] for policy in self.conf.env.policies
+                p: [dict() for _ in range(self.trial_cnt)] for p in self.conf.env.policies
             }
-        self.nav_contrib_log = {
-            policy: np.zeros(self.trial_cnt) for policy in self.conf.env.policies
-        }
+        self.nav_contrib_log = {p: np.full(self.trial_cnt, np.inf) for p in self.conf.env.policies}
         self.init_symbols()
 
     def __repr__(self):
