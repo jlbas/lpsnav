@@ -98,7 +98,7 @@ def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, l
     # return np.where(~in_front(line[0], line_th, pt), np.where(masks, 0, np.inf), prim_costs)
 
 
-def cost_to_pt(pos_0, speed_0, pos_1, vel_1):
+def cost_to_pt(pos_0, speed_0, pos_1, vel_1=np.array([0, 0])):
     d_vec = pos_0 - pos_1
     d = np.linalg.norm(d_vec, axis=-1)
     d_vec_hat = d_vec / d[..., None]
