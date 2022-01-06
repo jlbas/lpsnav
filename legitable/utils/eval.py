@@ -228,8 +228,8 @@ class Eval:
                     else:
                         legibility.scores[id] = np.nan
         if legibility.scores:
-            legibility.tot_score = np.mean([s for s in legibility.scores.values()])
-            predictability.tot_score = np.mean([s for s in predictability.scores.values()])
+            legibility.tot_score = np.mean(list(legibility.scores.values()))
+            predictability.tot_score = np.mean(list(predictability.scores.values()))
         return legibility.tot_score, predictability.tot_score, legibility.vals, predictability.vals
 
     def compute_mpd(self, env):
