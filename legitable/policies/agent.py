@@ -45,18 +45,10 @@ class Agent:
         )
         self.pos = self.start.copy()
         self.patches = Patches()
-        self.pos_log = np.full(
-            (int(self.env_conf.max_duration / self.env_conf.dt) + 1, 2), np.inf
-        )
-        self.heading_log = np.full(
-            int(self.env_conf.max_duration / self.env_conf.dt) + 1, np.inf
-        )
-        self.speed_log = np.full(
-            int(self.env_conf.max_duration / self.env_conf.dt) + 1, np.inf
-        )
-        self.vel_log = np.full(
-            (int(self.env_conf.max_duration / self.env_conf.dt) + 1, 2), np.inf
-        )
+        self.pos_log = np.full((self.env.max_step + 1, 2), np.inf)
+        self.heading_log = np.full(self.env.max_step + 1, np.inf)
+        self.speed_log = np.full(self.env.max_step + 1, np.inf)
+        self.vel_log = np.full((self.env.max_step + 1, 2), np.inf)
         self.past_vels = self.vel * np.ones((2, 2))
         self.collided = False
         self.update_abs_prims()

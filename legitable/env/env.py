@@ -6,7 +6,7 @@ class Env:
     def __init__(self, config, rng, ego_policy, iter, scenario, policy_id=0):
         self.config = config
         self.dt = self.config.env.dt
-        self.max_duration = self.config.env.max_duration
+        self.max_step = int(self.config.env.max_duration / self.dt)
         self.done = False
         self.time = 0
         self.step = 0
@@ -55,11 +55,8 @@ class Env:
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
             print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
             self.done = True
-        elif self.time >= self.max_duration - self.dt:
-            print(
-                f"Simulation duration of {self.max_duration}s was reached. "
-                "Not all agents reached their goals."
-            )
+        elif self.step >= self.max_step:
+            print("Simulation time limit was reached. Not all agents reached their goals.")
             self.done = True
         if self.done:
             print(60 * "=")

@@ -20,9 +20,9 @@ class Sfm(Agent):
         self.goal_force = np.zeros(2)
         self.ped_force = np.zeros(2)
         self.tot_force = np.zeros(2)
-        self.goal_force_log = np.zeros((int(self.env.max_duration / self.env.dt) + 1, 2))
-        self.ped_force_log = np.zeros((int(self.env.max_duration / self.env.dt) + 1, 2))
-        self.tot_force_log = np.zeros((int(self.env.max_duration / self.env.dt) + 1, 2))
+        self.goal_force_log = np.zeros((self.env.max_step + 1, 2))
+        self.ped_force_log = np.zeros((self.env.max_step + 1, 2))
+        self.tot_force_log = np.zeros((self.env.max_step + 1, 2))
         self.init_gradient()
 
     def init_gradient(self):
