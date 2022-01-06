@@ -86,7 +86,9 @@ def get_init_configs(config, rng, scenario):
         for _ in range(100):
             starts = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
             goals = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
-            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist):
+            feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
+            far_enough = np.all(helper.dist(starts, goals) > min_dist)
+            if feasible and far_enough:
                 break
         else:
             raise AttemptsExceededError(100)
