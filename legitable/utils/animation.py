@@ -101,23 +101,15 @@ class Animate:
             if self.config.animation.debug:
                 if a.policy == "lpnav" and a is env.ego_agent:
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
-                        for pos, circle in zip(log[i], circles):
-                            r = 0 if pos is None else 0.05
-                            circle.set(center=pos, radius=r)
+                        for pos, c in zip(log[i], circles):
+                            c.set_radius(0) if np.isinf(pos[0]) else c.set(center=pos, radius=0.05)
                     for log, circles in zip(
                         a.pred_int_lines_log.values(), a.patches.pred_int_lines
                     ):
-                        for pos, circle in zip(log[i], circles):
-                            if pos is None or np.all(np.isnan(pos)):
-                                circle.set_radius(0)
-                            else:
-                                circle.set_radius(0.05)
-                                circle.center = pos
-                    for log, circle in zip(a.col_circle_log.values(), a.patches.col_circle):
-                        if log[i] is None:
-                            circle.center = log[i]
-                        else:
-                            circle.center = log[i]
+                        for pos, c in zip(log[i], circles):
+                            c.set_radius(0) if np.isinf(pos[0]) else c.set(center=pos, radius=0.05)
+                    for log, c in zip(a.col_circle_log.values(), a.patches.col_circle):
+                        c.set(alpha=0) if np.isinf(log[i][0]) else c.set(center=log[i], alpha=1)
                     for j, (prim, speed, col_row) in enumerate(
                         zip(a.patches.prims, a.abs_prims_log[i], a.col_mask_log[i])
                     ):
