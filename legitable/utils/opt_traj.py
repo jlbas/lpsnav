@@ -79,7 +79,7 @@ def dynamic_pt_cost(pt, pt_speed, line_0, line_1, line_th, line_vel):
     return masked_cost(masks, cost_col_0, cost_col_1, cost_line)
 
 
-def get_opt_traj(int_idx, int_slice, dt, ego_agent, agent, receding_steps, receding_horiz, priors):
+def get_opt_traj(int_idx, int_slice, dt, ego_agent, agent, receding_horiz, priors):
     opti = cs.Opti()
     v_max = max(ego_agent.max_speed, agent.max_speed + 0.1)
 
@@ -137,6 +137,7 @@ def get_opt_traj(int_idx, int_slice, dt, ego_agent, agent, receding_steps, reced
     int_line_1 = rel_line_1 + agent_pos
     ego_init_pos = cs.MX(ego_agent.pos_log[int_idx[0]])
     ego_init_vel = cs.MX(ego_agent.vel_log[int_idx[0]])
+    receding_steps = int(receding_horiz / dt)
     init_receded_pos = cs.repmat(ego_init_pos.T, receding_steps) - dt * cs.linspace(
         receding_steps, 1, receding_steps
     ) * cs.repmat(ego_init_vel.T, receding_steps)
