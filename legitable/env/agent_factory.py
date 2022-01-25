@@ -37,37 +37,7 @@ def init_agents(config, env, rng, ego_policy, scenario, iter):
 
 
 def get_init_configs(config, rng, scenario):
-    start_sep = config.env.interaction_dist / 2
-    lat_sep = 2 * config.agent.radius + config.env.lat_dist
-    max_speeds = np.full(config.env.num_of_agents, config.agent.max_speed)
-    if scenario == "swap":
-        starts = np.array([[-start_sep, 0], [start_sep, 0]])
-        goals = starts[::-1]
-    elif scenario == "passing":
-        starts = np.array([[-start_sep, 0], [start_sep, lat_sep]])
-        goals = np.array([-1, 1]) * starts
-    elif scenario == "acute":
-        starts = np.array([[-start_sep, 0], [-start_sep + 0.5, -lat_sep]])
-        goals = -starts
-    elif scenario == "obtuse":
-        starts = np.array([[-start_sep, 0], [start_sep - 0.5, lat_sep]])
-        goals = -starts
-    elif scenario == "2_agent_split":
-        starts = np.array([[-start_sep, 0], [start_sep, lat_sep], [start_sep, -lat_sep]])
-        goals = np.array([-1, 1]) * starts
-    elif scenario == "t_junction":
-        starts = [[-start_sep, 0], [0, -start_sep]]
-        goals = np.array([[-1, 1], [1, -1]]) * starts
-    elif scenario == "2_agent_t_junction":
-        starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
-        goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
-    elif scenario == "frp":
-        y_max = 0.5 * lat_sep * (config.env.num_of_agents - 1)
-        y_starts = np.linspace(-y_max, y_max, config.env.num_of_agents)
-        starts = np.column_stack((np.full(y_starts.shape, start_sep), y_starts))
-        starts = np.vstack(([-start_sep, 0], starts))
-        goals = np.array([-1, 1]) * starts
-    elif scenario == "custom":
+    if scenario == "custom":
         starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
         goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
         max_speeds = (
@@ -75,11 +45,6 @@ def get_init_configs(config, rng, scenario):
             if isinstance(config.env.custom_speed, list)
             else np.full(len(config.env.custom_pos), config.env.custom_speed)
         )
-    elif scenario == "circle":
-        agent_cnt = config.env.num_of_agents
-        thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
-        starts = config.env.circle_radius * helper.vec(thetas)
-        goals = -starts
     elif scenario == "random":
         max_speeds = rng.uniform(*config.env.speed_range, size=config.env.num_of_agents)
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
@@ -93,7 +58,43 @@ def get_init_configs(config, rng, scenario):
         else:
             raise AttemptsExceededError(100)
     else:
-        raise ValueError(f"Scenario '{scenario}' is not recognized")
+        start_sep = config.env.interaction_dist / 2
+        lat_sep = 2 * config.agent.radius + config.env.lat_dist
+        if scenario == "swap":
+            starts = np.array([[-start_sep, 0], [start_sep, 0]])
+            goals = starts[::-1]
+        elif scenario == "passing":
+            starts = np.array([[-start_sep, 0], [start_sep, lat_sep]])
+            goals = np.array([-1, 1]) * starts
+        elif scenario == "acute":
+            starts = np.array([[-start_sep, 0], [-start_sep + 0.5, -lat_sep]])
+            goals = -starts
+        elif scenario == "obtuse":
+            starts = np.array([[-start_sep, 0], [start_sep - 0.5, lat_sep]])
+            goals = -starts
+        elif scenario == "2_agent_split":
+            starts = np.array([[-start_sep, 0], [start_sep, lat_sep], [start_sep, -lat_sep]])
+            goals = np.array([-1, 1]) * starts
+        elif scenario == "t_junction":
+            starts = [[-start_sep, 0], [0, -start_sep]]
+            goals = np.array([[-1, 1], [1, -1]]) * starts
+        elif scenario == "2_agent_t_junction":
+            starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
+            goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
+        elif scenario == "frp":
+            y_max = 0.5 * lat_sep * (config.env.num_of_agents - 1)
+            y_starts = np.linspace(-y_max, y_max, config.env.num_of_agents)
+            starts = np.column_stack((np.full(y_starts.shape, start_sep), y_starts))
+            starts = np.vstack(([-start_sep, 0], starts))
+            goals = np.array([-1, 1]) * starts
+        elif scenario == "circle":
+            agent_cnt = config.env.num_of_agents
+            thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
+            starts = config.env.circle_radius * helper.vec(thetas)
+            goals = -starts
+        else:
+            raise ValueError(f"Scenario '{scenario}' is not recognized")
+        max_speeds = np.full(len(starts), config.agent.max_speed)
 
     # Without noise, RVO might not work properly
     bound = 0.01
