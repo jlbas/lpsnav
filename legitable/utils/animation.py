@@ -87,19 +87,13 @@ class Animate:
         self.iter = iter
         self.agents_log = dict()
 
-    def ani(self, i, env, last_frame, eval, plt, fig, pdf):
-        for id, a in env.agents.items():
+    def ani(self, i, agents, ego_agent, last_frame, eval, plt, fig, pdf):
+        for a in agents:
             a.patches.path.set_xy(a.pos_log[: i + 1])
             a.patches.triangle.set_xy(helper.rotate(a.body_coords, a.heading_log[i]) + a.pos_log[i])
             a.patches.body.center = a.pos_log[i]
-            if a is not env.ego_agent:
-                if eval:
-                    c = a.color if eval.int_idx[id][0] <= i <= eval.int_idx[id][1] else "grey"
-                else:
-                    c = a.color
-                a.patches.body.set_color(c)
             if self.config.animation.debug:
-                if a.policy == "lpnav" and a is env.ego_agent:
+                if a.policy == "lpnav" and a is ego_agent:
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
                         for pos, c in zip(log[i], circles):
                             c.set_radius(0) if np.isinf(pos[0]) else c.set(center=pos, radius=0.05)
@@ -125,9 +119,9 @@ class Animate:
                     a.patches.f_tot.set_xy([a.pos_log[i], a.pos_log[i] + a.tot_force_log[i]])
         pdf is not None and pdf.savefig(fig)
         i == last_frame - 1 and self.config.animation.autoplay and plt.close(fig)
-        return helper.flatten([p for a in env.agents.values() for p in a.patches])
+        return helper.flatten([p for a in agents for p in a.patches])
 
-    def init_ani(self, env, eval=None, fname=None):
+    def init_ani(self, agents, ego_agent=None, eval=None, fname=None):
         self.config.animation.dark_bg and plt.style.use("dark_background")
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
@@ -135,11 +129,11 @@ class Animate:
         ax.axis("scaled")
         ax.set(title=self.iter)
         ax.axis("off")
-        x, y = np.concatenate([a.pos_log for a in env.agents.values()]).T
+        x, y = np.concatenate([a.pos_log for a in agents]).T
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * self.config.agent.radius
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-        for i, a in enumerate(env.agents.values()):
+        for i, a in enumerate(agents):
             a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
             a.patches.path = Polygon(
                 ((0, 0), (0, 0)),
@@ -157,7 +151,7 @@ class Animate:
             a.patches.triangle = Polygon(a.body_coords, fc=ax.get_facecolor(), lw=4, zorder=i + 3)
             a.patches.body = Circle((a.pos), a.radius, color=a.color, zorder=i + 2)
             if self.config.animation.debug:
-                if a.policy == "lpnav" and a is env.ego_agent:
+                if a.policy == "lpnav" and a is ego_agent:
                     c = (0, 0)
                     a.patches.prims = [[Circle(c) for _ in a.rel_headings] for _ in a.speeds]
                     a.patches.int_lines = [[Circle(c), Circle(c)] for _ in a.int_lines_log]
@@ -170,19 +164,19 @@ class Animate:
                         poly = copy.deepcopy(p)
                         poly.set_color(c)
                         setattr(a.patches, attr, poly)
-        for patch in helper.flatten([p for a in env.agents.values() for p in a.patches]):
+        for patch in helper.flatten([p for a in agents for p in a.patches]):
             ax.add_patch(patch)
         if fname is None:
             fname = f"{self.scenario}_overlay"
         fname = os.path.join(self.config.animation.ani_dir, fname)
         pdf = PdfPages(f"{fname}.pdf") if self.config.animation.save_ani_as_pdf else None
-        frames = max([len(a.pos_log) for a in env.agents.values()])
+        frames = max([len(a.pos_log) for a in agents])
         ani = FuncAnimation(
             fig,
             self.ani,
             frames=frames,
             interval=int(1000 / self.config.animation.speed * self.config.env.dt),
-            fargs=(env, frames, eval, plt, fig, pdf),
+            fargs=(agents, ego_agent, frames, eval, plt, fig, pdf),
             blit=True,
             repeat=False,
         )
@@ -351,15 +345,13 @@ class Animate:
         if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(self.agents_log.values())
 
-    def animate(self, iter, env, eval=None):
+    def animate(self, iter, agents, ego_agent, fname, eval=None):
         if self.config.animation.show_ani or self.config.animation.save_ani:
-            self.init_ani(env, eval, str(env))
+            self.init_ani(agents.values(), ego_agent, eval, fname)
         if self.config.animation.show_plot or self.config.animation.save_plot:
-            self.plot(env.agents.values(), str(env))
+            self.plot(agents.values(), fname)
         if eval and (
             self.config.animation.show_inferences or self.config.animation.save_inferences
         ):
-            self.plot_inferences(
-                iter, env.agents.values(), eval.goal_inference, eval.traj_inference, str(env)
-            )
-        self.agents_log.update(env.agents)
+            self.plot_inferences(iter, agents.values(), eval.goal_inference, eval.traj_inference, fname)
+        self.agents_log.update(agents)

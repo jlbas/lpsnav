@@ -27,7 +27,7 @@ def main():
                     env.update()
                 env.trim_logs()
                 eval.evaluate(i, env.dt, env.ego_agent, scenario)
-                ani.animate(i, env, eval)
+                ani.animate(i, env.agents, env.ego_agent, str(env), eval)
             if config.animation.overlay and len(config.env.policies) > 1:
                 ani.overlay()
     eval.get_summary()
