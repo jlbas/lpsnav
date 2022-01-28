@@ -345,11 +345,11 @@ class Animate:
         if self.config.animation.show_plot or self.config.animation.save_plot:
             self.plot(self.agents_log.values())
 
-    def animate(self, iter, agents, ego_agent, fname, eval=None):
+    def animate(self, iter, agents, ego_agent, scenario, n, fname, eval=None):
         if self.config.animation.show_ani or self.config.animation.save_ani:
             self.init_ani(agents.values(), ego_agent, eval, fname)
         if self.config.animation.show_plot or self.config.animation.save_plot:
-            self.plot(agents.values(), fname)
+            self.plot(agents, eval.feats["interaction"].log[scenario][n][ego_agent.policy][iter], fname)
         if eval and (
             self.config.animation.show_inferences or self.config.animation.save_inferences
         ):

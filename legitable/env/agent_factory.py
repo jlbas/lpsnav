@@ -23,8 +23,8 @@ def is_feasible(positions, min_dist):
     return True
 
 
-def init_agents(config, env, rng, ego_policy, scenario, iter):
-    starts, goals, max_speeds = get_init_configs(config, rng, scenario)
+def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
+    starts, goals, max_speeds = get_init_configs(config, rng, scenario, num_of_agents)
     agents = dict()
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
@@ -36,7 +36,7 @@ def init_agents(config, env, rng, ego_policy, scenario, iter):
     return agents[ids[0]], agents
 
 
-def get_init_configs(config, rng, scenario):
+def get_init_configs(config, rng, scenario, num_of_agents):
     if scenario == "custom":
         starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
         goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
@@ -46,11 +46,11 @@ def get_init_configs(config, rng, scenario):
             else np.full(len(config.env.custom_pos), config.env.custom_speed)
         )
     elif scenario == "random":
-        max_speeds = rng.uniform(*config.env.speed_range, size=config.env.num_of_agents)
+        max_speeds = rng.uniform(*config.env.speed_range, size=num_of_agents)
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
         for _ in range(100):
-            starts = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
-            goals = config.env.workspace_length * rng.random((config.env.num_of_agents, 2))
+            starts = config.env.workspace_length * rng.random((num_of_agents, 2))
+            goals = config.env.workspace_length * rng.random((num_of_agents, 2))
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
             far_enough = np.all(helper.dist(starts, goals) > min_dist)
             if feasible and far_enough:
@@ -88,7 +88,7 @@ def get_init_configs(config, rng, scenario):
             starts = np.vstack(([-start_sep, 0], starts))
             goals = np.array([-1, 1]) * starts
         elif scenario == "circle":
-            agent_cnt = config.env.num_of_agents
+            agent_cnt = num_of_agents
             thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
             starts = config.env.circle_radius * helper.vec(thetas)
             goals = -starts

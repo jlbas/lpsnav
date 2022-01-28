@@ -143,7 +143,8 @@ class Metric:
         scenarios,
         policies,
         val=np.inf,
-        cnts=None,
+        num_of_agents_lst,
+        trial_cnts,
     ):
         self.name = name
         self.units = units
@@ -153,75 +154,83 @@ class Metric:
         self.scenarios = scenarios
         self.policies = policies
         self.update_func = update_func
-        self.log = self.get_log(scenarios, policies, val, cnts)
+        self.log = self.get_log(self.scenarios, self.policies, num_of_agents_lst, val, trial_cnts)
 
     def __repr__(self):
         units = self.units.replace("%", "$\\%$")
         return f"{self.name} ({units})"
 
-    def __call__(self, scenario, policy, iter, *args):
-        self.log[scenario][policy][iter] = self.update_func(*args)
+    def __call__(self, scenario, policy, iter, n, *args):
+        self.log[scenario][n][policy][iter] = self.update_func(*args)
 
-    def get_log(self, scenarios, policies, val, cnts):
-        if cnts:
-            return {s: {p: np.full(cnt, val) for p in policies} for s, cnt in zip(scenarios, cnts)}
-        return {s: {p: val for p in policies} for s in scenarios}
+    def get_log(self, scenarios, policies, num_of_agents_lst, val, trial_cnts):
+        return {
+            s: {n: {p: np.full(cnt, val) for p in policies} for n in num_of_agents}
+            for s, cnt, num_of_agents in zip(scenarios, trial_cnts, num_of_agents_lst)
+        }
 
     def compute_mean(self):
         self.mean = {
-            s: {p: self.scale * np.nanmean(self.log[s][p]) for p in self.policies}
-            for s in self.scenarios
+            s: {
+                n: {p: self.scale * np.nanmean(self.log[s][n][p]) for p in self.log[s][n]}
+                for n in self.log[s]
+            }
+            for s in self.log
         }
 
     def compute_std(self):
         self.std = {
-            s: {p: self.scale * np.nanstd(self.log[s][p]) for p in self.policies}
-            for s in self.scenarios
+            s: {
+                n: {p: self.scale * np.nanstd(self.log[s][n][p]) for p in self.log[s][n]}
+                for n in self.log[s]
+            }
+            for s in self.log
         }
 
     def get_opt(self):
-        self.opt_val = {s: self.opt_func(list(self.mean[s].values())) for s in self.scenarios}
+        self.opt_val = {
+            s: {n: self.opt_func(list(self.mean[s][n].values())) for n in self.mean[s]}
+            for s in self.scenarios
+        }
 
     def format_vals(self):
         self.formatted_vals = deepcopy(self.mean)
-        for s, opt_val in zip(self.formatted_vals, self.opt_val.values()):
-            for p, val in self.formatted_vals[s].items():
-                self.formatted_vals[s][p] = f"{val:.{self.decimals}f}"
-                if val == opt_val:
-                    self.formatted_vals[s][p] = f"\033[1m{self.formatted_vals[s][p]}\033[0m"
+        for s in self.formatted_vals:
+            for n, opt_val in self.opt_val[s].items():
+                for p, val in self.formatted_vals[s][n].items():
+                    self.formatted_vals[s][n][p] = f"{val:.{self.decimals}f}"
+                    if val == opt_val:
+                        self.formatted_vals[s][n][p] = f"<{self.formatted_vals[s][n][p]}>"
+        self.formatted_vals = {
+            s: {
+                p: " / ".join([self.formatted_vals[s][n][p] for n in self.formatted_vals[s]])
+                for p in self.policies
+            }
+            for s in self.formatted_vals
+        }
+
+
 
 
 class Eval:
-    def __init__(self, config, trial_cnts):
+    def __init__(self, config, num_of_agents_lst, trial_cnts):
         self.conf = config
         self.colors = {p: "" for p in self.conf.env.policies}
-        self.init_metrics(self.conf.env.scenarios, self.conf.env.policies, trial_cnts)
+        self.init_metrics(
+            self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst, trial_cnts
+        )
         self.init_symbols()
 
-    def init_metrics(self, scenarios, policies, trial_cnts):
-        req_args = (scenarios, policies)
+    def init_metrics(self, scenarios, policies, num_of_agents_lst, trial_cnts):
+        args = (scenarios, policies, num_of_agents_lst, trial_cnts)
         self.metrics = {
-            "extra_ttg": Metric(
-                "Extra TTG", "%", 2, min, eval_extra_ttg, *req_args, cnts=trial_cnts
-            ),
-            "failure": Metric(
-                "Failure Rate", "%", 0, min, eval_failure, *req_args, val=False, cnts=trial_cnts
-            ),
-            "efficiency": Metric(
-                "Path Efficiency", "%", 2, max, eval_efficiency, *req_args, cnts=trial_cnts
-            ),
-            "irregularity": Metric(
-                "Path Irregularity", "rad/m", 4, min, eval_irregularity, *req_args, cnts=trial_cnts
-            ),
-            "legibility": Metric(
-                "Legibility", "%", 2, max, eval_legibility, *req_args, cnts=trial_cnts
-            ),
-            "predictability": Metric(
-                "Predictability", "%", 2, max, eval_predictability, *req_args, cnts=trial_cnts
-            ),
-            "nav_contrib": Metric(
-                "Navigation Contribution", "%", 2, max, eval_nav_contrib, *req_args, cnts=trial_cnts
-            ),
+            "extra_ttg": Metric("Extra TTG", "%", 2, min, eval_extra_ttg, *args),
+            "failure": Metric("Failure Rate", "%", 0, min, eval_failure, *args, val=False),
+            "efficiency": Metric("Path Efficiency", "%", 2, max, eval_efficiency, *args),
+            "irregularity": Metric("Path Irregularity", "rad/m", 4, min, eval_irregularity, *args),
+            "legibility": Metric("Legibility", "%", 2, max, eval_legibility, *args),
+            "predictability": Metric("Predictability", "%", 2, max, eval_predictability, *args),
+            "nav_contrib": Metric("Navigation Contribution", "%", 2, max, eval_nav_contrib, *args),
         }
 
     def init_symbols(self):
@@ -235,7 +244,7 @@ class Eval:
         self.mpd = smp.lambdify(args, mpd)
         self.mpd_partials = [smp.lambdify(args, smp.diff(mpd, p)) for p in [vr, thr, vh, thh]]
 
-    def evaluate(self, iter, dt, ego_agent, scenario):
+    def evaluate(self, iter, dt, ego_agent, scenario, n):
         self.colors[ego_agent.policy] = ego_agent.color
         req_args = (scenario, ego_agent.policy, iter)
         self.metrics["extra_ttg"](*req_args, ego_agent, self.conf.agent.goal_tol)
