@@ -216,6 +216,14 @@ class Eval:
     def __init__(self, config, num_of_agents_lst, trial_cnts):
         self.conf = config
         self.colors = {p: "" for p in self.conf.env.policies}
+        self.policy_dict = {
+            "lpnav": "LPNav",
+            "social_momentum": "SM",
+            "sa_cadrl": "SA-CADRL",
+            "ga3c_cadrl": "GA3C-CADRL",
+            "rvo": "RVO",
+            "sfm": "SFM",
+        }
         self.init_metrics(
             self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst, trial_cnts
         )
@@ -428,8 +436,8 @@ class Eval:
                 tbl.title += "_homogeneous"
             if s == "random":
                 tbl.title += f"_{self.conf.env.random_scenarios}_iters"
-            tbl.add_column("Policies", self.conf.env.policies)
             for m in [v for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
+            tbl.add_column("Policies", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
                 tbl.add_column(m.name, list(m.formatted_vals[s].values()))
             self.conf.eval.show_tbl and print(tbl)
             self.conf.eval.save_tbl and self.save_tbl(tbl)
