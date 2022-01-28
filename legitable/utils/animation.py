@@ -187,7 +187,7 @@ class Animate:
         self.config.animation.show_ani and plt.show()
         pdf is not None and pdf.close()
 
-    def plot(self, agents, fname=None):
+    def plot(self, agents, interaction=None, fname=None):
         self.config.animation.dark_bg and plt.style.use("dark_background")
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
@@ -202,18 +202,14 @@ class Animate:
         ax.tick_params(length=0, pad=2)
         ax.xaxis.labelpad = 1
         ax.yaxis.labelpad = 1
-        x, y = np.concatenate([a.pos_log for a in list(agents)]).T
+        x, y = np.concatenate([a.pos_log for a in agents.values()]).T
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * self.config.agent.radius
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-        sampled_len = 0
-        for a in agents:
-            a.sampled_traj = a.pos_log[
-                :: int(self.config.animation.body_interval / self.config.env.dt)
-            ]
-            sampled_len = max(sampled_len, len(a.sampled_traj))
+        step = int(self.config.animation.body_interval / self.config.env.dt)
+        sample_slice = slice(None, None, step)
         first_inattentive = True
-        for i, a in enumerate(list(agents)[::-1]):
+        for id, a in agents.items():
             ax.add_patch(
                 Circle(
                     a.goal,
@@ -221,7 +217,7 @@ class Animate:
                     ec=a.color,
                     fill=None,
                     lw=0.5,
-                    zorder=2 * len(agents) + i,
+                    zorder=2 * len(agents) + id,
                 )
             )
             if self.config.animation.plot_traj:
@@ -236,24 +232,26 @@ class Animate:
                     c=a.color,
                     lw=0.5,
                     solid_capstyle="round",
-                    zorder=len(agents) + i,
+                    zorder=len(agents) + id,
                     label=label,
                 )
             if self.config.animation.plot_body:
                 hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
+                sampled_traj = a.pos_log[sample_slice]
                 lightness_range = np.linspace(
                     hls_color[1] + 0.1 * (1 - hls_color[1]),
                     1 - 0.2 * (1 - hls_color[1]),
-                    sampled_len,
+                    len(sampled_traj),
                 )
-                zorder = i if a.policy != "inattentive" else 0
-                for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
-                    c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
-                    ax.add_patch(
-                        Circle(
-                            pos, self.config.agent.radius, fc=c, ec=a.color, lw=0.1, zorder=zorder
-                        )
-                    )
+                zorder = id if a.policy != "inattentive" else 0
+                for j, (pos, lightness) in enumerate(zip(sampled_traj, lightness_range[::-1])):
+                    if interaction:
+                        start, end = interaction.int_idx.get(id, (-np.inf, np.inf) if a.is_ego else (0, 0))
+                        s, ec = (hls_color[2], a.color) if start <= j * step <= end else (0, None)
+                    else:
+                        s, ec = (hls_color[2], a.color)
+                    c = colorsys.hls_to_rgb(hls_color[0], lightness, s)
+                    ax.add_patch(Circle(pos, a.radius, fc=c, ec=ec, lw=0.1, zorder=zorder))
         # ax.legend()
         if self.config.animation.save_plot:
             os.makedirs(self.config.animation.plot_dir, exist_ok=True)
