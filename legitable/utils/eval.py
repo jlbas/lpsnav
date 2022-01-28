@@ -190,9 +190,9 @@ class Metric:
         update_func,
         scenarios,
         policies,
-        val=np.inf,
         num_of_agents_lst,
         trial_cnts,
+        val=np.nan,
     ):
         self.name = name
         self.units = units
