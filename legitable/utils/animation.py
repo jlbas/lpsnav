@@ -27,12 +27,11 @@ def snapshot(ego_agent, id, agent):
     _, ax = plt.subplots()
     ax.axis("equal")
     plt.ion()
-    ax.scatter(ego_agent.int_lines[id][:, 0], ego_agent.int_lines[id][:, 1], color="gray")
-    ax.scatter(ego_agent.pred_int_lines[id][:, 0], ego_agent.pred_int_lines[id][:, 1], color="red")
+    ax.scatter(*ego_agent.int_lines[id].T, color="gray")
+    ax.scatter(*ego_agent.pred_int_lines[id].T, color="red")
     plt.pause(0.1)
     ax.scatter(
-        ego_agent.pred_int_lines[id][:, 0],
-        ego_agent.pred_int_lines[id][:, 1],
+        *ego_agent.pred_int_lines[id].T,
         color=agent.color,
     )
     plt.pause(0.1)

@@ -39,8 +39,7 @@ def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
 
 def get_init_configs(config, rng, scenario, num_of_agents):
     if scenario == "custom":
-        starts = np.array(config.env.custom_pos, dtype="float64")[:, 0]
-        goals = np.array(config.env.custom_pos, dtype="float64")[:, 1]
+        starts, goals = np.swapaxes(config.env.custom_pos, 0, 1)
         max_speeds = (
             config.env.custom_speed
             if isinstance(config.env.custom_speed, list)
