@@ -81,12 +81,6 @@ def get_init_configs(config, rng, scenario, num_of_agents):
         elif scenario == "2_agent_t_junction":
             starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
             goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
-        elif scenario == "frp":
-            y_max = 0.5 * lat_sep * (config.env.num_of_agents - 1)
-            y_starts = np.linspace(-y_max, y_max, config.env.num_of_agents)
-            starts = np.column_stack((np.full(y_starts.shape, start_sep), y_starts))
-            starts = np.vstack(([-start_sep, 0], starts))
-            goals = np.array([-1, 1]) * starts
         elif scenario == "circle":
             agent_cnt = num_of_agents
             thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
