@@ -93,7 +93,7 @@ class Animate:
             a.patches.triangle.set_xy(helper.rotate(a.body_coords, a.heading_log[i]) + a.pos_log[i])
             a.patches.body.center = a.pos_log[i]
             if self.config.animation.debug:
-                if a.policy == "lpnav" and a is ego_agent:
+                if a.policy == "lpnav" and a.is_ego:
                     for log, circles in zip(a.int_lines_log.values(), a.patches.int_lines):
                         for pos, c in zip(log[i], circles):
                             c.set_radius(0) if np.isinf(pos[0]) else c.set(center=pos, radius=0.05)
@@ -151,7 +151,7 @@ class Animate:
             a.patches.triangle = Polygon(a.body_coords, fc=ax.get_facecolor(), lw=4, zorder=i + 3)
             a.patches.body = Circle((a.pos), a.radius, color=a.color, zorder=i + 2)
             if self.config.animation.debug:
-                if a.policy == "lpnav" and a is ego_agent:
+                if a.policy == "lpnav" and a.is_ego:
                     c = (0, 0)
                     a.patches.prims = [[Circle(c) for _ in a.rel_headings] for _ in a.speeds]
                     a.patches.int_lines = [[Circle(c), Circle(c)] for _ in a.int_lines_log]

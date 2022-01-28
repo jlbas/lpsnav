@@ -5,8 +5,8 @@ from utils.animation import snapshot
 
 
 class Lpnav(Agent):
-    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
-        super().__init__(config, env, id, policy, start, goal=goal, max_speed=max_speed)
+    def __init__(self, config, env, id, policy, is_ego, start, goal=None, max_speed=None):
+        super().__init__(config, env, id, policy, is_ego, start, goal=goal, max_speed=max_speed)
         self.receding_horiz = self.conf.receding_horiz
         self.sensing_horiz = self.conf.sensing_horiz
         self.receding_steps = int(self.receding_horiz / self.env.dt)

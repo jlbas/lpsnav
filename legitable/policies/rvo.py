@@ -5,8 +5,8 @@ from utils import helper
 
 
 class Rvo(Agent):
-    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
-        super().__init__(config, env, id, policy, start, goal=goal, max_speed=max_speed)
+    def __init__(self, config, env, id, policy, is_ego, start, goal=None, max_speed=None):
+        super().__init__(config, env, id, policy, is_ego, start, goal=goal, max_speed=max_speed)
         self.color = "#DC267F"
         self.color = "#bf346a"
         self.neighbor_dist = self.conf.neighbor_dist

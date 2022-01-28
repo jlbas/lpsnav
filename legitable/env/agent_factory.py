@@ -29,10 +29,11 @@ def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
     ids = range(iter * len(policies), iter * len(policies) + len(policies))
-    for id, start, goal, max_speed, policy in zip(ids, starts, goals, max_speeds, policies):
-        module = importlib.import_module(f"policies.{policy}")
-        cls = getattr(module, "".join(wd.capitalize() for wd in policy.split("_")))
-        agents[id] = cls(config, env, id, policy, start, goal=goal, max_speed=max_speed)
+    for i, (id, s, g, v_max, p) in enumerate(zip(ids, starts, goals, max_speeds, policies)):
+        module = importlib.import_module(f"policies.{p}")
+        cls = getattr(module, "".join(wd.capitalize() for wd in p.split("_")))
+        is_ego = (i == 0)
+        agents[id] = cls(config, env, id, p, is_ego, s, goal=g, max_speed=v_max)
     return agents[ids[0]], agents
 
 

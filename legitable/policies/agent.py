@@ -12,11 +12,12 @@ class Patches:
 
 
 class Agent:
-    def __init__(self, config, env, id, policy, start, goal=None, max_speed=None):
+    def __init__(self, config, env, id, policy, is_ego, start, goal=None, max_speed=None):
         self.env_conf = config.env
         self.env = env
         self.id = id
         self.policy = policy
+        self.is_ego = is_ego
         self.start = np.array(start, dtype=float)
         self.goal = self.start if goal is None else np.array(goal, dtype=float)
         self.conf = getattr(config, self.policy)
