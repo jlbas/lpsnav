@@ -528,7 +528,7 @@ class Eval:
         rows += [f"{indent}{' & '.join(tbl.field_names)} {newline}"]
         rows += [f"{indent}\\midrule"]
         tex_rows = [
-            [v.replace("\033[1m", "\\textbf{").replace("\033[0m", "}") for v in row]
+            [v.replace("<", "\\textbf{").replace(">", "}").replace("_", "\\_") for v in row]
             for row in tbl.rows
         ]
         rows += [f"{indent}{' & '.join(row)} {newline}" for row in tex_rows]
