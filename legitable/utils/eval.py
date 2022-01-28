@@ -7,6 +7,7 @@ import numpy as np
 import sympy as smp
 from prettytable import PrettyTable
 from scipy.ndimage import gaussian_filter
+from legitable.policies.agent import Agent
 from utils import helper
 
 from legitable.utils.opt_traj import get_opt_traj
@@ -35,23 +36,19 @@ def eval_irregularity(ego_agent):
     return np.mean(np.abs(ego_agent.heading_log - helper.angle(ego_agent.goal - ego_agent.pos_log)))
 
 
-def eval_legibility(dt, ego_agent, interaction, int_cost, config):
-    legibility = Score()
+def eval_legibility(dt, ego_agent, interaction, goal_inference, config):
+    leg_scores = dict()
     for id, agent in ego_agent.other_agents.items():
         if np.diff(interaction.int_idx[id]) > 1:
-            arg = int_cost.rg[id] - int_cost.rtg[id]
-            arg = np.where(int_cost.rtg[id] > config.lpnav.max_cost, -np.inf, arg)
-            arg = np.clip(arg, -config.lpnav.max_cost, 0)
-            legibility.vals[id] = np.exp(arg) * np.expand_dims(config.lpnav.subgoal_priors, axis=-1)
-            legibility.vals[id] /= np.sum(legibility.vals[id], axis=0)
-            legibility.vals[id] = np.delete(legibility.vals[id], 1, 0)
-            num = np.trapz(interaction.int_t[id][::-1] * np.max(legibility.vals[id], axis=0), dx=dt)
-            den = np.trapz(interaction.int_t[id][::-1], dx=dt)
-            legibility.scores[id] = num / den
+            t_discount = interaction.int_t[id][::-1]
+            num = np.trapz(t_discount * goal_inference[id], dx=dt)
+            den = np.trapz(t_discount, dx=dt)
+            leg_scores[id] = np.delete(num / den, 1)[interaction.passing_idx[id]]
             if config.eval.normalize_lp:
                 min_leg, max_leg = get_opt_traj(
                     interaction.int_idx[id],
                     interaction.int_slice[id],
+                    interaction.passing_idx[id],
                     dt,
                     ego_agent,
                     agent,
@@ -59,27 +56,18 @@ def eval_legibility(dt, ego_agent, interaction, int_cost, config):
                     config.lpnav.subgoal_priors,
                 )
                 if min_leg is not None and max_leg is not None:
-                    legibility.scores[id] = (legibility.scores[id] - min_leg) / (max_leg - min_leg)
-                else:
-                    legibility.scores[id] = np.nan
-    if legibility.scores:
-        legibility.tot_score = np.mean(list(legibility.scores.values()))
-    return legibility.tot_score
+                    leg_scores[id] = (leg_scores[id] - min_leg) / (max_leg - min_leg)
+                    assert 0 <= leg_scores[id] <= 1.1
+    return np.mean(list(leg_scores.values()))
 
 
-def eval_predictability(other_agents, interaction, int_cost, max_cost):
-    predictability = Score()
+def eval_predictability(other_agents, interaction, traj_inference):
+    pred_scores = dict()
     for id in other_agents:
         if np.diff(interaction.int_idx[id]) > 1:
-            cost_stg = interaction.int_t[id] + int_cost.tg[id]
-            arg = int_cost.sg[id] - cost_stg
-            arg = np.where(int_cost.rtg[id] > max_cost, -np.inf, arg)
-            arg = np.clip(arg, -max_cost, 0)
-            predictability.vals[id] = np.delete(np.exp(arg), 1, 0)
-            predictability.scores[id] = np.max(predictability.vals[id][:, -1])
-    if predictability.scores:
-        predictability.tot_score = np.mean(list(predictability.scores.values()))
-    return predictability.tot_score
+            passing_sides = np.delete(traj_inference[id], 1, 0)
+            pred_scores[id] = np.max(passing_sides[:, -1])
+    return np.mean(list(pred_scores.values()))
 
 
 def eval_nav_contrib(dt, other_agents, mpd, partials):
@@ -101,6 +89,64 @@ def eval_nav_contrib(dt, other_agents, mpd, partials):
     return np.nanmean(nav_contrib)
 
 
+def get_interactions(dt, ego_agent, sensing_dist):
+    interaction = Interaction()
+    interaction.int_line_heading = helper.wrap_to_pi(
+        helper.angle(ego_agent.pos_log - ego_agent.goal)
+    )
+    for id, agent in ego_agent.other_agents.items():
+        in_front = helper.in_front(agent.pos_log, interaction.int_line_heading, ego_agent.pos_log)
+        a_in_front = helper.in_front(agent.pos_log, agent.heading_log, ego_agent.pos_log)
+        inter_dist = helper.dist(ego_agent.pos_log, agent.pos_log)
+        in_radius = inter_dist < sensing_dist
+        col_width = ego_agent.radius + agent.radius
+        rel_int_line = np.array([[0, -col_width], [0, col_width]])
+        abs_int_line = helper.rotate(rel_int_line, interaction.int_line_heading)
+        interaction.int_line[id] = abs_int_line + agent.pos_log
+        feasible = (
+            helper.cost_to_line(
+                ego_agent.pos_log,
+                ego_agent.max_speed,
+                interaction.int_line[id],
+                agent.vel_log,
+            )
+            < 1e2
+        )
+        is_interacting = in_front & in_radius & feasible & a_in_front
+        if ~np.any(is_interacting) or dt * np.sum(is_interacting) < 1:
+            start_idx, end_idx = (0, 0)
+        else:
+            interaction.agents[id] = agent
+            start_idx = np.argmax(is_interacting)
+            end_idx = np.nonzero(is_interacting)[0][-1]
+            th = helper.angle(np.diff(interaction.int_line[id][:, end_idx], axis=0))
+            right = helper.in_front(agent.pos_log[end_idx], th, ego_agent.pos_log[end_idx])
+            interaction.passing_idx[id] = 1 if right else 0
+        interaction.int_idx[id] = [start_idx, end_idx]
+        interaction.int_slice[id] = slice(start_idx, end_idx + 1)
+        interaction.int_t[id] = dt * np.arange(start_idx, end_idx + 1)
+    return interaction
+
+
+def get_goal_inference(other_agents, interaction, int_cost, priors):
+    goal_inference = dict()
+    for id in other_agents:
+        if np.diff(interaction.int_idx[id]) > 1:
+            arg = int_cost.rg[id] - int_cost.rtg[id]
+            goal_inference[id] = np.exp(arg) * np.expand_dims(priors, axis=-1)
+            goal_inference[id] /= np.sum(goal_inference[id], axis=0)
+    return goal_inference
+
+
+def get_traj_inference(other_agents, interaction, int_cost):
+    traj_inference = dict()
+    for id in other_agents:
+        if np.diff(interaction.int_idx[id]) > 1:
+            cost_stg = interaction.int_t[id] + int_cost.tg[id]
+            traj_inference[id] = np.exp(int_cost.sg[id] - cost_stg)
+    return traj_inference
+
+
 @dataclass
 class Score:
     tot_score: float = np.nan
@@ -110,11 +156,13 @@ class Score:
 
 @dataclass
 class Interaction:
+    agents: dict[int, Agent] = field(default_factory=dict)
     int_idx: dict[int, list] = field(default_factory=dict)
     int_slice: dict[int, slice] = field(default_factory=dict)
     int_t: dict[int, np.ndarray] = field(default_factory=dict)
     int_line: dict[int, np.ndarray] = field(default_factory=dict)
     int_line_heading: dict[int, np.ndarray] = field(default_factory=dict)
+    passing_idx: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -210,6 +258,21 @@ class Metric:
         }
 
 
+class Feature:
+    def __init__(self, update_func, scenarios, policies, num_of_agents_lst):
+        self.update_func = update_func
+        self.log = self.get_log(scenarios, policies, num_of_agents_lst)
+
+    def __call__(self, scenario, policy, n, *args):
+        res = self.update_func(*args)
+        if res is not None:
+            self.log[scenario][n][policy].append(res)
+
+    def get_log(self, scenarios, policies, num_of_agents_lst):
+        return {
+            s: {n: {p: list() for p in policies} for n in num_of_agents}
+            for s, num_of_agents in zip(scenarios, num_of_agents_lst)
+        }
 
 
 class Eval:
@@ -227,6 +290,7 @@ class Eval:
         self.init_metrics(
             self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst, trial_cnts
         )
+        self.init_feats(self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst)
         self.init_symbols()
 
     def init_metrics(self, scenarios, policies, num_of_agents_lst, trial_cnts):
@@ -239,6 +303,14 @@ class Eval:
             "legibility": Metric("Legibility", "%", 2, max, eval_legibility, *args),
             "predictability": Metric("Predictability", "%", 2, max, eval_predictability, *args),
             "nav_contrib": Metric("Navigation Contribution", "%", 2, max, eval_nav_contrib, *args),
+        }
+
+    def init_feats(self, scenarios, policies, num_of_agents_lst):
+        args = (scenarios, policies, num_of_agents_lst)
+        self.feats = {
+            "interaction": Feature(get_interactions, *args),
+            "goal_inference": Feature(get_goal_inference, *args),
+            "traj_inference": Feature(get_traj_inference, *args),
         }
 
     def init_symbols(self):
@@ -254,56 +326,54 @@ class Eval:
 
     def evaluate(self, iter, dt, ego_agent, scenario, n):
         self.colors[ego_agent.policy] = ego_agent.color
-        req_args = (scenario, ego_agent.policy, iter)
-        self.metrics["extra_ttg"](*req_args, ego_agent, self.conf.agent.goal_tol)
-        self.metrics["failure"](*req_args, ego_agent)
-        self.metrics["efficiency"](*req_args, ego_agent)
-        self.metrics["irregularity"](*req_args, ego_agent)
-        interaction = self.get_interactions(dt, ego_agent)
-        int_cost = self.compute_int_costs(dt, ego_agent, ego_agent.other_agents, interaction)
-        self.metrics["legibility"](*req_args, dt, ego_agent, interaction, int_cost, self.conf)
-        self.metrics["predictability"](
-            *req_args, ego_agent.other_agents, interaction, int_cost, self.conf.lpnav.max_cost
+        feat_args = (scenario, ego_agent.policy, n)
+        metric_args = (scenario, ego_agent.policy, iter, n)
+        self.metrics["extra_ttg"](*metric_args, ego_agent, self.conf.agent.goal_tol)
+        self.metrics["failure"](*metric_args, ego_agent)
+        self.metrics["efficiency"](*metric_args, ego_agent)
+        self.metrics["irregularity"](*metric_args, ego_agent)
+        self.feats["interaction"](*feat_args, dt, ego_agent, self.conf.agent.sensing_dist)
+        int_cost = self.compute_int_costs(
+            dt,
+            ego_agent,
+            ego_agent.other_agents,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
         )
-        mpd = self.compute_mpd(ego_agent, interaction.int_slice)
-        self.metrics["nav_contrib"](*req_args, dt, ego_agent.other_agents, mpd, self.mpd_partials)
+        self.feats["goal_inference"](
+            *feat_args,
+            ego_agent.other_agents,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            int_cost,
+            self.conf.lpnav.subgoal_priors,
+        )
+        self.metrics["legibility"](
+            *metric_args,
+            dt,
+            ego_agent,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            self.feats["goal_inference"].log[scenario][n][ego_agent.policy][iter],
+            self.conf,
+        )
+        self.feats["traj_inference"](
+            *feat_args,
+            ego_agent.other_agents,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            int_cost,
+        )
+        self.metrics["predictability"](
+            *metric_args,
+            ego_agent.other_agents,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            self.feats["traj_inference"].log[scenario][n][ego_agent.policy][iter],
+        )
+        mpd = self.compute_mpd(
+            ego_agent, self.feats["interaction"].log[scenario][n][ego_agent.policy][iter].int_slice
+        )
+        self.metrics["nav_contrib"](
+            *metric_args, dt, ego_agent.other_agents, mpd, self.mpd_partials
+        )
         if self.conf.eval.show_nav_contrib_plot or self.conf.eval.save_nav_contrib_plot:
             self.make_nav_contrib_plot(env, mpd, eps)
-
-    def get_interactions(self, dt, ego_agent):
-        interaction = Interaction()
-        interaction.int_line_heading = helper.wrap_to_pi(
-            helper.angle(ego_agent.pos_log - ego_agent.goal)
-        )
-        for id, agent in ego_agent.other_agents.items():
-            in_front = helper.in_front(
-                agent.pos_log, interaction.int_line_heading, ego_agent.pos_log
-            )
-            inter_dist = helper.dist(ego_agent.pos_log, agent.pos_log)
-            in_radius = inter_dist < self.conf.agent.sensing_dist
-            col_width = ego_agent.radius + agent.radius
-            rel_int_line = np.array([[0, -col_width], [0, col_width]])
-            abs_int_line = helper.rotate(rel_int_line, interaction.int_line_heading)
-            interaction.int_line[id] = abs_int_line + agent.pos_log
-            feasible = (
-                helper.cost_to_line(
-                    ego_agent.pos_log,
-                    ego_agent.max_speed,
-                    interaction.int_line[id],
-                    agent.vel_log,
-                )
-                < 1e2
-            )
-            is_interacting = in_front & in_radius & feasible
-            if ~np.any(is_interacting) or dt * np.sum(is_interacting) < 1:
-                start_idx, end_idx = (0, 0)
-            else:
-                start_idx = np.argmax(is_interacting)
-                end_idx = np.nonzero(is_interacting)[0][-1]
-            interaction.int_idx[id] = [start_idx, end_idx]
-            interaction.int_slice[id] = slice(start_idx, end_idx + 1)
-            interaction.int_t[id] = dt * np.arange(start_idx, end_idx + 1)
-        return interaction
 
     def compute_int_costs(self, dt, ego_agent, other_agents, interaction):
         int_cost = IntCost()
@@ -434,8 +504,8 @@ class Eval:
                 tbl.title += "_homogeneous"
             if s == "random":
                 tbl.title += f"_{self.conf.env.random_scenarios}_iters"
-            for m in [v for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
             tbl.add_column("Policies", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
+            for m in [v for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
                 tbl.add_column(m.name, list(m.formatted_vals[s].values()))
             self.conf.eval.show_tbl and print(tbl)
             self.conf.eval.save_tbl and self.save_tbl(tbl)
@@ -471,7 +541,7 @@ class Eval:
             f.write(contents)
 
     def get_summary(self):
-        for metric in self.metrics.values():
+        for metric in [m for m in self.metrics.values() if m.opt_func]:
             metric.compute_mean()
             metric.compute_std()
             metric.get_opt()
