@@ -359,10 +359,8 @@ class Eval:
                 agent.heading_log[int_slice[id]],
             ]
             mpd.args[id] = [
-                ego_agent.pos_log[:, 0][int_slice[id]],
-                ego_agent.pos_log[:, 1][int_slice[id]],
-                agent.pos_log[:, 0][int_slice[id]],
-                agent.pos_log[:, 1][int_slice[id]],
+                *ego_agent.pos_log[int_slice[id]].T,
+                *agent.pos_log[int_slice[id]].T,
                 *mpd.params[id],
             ]
             with np.errstate(invalid="ignore"):
