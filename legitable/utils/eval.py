@@ -89,6 +89,51 @@ def eval_nav_contrib(dt, other_agents, mpd, partials):
     return np.nanmean(nav_contrib)
 
 
+def get_int_costs(dt, ego_agent, other_agents, interaction, receding_horiz):
+    int_cost = IntCost()
+    receding_steps = int(receding_horiz / dt)
+    for id, agent in other_agents.items():  # Try and use a zip here
+        init_receded_pos = (
+            ego_agent.pos_log[0]
+            - dt * np.arange(receding_steps + 1, 1, -1)[:, None] * ego_agent.vel_log[0]
+        )
+        receded_pos = np.concatenate((init_receded_pos, ego_agent.pos_log[:-receding_steps]))[
+            interaction.int_slice[id]
+        ]
+        receded_line = (
+            interaction.int_line[id][:, interaction.int_slice[id]]
+            - agent.vel_log[interaction.int_slice[id]] * receding_horiz
+        )
+        receded_start_line = (
+            interaction.int_line[id][:, interaction.int_slice[id]]
+            - agent.vel_log[interaction.int_slice[id]] * interaction.int_t[id][:, None]
+        )
+        scaled_speed = max(ego_agent.max_speed, agent.max_speed + 0.1)
+        int_cost.rg[id] = helper.dynamic_pt_cost(
+            receded_pos,
+            scaled_speed,
+            receded_line,
+            interaction.int_line_heading[interaction.int_slice[id]],
+            agent.vel_log[interaction.int_slice[id]],
+        )
+        int_cost.tg[id] = helper.dynamic_pt_cost(
+            ego_agent.pos_log[interaction.int_slice[id]],
+            scaled_speed,
+            interaction.int_line[id][:, interaction.int_slice[id]],
+            interaction.int_line_heading[interaction.int_slice[id]],
+            agent.vel_log[interaction.int_slice[id]],
+        )
+        int_cost.rtg[id] = receding_horiz + int_cost.tg[id]
+        int_cost.sg[id] = helper.dynamic_pt_cost(
+            ego_agent.pos_log[interaction.int_idx[id][0]],
+            scaled_speed,
+            receded_start_line,
+            interaction.int_line_heading[interaction.int_slice[id]],
+            agent.vel_log[interaction.int_slice[id]],
+        )
+    return int_cost
+
+
 def get_interactions(dt, ego_agent, sensing_dist):
     interaction = Interaction()
     interaction.int_line_heading = helper.wrap_to_pi(
@@ -145,6 +190,25 @@ def get_traj_inference(other_agents, interaction, int_cost):
             cost_stg = interaction.int_t[id] + int_cost.tg[id]
             traj_inference[id] = np.exp(int_cost.sg[id] - cost_stg)
     return traj_inference
+
+
+def get_mpd(ego_agent, int_slice, mpd_fn):
+    mpd = Mpd()
+    for id, agent in ego_agent.other_agents.items():
+        mpd.params[id] = [
+            ego_agent.speed_log[int_slice[id]],
+            ego_agent.heading_log[int_slice[id]],
+            agent.speed_log[int_slice[id]],
+            agent.heading_log[int_slice[id]],
+        ]
+        mpd.args[id] = [
+            *ego_agent.pos_log[int_slice[id]].T,
+            *agent.pos_log[int_slice[id]].T,
+            *mpd.params[id],
+        ]
+        with np.errstate(invalid="ignore"):
+            mpd.vals[id] = gaussian_filter(mpd_fn(*mpd.args[id]), sigma=3)
+    return mpd
 
 
 @dataclass
@@ -308,9 +372,11 @@ class Eval:
     def init_feats(self, scenarios, policies, num_of_agents_lst):
         args = (scenarios, policies, num_of_agents_lst)
         self.feats = {
+            "int_cost": Feature(get_int_costs, *args),
             "interaction": Feature(get_interactions, *args),
             "goal_inference": Feature(get_goal_inference, *args),
             "traj_inference": Feature(get_traj_inference, *args),
+            "mpd": Feature(get_mpd, *args),
         }
 
     def init_mpd_symbols(self):
@@ -321,7 +387,7 @@ class Eval:
         dpy = phy - pry
         args = (prx, pry, phx, phy, vr, thr, vh, thh)
         mpd = smp.sqrt((dvx * dpy + dvy * dpx) ** 2 / (dvx ** 2 + dvy ** 2))
-        self.mpd = smp.lambdify(args, mpd)
+        self.mpd_fn = smp.lambdify(args, mpd)
         self.mpd_partials = [smp.lambdify(args, smp.diff(mpd, p)) for p in [vr, thr, vh, thh]]
 
     def evaluate(self, iter, dt, ego_agent, scenario, n):
@@ -333,17 +399,19 @@ class Eval:
         self.metrics["efficiency"](*metric_args, ego_agent)
         self.metrics["irregularity"](*metric_args, ego_agent)
         self.feats["interaction"](*feat_args, dt, ego_agent, self.conf.agent.sensing_dist)
-        int_cost = self.compute_int_costs(
+        self.feats["int_cost"](
+            *feat_args,
             dt,
             ego_agent,
             ego_agent.other_agents,
             self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            self.conf.lpnav.receding_horiz,
         )
         self.feats["goal_inference"](
             *feat_args,
             ego_agent.other_agents,
             self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
-            int_cost,
+            self.feats["int_cost"].log[scenario][n][ego_agent.policy][iter],
             self.conf.lpnav.subgoal_priors,
         )
         self.metrics["legibility"](
@@ -358,7 +426,7 @@ class Eval:
             *feat_args,
             ego_agent.other_agents,
             self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
-            int_cost,
+            self.feats["int_cost"].log[scenario][n][ego_agent.policy][iter],
         )
         self.metrics["predictability"](
             *metric_args,
@@ -366,76 +434,21 @@ class Eval:
             self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
             self.feats["traj_inference"].log[scenario][n][ego_agent.policy][iter],
         )
-        mpd = self.compute_mpd(
-            ego_agent, self.feats["interaction"].log[scenario][n][ego_agent.policy][iter].int_slice
+        self.feats["mpd"](
+            *feat_args,
+            ego_agent,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter].int_slice,
+            self.mpd_fn,
         )
         self.metrics["nav_contrib"](
-            *metric_args, dt, ego_agent.other_agents, mpd, self.mpd_partials
+            *metric_args,
+            dt,
+            ego_agent.other_agents,
+            self.feats["mpd"].log[scenario][n][ego_agent.policy][iter],
+            self.mpd_partials,
         )
         if self.conf.eval.show_nav_contrib_plot or self.conf.eval.save_nav_contrib_plot:
             self.make_nav_contrib_plot(env, mpd, eps)
-
-    def compute_int_costs(self, dt, ego_agent, other_agents, interaction):
-        int_cost = IntCost()
-        receding_steps = int(self.conf.lpnav.receding_horiz / dt)
-        for id, agent in other_agents.items():  # Try and use a zip here
-            init_receded_pos = (
-                ego_agent.pos_log[0]
-                - dt * np.arange(receding_steps + 1, 1, -1)[:, None] * ego_agent.vel_log[0]
-            )
-            receded_pos = np.concatenate((init_receded_pos, ego_agent.pos_log[:-receding_steps]))[
-                interaction.int_slice[id]
-            ]
-            receded_line = (
-                interaction.int_line[id][:, interaction.int_slice[id]]
-                - agent.vel_log[interaction.int_slice[id]] * self.conf.lpnav.receding_horiz
-            )
-            receded_start_line = (
-                interaction.int_line[id][:, interaction.int_slice[id]]
-                - agent.vel_log[interaction.int_slice[id]] * interaction.int_t[id][:, None]
-            )
-            # scaled_speed = max(ego_agent.max_speed, agent.max_speed + 0.1)
-            int_cost.rg[id] = helper.dynamic_pt_cost(
-                receded_pos,
-                ego_agent.max_speed,
-                receded_line,
-                interaction.int_line_heading[interaction.int_slice[id]],
-                agent.vel_log[interaction.int_slice[id]],
-            )
-            int_cost.tg[id] = helper.dynamic_pt_cost(
-                ego_agent.pos_log[interaction.int_slice[id]],
-                ego_agent.max_speed,
-                interaction.int_line[id][:, interaction.int_slice[id]],
-                interaction.int_line_heading[interaction.int_slice[id]],
-                agent.vel_log[interaction.int_slice[id]],
-            )
-            int_cost.rtg[id] = self.conf.lpnav.receding_horiz + int_cost.tg[id]
-            int_cost.sg[id] = helper.dynamic_pt_cost(
-                ego_agent.pos_log[interaction.int_idx[id][0]],
-                ego_agent.max_speed,
-                receded_start_line,
-                interaction.int_line_heading[interaction.int_slice[id]],
-                agent.vel_log[interaction.int_slice[id]],
-            )
-        return int_cost
-
-    def compute_mpd(self, ego_agent, int_slice):
-        mpd = Mpd()
-        for id, agent in ego_agent.other_agents.items():
-            mpd.params[id] = [
-                ego_agent.speed_log[int_slice[id]],
-                ego_agent.heading_log[int_slice[id]],
-                agent.speed_log[int_slice[id]],
-                agent.heading_log[int_slice[id]],
-            ]
-            mpd.args[id] = [
-                *ego_agent.pos_log[int_slice[id]].T,
-                *agent.pos_log[int_slice[id]].T,
-                *mpd.params[id],
-            ]
-            with np.errstate(invalid="ignore"):
-                mpd.vals[id] = gaussian_filter(self.mpd(*mpd.args[id]), sigma=3)
-        return mpd
 
     def make_nav_contrib_plot(self, env, mpd, eps):
         self.conf.animation.dark_bg and plt.style.use("dark_background")
