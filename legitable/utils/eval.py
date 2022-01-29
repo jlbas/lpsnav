@@ -291,7 +291,7 @@ class Eval:
             self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst, trial_cnts
         )
         self.init_feats(self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst)
-        self.init_symbols()
+        self.init_mpd_symbols()
 
     def init_metrics(self, scenarios, policies, num_of_agents_lst, trial_cnts):
         args = (scenarios, policies, num_of_agents_lst, trial_cnts)
@@ -313,7 +313,7 @@ class Eval:
             "traj_inference": Feature(get_traj_inference, *args),
         }
 
-    def init_symbols(self):
+    def init_mpd_symbols(self):
         prx, pry, phx, phy, vr, thr, vh, thh = smp.symbols("prx pry phx phy vr thr vh thh")
         dvx = vh * smp.cos(thh) - vr * smp.cos(thr)
         dvy = vr * smp.sin(thr) - vh * smp.sin(thh)
