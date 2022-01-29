@@ -17,7 +17,7 @@ def eval_extra_ttg(ego_agent, goal_tol):
     if hasattr(ego_agent, "time_to_goal"):
         opt_ttg = (helper.dist(ego_agent.start, ego_agent.goal) - goal_tol) / ego_agent.max_speed
         return (ego_agent.time_to_goal - opt_ttg) / opt_ttg
-    return np.inf
+    return np.nan
 
 
 def eval_failure(ego_agent):
@@ -29,7 +29,7 @@ def eval_efficiency(ego_agent):
         path_len = np.sum(np.linalg.norm(np.diff(ego_agent.pos_log, axis=0), axis=-1))
         opt_path = helper.dist(ego_agent.start, ego_agent.goal) - ego_agent.goal_tol
         return 0 if not path_len else opt_path / path_len
-    return 0
+    return np.nan
 
 
 def eval_irregularity(ego_agent):
@@ -58,7 +58,7 @@ def eval_legibility(dt, ego_agent, interaction, goal_inference, config):
                 if min_leg is not None and max_leg is not None:
                     leg_scores[id] = (leg_scores[id] - min_leg) / (max_leg - min_leg)
                     assert 0 <= leg_scores[id] <= 1.1
-    return np.mean(list(leg_scores.values()))
+    return np.mean(list(leg_scores.values())) if leg_scores else np.nan
 
 
 def eval_predictability(other_agents, interaction, traj_inference):
@@ -67,7 +67,7 @@ def eval_predictability(other_agents, interaction, traj_inference):
         if np.diff(interaction.int_idx[id]) > 1:
             passing_sides = np.delete(traj_inference[id], 1, 0)
             pred_scores[id] = np.max(passing_sides[:, -1])
-    return np.mean(list(pred_scores.values()))
+    return np.mean(list(pred_scores.values())) if pred_scores else np.nan
 
 
 def eval_nav_contrib(dt, other_agents, mpd, partials):
