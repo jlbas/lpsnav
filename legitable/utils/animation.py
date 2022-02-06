@@ -84,7 +84,7 @@ class Animate:
         self.config = config
         self.scenario = scenario
         self.iter = iter
-        self.agents_log = dict()
+        self.agents_log = {}
 
     def ani(self, i, agents, ego_agent, last_frame, eval, plt, fig, pdf):
         for a in agents:

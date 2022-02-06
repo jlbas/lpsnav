@@ -37,7 +37,7 @@ def eval_irregularity(ego_agent):
 
 
 def eval_legibility(dt, ego_agent, interaction, goal_inference, config):
-    leg_scores = dict()
+    leg_scores = {}
     for id, agent in ego_agent.other_agents.items():
         if np.diff(interaction.int_idx[id]) > 1:
             t_discount = interaction.int_t[id][::-1]
@@ -62,7 +62,7 @@ def eval_legibility(dt, ego_agent, interaction, goal_inference, config):
 
 
 def eval_predictability(other_agents, interaction, traj_inference):
-    pred_scores = dict()
+    pred_scores = {}
     for id in other_agents:
         if np.diff(interaction.int_idx[id]) > 1:
             passing_sides = np.delete(traj_inference[id], 1, 0)
@@ -71,7 +71,7 @@ def eval_predictability(other_agents, interaction, traj_inference):
 
 
 def eval_nav_contrib(dt, other_agents, mpd, partials):
-    eps = dict()
+    eps = {}
     nav_contrib = [np.nan]
     for id in other_agents:
         if np.all([a.size != 0 for a in mpd.params[id]]):
@@ -174,7 +174,7 @@ def get_interactions(dt, ego_agent, sensing_dist):
 
 
 def get_goal_inference(other_agents, interaction, int_cost, priors):
-    goal_inference = dict()
+    goal_inference = {}
     for id in other_agents:
         if np.diff(interaction.int_idx[id]) > 1:
             arg = int_cost.rg[id] - int_cost.rtg[id]
@@ -184,7 +184,7 @@ def get_goal_inference(other_agents, interaction, int_cost, priors):
 
 
 def get_traj_inference(other_agents, interaction, int_cost):
-    traj_inference = dict()
+    traj_inference = {}
     for id in other_agents:
         if np.diff(interaction.int_idx[id]) > 1:
             cost_stg = interaction.int_t[id] + int_cost.tg[id]
@@ -334,7 +334,7 @@ class Feature:
 
     def get_log(self, scenarios, policies, num_of_agents_lst):
         return {
-            s: {n: {p: list() for p in policies} for n in num_of_agents}
+            s: {n: {p: [] for p in policies} for n in num_of_agents}
             for s, num_of_agents in zip(scenarios, num_of_agents_lst)
         }
 

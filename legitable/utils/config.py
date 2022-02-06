@@ -23,7 +23,7 @@ def load_config(config_file):
             config = tomli.load(f)
             for policy in config["env"]["policies"] + [config["env"]["human_policy"]]:
                 if policy not in config:
-                    config[policy] = dict()
+                    config[policy] = {}
                 for k, v in config["agent"].items():
                     if k not in config[policy]:
                         config[policy][k] = v

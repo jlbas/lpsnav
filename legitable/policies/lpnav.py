@@ -17,23 +17,23 @@ class Lpnav(Agent):
         self.beta = self.conf.beta
         self.color = "#785EF0"
         self.color = "#774db9"
-        self.pred_pos = dict()
-        self.int_lines = dict()
-        self.pred_int_lines = dict()
-        self.interacting_agents = dict()
+        self.pred_pos = {}
+        self.int_lines = {}
+        self.pred_int_lines = {}
+        self.interacting_agents = {}
         self.cost_rt = self.receding_horiz
         self.cost_tp = self.prim_horiz
-        self.cost_tg = dict()
-        self.cost_pg = dict()
-        self.cost_rg = dict()
-        self.cost_tpg = dict()
-        self.cost_rpg = dict()
-        self.cost_rtg = dict()
-        self.prim_leg_score = dict()
-        self.prim_pred_score = dict()
-        self.current_leg_score = dict()
-        self.passing_ratio = dict()
-        self.is_legible = dict()
+        self.cost_tg = {}
+        self.cost_pg = {}
+        self.cost_rg = {}
+        self.cost_tpg = {}
+        self.cost_rpg = {}
+        self.cost_rtg = {}
+        self.prim_leg_score = {}
+        self.prim_pred_score = {}
+        self.current_leg_score = {}
+        self.passing_ratio = {}
+        self.is_legible = {}
         self.abs_prims_log = np.full(
             (
                 self.env.max_step + 1,
@@ -43,8 +43,8 @@ class Lpnav(Agent):
             ),
             np.inf,
         )
-        self.opt_log = list()
-        self.col_mask_log = list()
+        self.opt_log = []
+        self.col_mask_log = []
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
         self.speed_idx = 0
         self.heading_idx = self.heading_samples // 2
@@ -74,13 +74,13 @@ class Lpnav(Agent):
 
     def update_int_line(self):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
-        self.rel_int_lines = dict()
+        self.rel_int_lines = {}
         for id, agent in self.other_agents.items():
             self.rel_int_lines[id] = helper.rotate(self.rel_int_line[id], self.int_line_heading)
             self.int_lines[id] = self.rel_int_lines[id] + agent.pos
 
     def get_interacting_agents(self):
-        self.interacting_agents = dict()
+        self.interacting_agents = {}
         for id, agent in self.other_agents.items():
             time_to_interaction = helper.cost_to_line(
                 self.pos, self.speed, self.int_lines[id], agent.vel

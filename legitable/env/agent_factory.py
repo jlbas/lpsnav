@@ -25,7 +25,7 @@ def is_feasible(positions, min_dist):
 
 def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
     starts, goals, max_speeds = get_init_configs(config, rng, scenario, num_of_agents)
-    agents = dict()
+    agents = {}
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
     ids = range(iter * len(policies), iter * len(policies) + len(policies))
