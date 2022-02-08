@@ -1,4 +1,5 @@
 from copy import deepcopy
+import logging
 import os
 from dataclasses import dataclass, field
 
@@ -356,6 +357,7 @@ class Eval:
         )
         self.init_feats(self.conf.env.scenarios, self.conf.env.policies, num_of_agents_lst)
         self.init_mpd_symbols()
+        self.logger = logging.getLogger(__name__)
 
     def init_metrics(self, scenarios, policies, num_of_agents_lst, trial_cnts):
         args = (scenarios, policies, num_of_agents_lst, trial_cnts)
@@ -520,7 +522,7 @@ class Eval:
             tbl.add_column("Policies", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
             for m in [v for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
                 tbl.add_column(m.name, list(m.formatted_vals[s].values()))
-            self.conf.eval.show_tbl and print(tbl)
+            self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
         for m in self.conf.eval.individual_metrics:
             tbl = PrettyTable()
@@ -528,7 +530,7 @@ class Eval:
             tbl.add_column("Policies", self.conf.env.policies)
             for s, vals in self.metrics[m].formatted_vals.items():
                 tbl.add_column(s, list(vals.values()))
-            self.conf.eval.show_tbl and print(tbl)
+            self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
 
     def save_tbl(self, tbl):

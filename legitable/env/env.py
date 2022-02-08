@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from env.agent_factory import init_agents
 
@@ -18,8 +19,9 @@ class Env:
         self.ego_agent, self.agents = init_agents(
             self.config, self, rng, self.ego_policy, self.scenario, self.n_agents, ws_len, self.policy_id
         )
+        self.logger = logging.getLogger(__name__)
         for agent in self.agents.values():
-            print(agent)
+            self.logger.debug(agent)
             agent.post_init()
             agent.log_data(self.step)
 
@@ -48,19 +50,16 @@ class Env:
 
     def check_if_done(self):
         if self.ego_agent.at_goal and not self.config.env.homogeneous:
-            print(f"Simulation ended at {self.time:.2f}s. Ego agent reached its goal.")
-            self.done = True
+            self.logger.debug(f"Simulation ended at {self.time:.2f}s. Ego agent reached its goal.")
         elif all([a.at_goal for a in self.agents.values()]) and self.config.env.homogeneous:
-            print(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
-            self.done = True
+            self.logger.debug(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
         elif all([a.at_goal or a.collided for a in self.agents.values()]):
-            print(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
-            self.done = True
+            self.logger.debug(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
         elif self.step >= self.max_step:
-            print("Simulation time limit was reached. Not all agents reached their goals.")
-            self.done = True
-        if self.done:
-            print(60 * "=")
+            self.logger.debug("Simulation time limit was reached. Not all agents reached their goals.")
+        else:
+            return
+        self.done = True
 
     def trim_logs(self):
         max_idx = np.argmax(np.any(~np.isfinite(self.ego_agent.pos_log), axis=-1))
