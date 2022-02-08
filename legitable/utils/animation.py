@@ -261,80 +261,50 @@ class Animate:
             plt.savefig(fname + ".pdf")
         self.config.animation.show_plot and plt.show()
 
-    def plot_inferences(self, iter, agents, goal_inference, traj_inference, fname=None):
-        for (goal_scores, traj_scores) in zip(goal_inference.values(), traj_inference.values()):
-            fig1, ax1 = plt.subplots()
-            fig2, ax2 = plt.subplots()
-            fig3, ax3 = plt.subplots()
-            for fig in [fig1, fig2, fig3]:
-                fig.set_dpi(300)
-                fig.set_size_inches(4, 3)
-            # plt.tight_layout()
-            ax1.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)")
-            ax2.set(
-                title="Interaction Goal Inference",
-                xlabel=r"Time (s)",
-                ylabel=r"$P(\mathcal{I}_i\mid\xi_{s\rightarrow{t}})$",
-            )
-            ax3.set(
-                title="Trajectory Inference",
-                xlabel=r"Time (s)",
-                ylabel=r"$P(\xi_{s\rightarrow{t}}\mid\mathcal{I}_i)$",
-            )
-            ax1.axis("square")
-            x, y = np.concatenate([a.pos_log for a in list(agents)]).T
-            x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
-            pad = 2 * self.config.agent.radius
-            ax1.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-            sampled_len = 0
-            for a in agents:
-                a.sampled_traj = a.pos_log[
-                    :: int(self.config.animation.body_interval / self.config.env.dt)
-                ]
-                sampled_len = max(sampled_len, len(a.sampled_traj))
-            for i, a in enumerate(list(agents)[::-1]):
-                if self.config.animation.plot_traj:
-                    ax1.plot(
-                        np.array(a.pos_log)[:, 0],
-                        np.array(a.pos_log)[:, 1],
-                        c=a.color,
-                        lw=2,
-                        solid_capstyle="round",
-                        zorder=len(agents) + i,
-                    )
-                if self.config.animation.plot_body:
-                    hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
-                    lightness_range = np.linspace(
-                        hls_color[1] + 0.2 * (1 - hls_color[1]),
-                        1 - 0.2 * (1 - hls_color[1]),
-                        sampled_len,
-                    )
-                    for pos, lightness in zip(a.sampled_traj, lightness_range[::-1]):
-                        c = colorsys.hls_to_rgb(hls_color[0], lightness, hls_color[2])
-                        ax1.add_patch(
-                            Circle(pos, self.config.agent.radius, fc=c, ec=a.color, zorder=i)
-                        )
+    def plot_inferences(self, policy, interaction, goal_inference, traj_inference, fname=None):
+        fig1, ax1 = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        ax1.set(
+            title=f"{policy} Interaction Goal Inference",
+            xlabel=r"Time (s)",
+            ylabel=r"$P(\mathcal{I}_i\mid\xi_{s\rightarrow{t}})$",
+        )
+        ax2.set(
+            title=f"{policy} Trajectory Inference",
+            xlabel=r"Time (s)",
+            ylabel=r"$P(\xi_{s\rightarrow{t}}\mid\mathcal{I}_i)$",
+        )
+        inf_iters = (interaction.agents, goal_inference.values(), traj_inference.values())
+        for id, goal_scores, traj_scores in zip(*inf_iters):
             c = "w" if self.config.animation.dark_bg else "k"
-            for inf, ax in zip([goal_scores[iter], traj_scores[iter]], [ax2, ax3]):
-                for v in inf.values():
-                    t = np.linspace(0, v.shape[1] * self.config.env.dt, v.shape[1])
-                    ax.plot(t, v[0, :], lw=2, ls="--", color=c, label="pass left")
-                    ax.plot(t, v[1, :], lw=2, ls="-", color=c, label="pass right")
-                    ax.legend(loc=3)
-                    sampled_inf = v[
-                        :, :: int(self.config.animation.body_interval / self.config.env.dt)
-                    ]
-                    sampled_t = t[:: int(self.config.animation.body_interval / self.config.env.dt)]
-                    ax.scatter(sampled_t, sampled_inf[0, :], color=c, linewidths=2)
-                    ax.scatter(sampled_t, sampled_inf[1, :], color=c, linewidths=2)
-            if self.config.animation.save_inferences:
-                os.makedirs(self.config.animation.inferences_dir, exist_ok=True)
-                if fname is None:
-                    fname = f"{self.scenario}"
-                fname = os.path.join(self.config.animation.inferences_dir, fname)
-                for fig, suf in zip([fig1, fig2, fig3], ["traj", "goal_inf", "traj_inf"]):
-                    fig.savefig(f"{fname}_{suf}.pdf")
-            self.config.animation.show_inferences and plt.show()
+            c = interaction.agents[id].color
+            for infs, ax in zip((goal_scores, traj_scores), (ax1, ax2)):
+                start, stop = np.multiply(self.config.env.dt, interaction.int_idx[id])
+                num = np.diff(interaction.int_idx[id])[0] + 1
+                t = np.linspace(start, stop, num, endpoint=True)
+                step = int(self.config.animation.body_interval / self.config.env.dt)
+                sample_slice = slice(None, None, step)
+                sampled_t = t[sample_slice]
+                passing_idx = 0 if interaction.passing_idx[id] == 0 else 2
+                inf_idxs = [0, 1, 2, passing_idx]
+                labels = ["left", "collide", "right", "pass"]
+                lss = ["--", ":", "-"]
+                lss.append(lss[passing_idx])
+                for inf_idx, label, ls in zip(inf_idxs, labels, lss):
+                    if label in self.config.animation.inferences:
+                        label = f"{id} {label.replace('pass', labels[passing_idx])}"
+                        ax.plot(t, infs[inf_idx], lw=2, color=c, label=label, ls=ls)
+                        ax.legend()
+                        sampled_inf = infs[inf_idx][sample_slice]
+                        ax.scatter(sampled_t, sampled_inf, color=c, linewidths=2)
+        if self.config.animation.save_inferences:
+            os.makedirs(self.config.animation.inferences_dir, exist_ok=True)
+            if fname is None:
+                fname = f"{self.scenario}"
+            fname = os.path.join(self.config.animation.inferences_dir, fname)
+            for fig, suf in zip([fig1, fig2], ["goal_inf", "traj_inf"]):
+                fig.savefig(f"{fname}_{suf}.pdf")
+        self.config.animation.show_inferences and plt.show()
 
     def overlay(self):
         if self.config.animation.show_ani or self.config.animation.save_ani:
@@ -350,5 +320,11 @@ class Animate:
         if eval and (
             self.config.animation.show_inferences or self.config.animation.save_inferences
         ):
-            self.plot_inferences(iter, agents.values(), eval.goal_inference, eval.traj_inference, fname)
+            self.plot_inferences(
+                eval.policy_dict[ego_agent.policy],
+                eval.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+                eval.feats["goal_inference"].log[scenario][n][ego_agent.policy][iter],
+                eval.feats["traj_inference"].log[scenario][n][ego_agent.policy][iter],
+                fname,
+            )
         self.agents_log.update(agents)
