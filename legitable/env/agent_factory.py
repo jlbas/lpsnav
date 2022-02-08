@@ -22,8 +22,8 @@ def is_feasible(positions, min_dist):
     return True
 
 
-def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
-    starts, goals, max_speeds = get_init_configs(config, rng, scenario, num_of_agents)
+def init_agents(config, env, rng, ego_policy, scenario, n_agents, ws_len, iter):
+    starts, goals, max_speeds = get_init_configs(config, rng, scenario, n_agents, ws_len)
     agents = {}
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
@@ -36,7 +36,7 @@ def init_agents(config, env, rng, ego_policy, scenario, num_of_agents, iter):
     return agents[ids[0]], agents
 
 
-def get_init_configs(config, rng, scenario, num_of_agents):
+def get_init_configs(config, rng, scenario, n_agents, ws_len):
     if scenario == "custom":
         starts, goals = np.swapaxes(config.env.custom_pos, 0, 1)
         max_speeds = (
@@ -45,17 +45,17 @@ def get_init_configs(config, rng, scenario, num_of_agents):
             else np.full(len(config.env.custom_pos), config.env.custom_speed)
         )
     elif scenario == "random":
-        max_speeds = rng.uniform(*config.env.speed_range, size=num_of_agents)
+        max_speeds = rng.uniform(*config.env.speed_range, size=n_agents)
         min_dist = 2 * config.agent.radius + config.env.min_start_buffer
-        for _ in range(100):
-            starts = config.env.workspace_length * rng.random((num_of_agents, 2))
-            goals = config.env.workspace_length * rng.random((num_of_agents, 2))
+        for _ in range(config.env.max_init_attempts):
+            starts = ws_len * rng.random((n_agents, 2))
+            goals = ws_len * rng.random((n_agents, 2))
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
             far_enough = np.all(helper.dist(starts, goals) > min_dist)
             if feasible and far_enough:
                 break
         else:
-            raise AttemptsExceededError(100)
+            raise AttemptsExceededError(config.env.max_init_attempts)
     else:
         start_sep = config.env.interaction_dist / 2
         lat_sep = 2 * config.agent.radius + config.env.lat_dist
@@ -81,9 +81,8 @@ def get_init_configs(config, rng, scenario, num_of_agents):
             starts = np.array([[-start_sep, 0], [-lat_sep / 2, start_sep], [lat_sep / 2, -start_sep]])
             goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
         elif scenario == "circle":
-            agent_cnt = num_of_agents
-            thetas = np.linspace(0, 2 * np.pi * (1 - 1 / agent_cnt), agent_cnt)
-            starts = config.env.circle_radius * helper.vec(thetas)
+            thetas = np.linspace(0, 2 * np.pi * (1 - 1 / n_agents), n_agents)
+            starts = ws_len * helper.vec(thetas)
             goals = -starts
         else:
             raise ValueError(f"Scenario '{scenario}' is not recognized")
