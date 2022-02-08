@@ -38,7 +38,6 @@ def main():
                     env = Env(config, rng, ego_policy, i, scenario, n, ws, policy_id)
                     while not env.done:
                         env.update()
-                    env.trim_logs()
                     eval.evaluate(i, env.dt, env.ego_agent, scenario, n)
                     ani.animate(i, env.agents, env.ego_agent, scenario, n, str(env), eval)
                 if config.animation.overlay and len(config.env.policies) > 1:

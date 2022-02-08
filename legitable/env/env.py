@@ -47,6 +47,7 @@ class Env:
             a.collision_check()
             a.log_data(self.step)
         self.check_if_done()
+        self.done and self.trim_logs()
 
     def check_if_done(self):
         if self.ego_agent.at_goal and not self.config.env.homogeneous:
