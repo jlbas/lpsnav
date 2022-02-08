@@ -3,7 +3,7 @@ from env.agent_factory import init_agents
 
 
 class Env:
-    def __init__(self, config, rng, ego_policy, iter, scenario, num_of_agents, policy_id=0):
+    def __init__(self, config, rng, ego_policy, iter, scenario, n_agents, ws_len, policy_id=0):
         self.config = config
         self.dt = self.config.env.dt
         self.max_step = int(self.config.env.max_duration / self.dt)
@@ -13,10 +13,10 @@ class Env:
         self.ego_policy = ego_policy
         self.iter = iter
         self.scenario = scenario
-        self.num_of_agents = num_of_agents
+        self.n_agents = n_agents
         self.policy_id = policy_id
         self.ego_agent, self.agents = init_agents(
-            self.config, self, rng, self.ego_policy, self.scenario, self.num_of_agents, self.policy_id
+            self.config, self, rng, self.ego_policy, self.scenario, self.n_agents, ws_len, self.policy_id
         )
         for agent in self.agents.values():
             print(agent)
@@ -24,12 +24,12 @@ class Env:
             agent.log_data(self.step)
 
     def __str__(self):
-        ret = f"{self.scenario}_{self.ego_policy}"
-        if self.num_of_agents != -1:
-            ret += f"_{self.num_of_agents}"
+        ret = [self.scenario, self.ego_policy]
+        if self.n_agents != -1:
+            ret.append(self.n_agents)
         if self.scenario == "random":
-            ret += f"_{self.iter}"
-        return ret
+            ret.append(self.iter)
+        return '_'.join(map(str, ret))
 
     def update(self):
         for a in self.agents.values():

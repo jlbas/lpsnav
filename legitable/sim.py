@@ -14,26 +14,23 @@ np.set_printoptions(precision=5)
 def main():
     args = get_args()
     config = load_config(args.config)
-    num_of_agents_lst = [
-        config.env.num_of_agents
+    n_ws_lst = [
+        [config.env.num_of_agents, config.env.workspace_length]
         if s in ("circle", "random")
-        else [len(config.env.custom_pos)]
+        else [[len(config.env.custom_pos)], [config.env.circle_radius]]
         if s == "custom"
-        else [-1]
+        else [[-1], [-1]]
         for s in config.env.scenarios
     ]
-    trial_cnts = [config.env.random_scenarios if s == "random" else 1 for s in config.env.scenarios]
-    eval = Eval(config, num_of_agents_lst, trial_cnts)
-    for scenario, num_of_agents, trial_cnt in zip(
-        config.env.scenarios, num_of_agents_lst, trial_cnts
-    ):
-        for n in num_of_agents:
-            for i in range(trial_cnt):
-                print(f"ITERATION {i}")
+    iter_lst = [config.env.random_scenarios if s == "random" else 1 for s in config.env.scenarios]
+    eval = Eval(config, [i[0] for i in n_ws_lst], iter_lst)
+    for scenario, n_ws, iters in zip(config.env.scenarios, n_ws_lst, iter_lst):
+        for n, ws in zip(*n_ws):
+            for i in range(iters):
                 ani = Animate(config, scenario, i)
                 for policy_id, ego_policy in enumerate(config.env.policies):
                     rng = np.random.default_rng(i)
-                    env = Env(config, rng, ego_policy, i, scenario, n, policy_id)
+                    env = Env(config, rng, ego_policy, i, scenario, n, ws, policy_id)
                     while not env.done:
                         env.update()
                     env.trim_logs()
