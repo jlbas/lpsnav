@@ -90,6 +90,27 @@ def eval_nav_contrib(dt, other_agents, mpd, partials):
     return np.nanmean(nav_contrib)
 
 
+def eval_pass_uncertainty(steps, interaction, goal_inf):
+    vals = np.full(int(steps), False)
+    for id in interaction.agents:
+        pass_idx = 0 if interaction.passing_idx[id] == 0 else 2
+        true_pass_inf = goal_inf[id][pass_idx]
+        other_pass_inf = goal_inf[id][2 if pass_idx == 0 else 0]
+        # vals[interaction.int_slice[id]] |= other_pass_inf < 0.5
+        vals[interaction.int_slice[id]] |= true_pass_inf < other_pass_inf
+    return np.sum(vals) / len(vals)
+
+
+def eval_min_pass_inf(ego_agent, interaction, goal_inf):
+    pass_inf = np.full(len(ego_agent.pos_log), np.inf)
+    for id in ego_agent.other_agents:
+        sl = interaction.int_slice[id]
+        if sl.stop - sl.start > 1:
+            sliced_inf = goal_inf[id][0 if interaction.passing_idx[id] == 0 else 2]
+            pass_inf[sl] = np.where(sliced_inf < pass_inf[sl], sliced_inf, pass_inf[sl])
+    return np.min(pass_inf) if np.any(np.isfinite(pass_inf)) else np.nan
+
+
 def get_int_costs(dt, ego_agent, other_agents, interaction, receding_horiz):
     int_cost = IntCost()
     receding_steps = int(receding_horiz / dt)
@@ -369,6 +390,8 @@ class Eval:
             "legibility": Metric("Legibility", "%", 2, max, eval_legibility, *args),
             "predictability": Metric("Predictability", "%", 2, max, eval_predictability, *args),
             "nav_contrib": Metric("Navigation Contribution", "%", 2, max, eval_nav_contrib, *args),
+            "pass_uncertainty": Metric("Passing Uncertainty", "%", 2, min, eval_pass_uncertainty, *args),
+            "min_pass_inf": Metric("Minimum Passing Inference", "%", 2, max, eval_min_pass_inf, *args)
         }
 
     def init_feats(self, scenarios, policies, num_of_agents_lst):
@@ -448,6 +471,18 @@ class Eval:
             ego_agent.other_agents,
             self.feats["mpd"].log[scenario][n][ego_agent.policy][iter],
             self.mpd_partials,
+        )
+        self.metrics["pass_uncertainty"](
+            *metric_args,
+            ego_agent.pos_log.shape[0],
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            self.feats["goal_inference"].log[scenario][n][ego_agent.policy][iter],
+        )
+        self.metrics["min_pass_inf"](
+            *metric_args,
+            ego_agent,
+            self.feats["interaction"].log[scenario][n][ego_agent.policy][iter],
+            self.feats["goal_inference"].log[scenario][n][ego_agent.policy][iter],
         )
         if self.conf.eval.show_nav_contrib_plot or self.conf.eval.save_nav_contrib_plot:
             self.make_nav_contrib_plot(env, mpd, eps)
