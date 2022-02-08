@@ -25,6 +25,7 @@ class Agent:
         self.min_speed = self.conf.min_speed
         self.max_speed = self.conf.max_speed if max_speed is None else max_speed
         self.max_accel = self.conf.max_accel
+        self.min_accel = self.conf.min_accel if hasattr(self.conf, "min_accel") else -self.max_accel
         self.max_ang_accel = self.conf.max_ang_accel
         self.goal_tol = self.conf.goal_tol
         self.speed_samples = self.conf.speed_samples
@@ -101,7 +102,7 @@ class Agent:
             elif self.kinematics == "second_order_unicycle":
                 self.speed += self.env.dt * np.clip(
                     (self.des_speed - self.speed) / self.env.dt,
-                    -self.max_accel,
+                    self.min_accel,
                     self.max_accel,
                 )
                 self.heading += self.env.dt * np.clip(
