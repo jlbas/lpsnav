@@ -124,7 +124,6 @@ def get_opt_traj(int_idx, int_slice, passing_idx, dt, ego_agent, agent, receding
         x_next = X[:, i] + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
         opti.subject_to(X[:, i + 1] == x_next)
 
-    cw = ego_agent.radius + agent.radius
     goal_vec = cs.repmat(ego_agent.goal, 1, N + 1).T - cs.vertcat(x, y).T
     line_heading = cs.arctan2(goal_vec[:, 1], goal_vec[:, 0])
     rel_line_0 = cs.horzcat(cw * cs.sin(line_heading), -cw * cs.cos(line_heading))
