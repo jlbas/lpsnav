@@ -97,11 +97,11 @@ class Lpnav(Agent):
     def remove_col_prims(self):
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
         for t in np.linspace(0, 1, 10):
-            ego_pred = self.pos + t * (self.abs_prims - self.pos)
-            for a in self.other_agents.values():
-                a_pred = a.pos + t * (a.pos + a.vel * self.prim_horiz - a.pos)
-                self.col_mask |= helper.dist(ego_pred, a_pred) < 2 * self.radius + self.radius / 2
-                    self.col_mask |= helper.dist(ego_pred, a_pred) < self.col_width[id]
+            ego_pred = self.pos + t * self.abs_prim_vels * self.conf.col_buffer
+            for a in self.interacting_agents.values():
+                a_pred = a.pos + t * a.vel * self.conf.col_buffer
+                buffer = 0.1 * self.speed / self.max_speed
+                self.col_mask |= helper.dist(ego_pred, a_pred) < self.radius + a.radius + buffer
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
