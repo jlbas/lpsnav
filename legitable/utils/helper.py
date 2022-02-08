@@ -163,6 +163,15 @@ def p_intersect(pos, v, line_pts, line_th, pt_vel, t_to_line):
     return np.stack((c0 <= 0, (c0 > 0) & (c1 > c0), c1 <= c0))
 
 
+def is_intersecting(s1, s2, l1, l2):
+    p13 = s1 - l1
+    p34 = l1 - l2
+    p12 = s1 - s2
+    num = p13[0] * p34[1] - p13[1] * p34[0]
+    den = p12[0] * p34[1] - p12[1] * p34[0]
+    return 0 <= num / den <= 1
+
+
 def masked_cost(masks, cost_col_0, cost_col_1, cost_line):
     left = masks[0] * np.stack((cost_line, cost_col_0, cost_col_1))
     center = masks[1] * np.stack((cost_col_0, cost_line, cost_col_1))

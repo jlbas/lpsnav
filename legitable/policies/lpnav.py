@@ -85,8 +85,13 @@ class Lpnav(Agent):
             time_to_interaction = helper.cost_to_line(
                 self.pos, self.speed, self.int_lines[id], agent.vel
             )
-            in_front = helper.in_front(agent.pos, self.int_line_heading, self.pos)
-            if in_front and time_to_interaction < self.sensing_horiz:
+            # time_to_interaction = helper.cost_to_rotating_line(
+            #     self.pos, self.vel, self.goal, agent.pos, agent.vel
+            # )
+            in_radius = helper.dist(self.pos, agent.pos) < self.sensing_dist
+            in_horiz = time_to_interaction < self.sensing_horiz
+            intersecting = helper.is_intersecting(self.pos, self.goal, *self.int_lines[id])
+            if in_radius and in_horiz and intersecting:
                 self.interacting_agents[id] = agent
 
     def remove_col_prims(self):
