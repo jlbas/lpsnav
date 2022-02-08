@@ -549,14 +549,14 @@ class Eval:
             tbl = PrettyTable()
             tbl.title = s
             if s in ("random", "circle"):
-                tbl.title += f"_{self.conf.env.num_of_agents}_agents"
+                tbl.title += f"_{'_'.join(map(str, self.conf.env.num_of_agents))}_agents"
             if self.conf.env.homogeneous:
                 tbl.title += "_homogeneous"
             if s == "random":
                 tbl.title += f"_{self.conf.env.random_scenarios}_iters"
             tbl.add_column("Policies", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
             for m in [v for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
-                tbl.add_column(m.name, list(m.formatted_vals[s].values()))
+                tbl.add_column(f"{m.name} ({m.units})", list(m.formatted_vals[s].values()))
             self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
         for m in self.conf.eval.individual_metrics:
@@ -578,7 +578,7 @@ class Eval:
         rows += [f"{indent}{' & '.join(tbl.field_names)} {newline}"]
         rows += [f"{indent}\\midrule"]
         tex_rows = [
-            [v.replace("<", "\\textbf{").replace(">", "}").replace("_", "\\_") for v in row]
+            [v.replace("<", "\\textbf{").replace(">", "}").replace("_", "\\_").replace("%", "\\%") for v in row]
             for row in tbl.rows
         ]
         rows += [f"{indent}{' & '.join(row)} {newline}" for row in tex_rows]
