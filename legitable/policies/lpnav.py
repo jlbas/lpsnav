@@ -151,40 +151,35 @@ class Lpnav(Agent):
                 self.pos, self.abs_prim_vels, self.int_lines[id], agent.vel
             )
             self.cost_tpg[id] = np.where(self.cost_pg[id] == 0, partial_cost_tpg, self.cost_tpg[id])
-
-    def compute_prim_leg(self, id):
-        arg = self.cost_sg[id][..., None, None] - self.cost_spg[id]
-        with np.errstate(under="ignore"):
-            self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
-            self.prim_leg_score[id] = np.around(self.prim_leg_score[id], 10)
-        self.prim_leg_score[id] = self.prim_leg_score[id] / np.sum(self.prim_leg_score[id], axis=0)
-        self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
-        assert np.all(np.around(self.prim_leg_score[id], 5) <= 1), "Error in legibility computation"
         self.cost_rpg[id] = self.cost_rt + self.cost_tpg[id]
         self.cost_rtg[id] = self.cost_rt + self.cost_tg[id]
 
     def compute_leg(self, id):
         arg = self.cost_rg[id] - self.cost_rtg[id]
-        with np.errstate(under="ignore"):
-            self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
-        self.current_leg_score[id][
-            np.isclose(self.current_leg_score[id], 0, atol=self.env.epsilon)
-        ] = self.env.epsilon
+        arg = np.where(self.cost_rtg[id] > self.conf.max_cost, -np.inf, arg)
+        arg = np.clip(arg, -self.conf.max_cost, 0)
+        self.current_leg_score[id] = np.exp(arg) * self.subgoal_priors
         self.current_leg_score[id] /= np.sum(self.current_leg_score[id])
         self.current_leg_score[id] = np.delete(self.current_leg_score[id], 1)
-        assert np.all(
-            np.around(self.current_leg_score[id], 5) <= 1
-        ), "Error in current legibility computation"
+
+    def compute_prim_leg(self, id):
+        arg = self.cost_rg[id][..., None, None] - self.cost_rpg[id]
+        arg = np.where(self.cost_rpg[id] > self.conf.max_cost, -np.inf, arg)
+        arg = np.clip(arg, -self.conf.max_cost, 0)
+        self.prim_leg_score[id] = np.exp(arg) * self.subgoal_priors[..., None, None]
+        self.prim_leg_score[id] = self.prim_leg_score[id] / np.sum(self.prim_leg_score[id], axis=0)
+        self.prim_leg_score[id] = np.delete(self.prim_leg_score[id], 1, 0)
 
     def compute_prim_pred(self, id, agent):
         arg = self.cost_tg[id][..., None, None] - self.cost_tpg[id]
-        arg = np.delete(arg, 1, 0)[np.argmax(self.current_leg_score[id])]
-        with np.errstate(under="ignore"):
-            self.prim_pred_score[id] = np.exp(arg)
-            self.prim_pred_score[id] = np.around(self.prim_pred_score[id], 10)
-        assert np.all(
-            np.around(self.prim_pred_score[id], 5) <= 1
-        ), "Error in predictability computation"
+        arg = np.where(self.cost_tpg[id] > self.conf.max_cost, -np.inf, arg)
+        arg = np.clip(arg, -self.conf.max_cost, 0)
+        arg = np.delete(arg, 1, 0)
+        if agent.speed != 0:
+            arg = arg[np.argmax(self.current_leg_score[id])]
+        else:
+            arg = arg[np.argmin(helper.dist(self.goal, self.int_lines[id]))]
+        self.prim_pred_score[id] = np.exp(arg)
 
     def check_if_legible(self, id):
         self.passing_ratio[id] = np.max(self.current_leg_score[id]) / max(
