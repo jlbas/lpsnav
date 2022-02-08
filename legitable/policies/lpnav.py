@@ -189,7 +189,7 @@ class Lpnav(Agent):
 
     def update_tau(self, id, agent):
         legible_at_start = self.is_legible[id] and (not self.int_t[id] or self.taus[id] == 1)
-        if legible_at_start or agent.speed == 0:
+        if legible_at_start:
             self.taus[id] = 1
         else:
             self.taus[id] = 1 - np.exp(max(-self.beta * (self.passing_ratio[id] - 1), -1e2))
@@ -252,7 +252,3 @@ class Lpnav(Agent):
                 self.int_lines_log[id][step] = self.int_lines[id]
                 self.pred_int_lines_log[id][step] = self.pred_int_lines[id]
                 self.col_circle_log[id][step] = agent.pos
-            else:
-                self.int_lines_log[id][step] = 2 * [None]
-                self.pred_int_lines_log[id][step] = 2 * [None]
-                self.col_circle_log[id][step] = None
