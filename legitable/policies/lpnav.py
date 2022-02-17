@@ -85,9 +85,6 @@ class Lpnav(Agent):
             time_to_interaction = helper.cost_to_line(
                 self.pos, self.speed, self.int_lines[id], agent.vel
             )
-            # time_to_interaction = helper.cost_to_rotating_line(
-            #     self.pos, self.vel, self.goal, agent.pos, agent.vel
-            # )
             in_radius = helper.dist(self.pos, agent.pos) < self.sensing_dist
             in_horiz = time_to_interaction < self.sensing_horiz
             intersecting = helper.is_intersecting(self.pos, self.goal, *self.int_lines[id])
