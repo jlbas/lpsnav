@@ -329,19 +329,22 @@ class Metric:
         }
 
     def get_opt(self):
-        self.opt_val = {
+        self.opt_vals = {
             s: {n: self.opt_func(list(self.mean[s][n].values())) for n in self.mean[s]}
             for s in self.scenarios
         }
 
     def format_vals(self):
+        self.formatted_opt_vals = deepcopy(self.opt_vals)
+        for s in self.formatted_opt_vals:
+            for n, opt_val in self.formatted_opt_vals[s].items():
+                self.formatted_opt_vals[s][n] = f"{opt_val:.{self.decimals}f}"
         self.formatted_vals = deepcopy(self.mean)
         for s in self.formatted_vals:
-            for n, opt_val in self.opt_val[s].items():
+            for n, opt_val in self.formatted_opt_vals[s].items():
                 for p, val in self.formatted_vals[s][n].items():
-                    self.formatted_vals[s][n][p] = f"{val:.{self.decimals}f}"
-                    if val == opt_val:
-                        self.formatted_vals[s][n][p] = f"<{self.formatted_vals[s][n][p]}>"
+                    val = '-' if np.isnan(val) else f"{val:.{self.decimals}f}"
+                    self.formatted_vals[s][n][p] = f"<{val}>" if val == opt_val else val
         self.formatted_vals = {
             s: {
                 p: " / ".join([self.formatted_vals[s][n][p] for n in self.formatted_vals[s]])
