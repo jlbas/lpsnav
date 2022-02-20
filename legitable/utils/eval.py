@@ -304,6 +304,12 @@ class Metric:
             for s, cnt, num_of_agents in zip(scenarios, trial_cnts, num_of_agents_lst)
         }
 
+    def remove_invalid(self, failure_mask):
+        for s, n_dict in self.log.items():
+            for (n, p_dict), failure in zip(n_dict.items(), failure_mask[s].values()):
+                for p in p_dict:
+                    self.log[s][n][p] = np.where(failure, np.nan, self.log[s][n][p])
+
     def compute_mean(self):
         self.mean = {
             s: {
@@ -592,8 +598,19 @@ class Eval:
         with open(fname, "w") as f:
             f.write(contents)
 
+    def get_failure_mask(self):
+        mask = {s: {n: False for n in val} for s, val in self.metrics["failure"].log.items()}
+        for s, n_dict in self.metrics["failure"].log.items():
+            if s == "random":
+                for n, failure_mask in n_dict.items():
+                    mask[s][n] = np.logical_or.reduce(tuple(failure_mask.values()))
+        return mask
+
     def get_summary(self):
-        for metric in [m for m in self.metrics.values() if m.opt_func]:
+        failure_mask = self.get_failure_mask()
+        for name, metric in self.metrics.items():
+            if name != "failure":
+                metric.remove_invalid(failure_mask)
             metric.compute_mean()
             metric.compute_std()
             metric.get_opt()
