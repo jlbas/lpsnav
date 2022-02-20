@@ -570,11 +570,12 @@ class Eval:
             self.conf.eval.save_tbl and self.save_tbl(tbl)
 
     def save_tbl(self, tbl):
-        indent = "  "
-        newline = "\\\\"
+        tbl.field_names = [n.replace('%', "\\%") for n in tbl.field_names]
         rows = [
             f"\\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{len(tbl.field_names) - 1}}}{{Y}}@{{}}}}"
         ]
+        indent = "  "
+        newline = "\\\\"
         rows += [f"{indent}\\toprule"]
         rows += [f"{indent}{' & '.join(tbl.field_names)} {newline}"]
         rows += [f"{indent}\\midrule"]
