@@ -314,7 +314,7 @@ class Animate:
         if self.config.animation.show_ani or self.config.animation.save_ani:
             self.init_ani(self.agents_log.values())
         if self.config.animation.show_plot or self.config.animation.save_plot:
-            self.plot(self.agents_log.values())
+            self.plot(self.agents_log)
 
     def animate(self, iter, agents, ego_agent, scenario, n, fname, eval=None):
         if self.config.animation.show_ani or self.config.animation.save_ani:
