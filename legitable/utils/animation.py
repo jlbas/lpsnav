@@ -16,6 +16,9 @@ plt.rcParams.update(
         "text.usetex": True,
         "font.family": "serif",
         "font.serif": ["Times"],
+        "xtick.labelsize": 5,
+        "ytick.labelsize": 5,
+        "axes.labelsize": 5,
         "text.latex.preamble": r"\usepackage{amsmath}",
     }
 )
@@ -206,6 +209,7 @@ class Animate:
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * self.config.agent.radius
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
+        ax.axis([-3.5 - pad, 3.5 + pad, -3.5 - pad, 3.5 + pad])
         step = int(self.config.animation.body_interval / self.config.env.dt)
         sample_slice = slice(None, None, step)
         first_inattentive = True
