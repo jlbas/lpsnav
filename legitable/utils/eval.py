@@ -186,6 +186,7 @@ def get_interactions(dt, ego_agent, sensing_dist):
             interaction.agents[id] = agent
             start_idx = np.argmax(is_interacting)
             end_idx = np.nonzero(is_interacting)[0][-1]
+            end_idx = np.argmin(np.abs(np.cross(np.diff(interaction.int_line[id], axis=0)[0], ego_agent.pos_log - interaction.int_line[id][0,:,:], axis=1))) - 1
             th = helper.angle(np.diff(interaction.int_line[id][:, end_idx], axis=0))
             right = helper.in_front(agent.pos_log[end_idx], th, ego_agent.pos_log[end_idx])
             interaction.passing_idx[id] = 1 if right else 0
