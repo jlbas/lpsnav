@@ -92,10 +92,10 @@ def eval_nav_contrib(dt, other_agents, mpd, partials):
 
 def eval_pass_uncertainty(steps, interaction, goal_inf):
     vals = np.full(int(steps), False)
-    for id in interaction.agents:
+    for id, inf in goal_inf.items():
         pass_idx = 0 if interaction.passing_idx[id] == 0 else 2
-        true_pass_inf = goal_inf[id][pass_idx]
-        other_pass_inf = goal_inf[id][2 if pass_idx == 0 else 0]
+        true_pass_inf = inf[pass_idx]
+        other_pass_inf = inf[2 if pass_idx == 0 else 0]
         # vals[interaction.int_slice[id]] |= other_pass_inf < 0.5
         vals[interaction.int_slice[id]] |= true_pass_inf < other_pass_inf
     return np.sum(vals) / len(vals)
@@ -103,7 +103,7 @@ def eval_pass_uncertainty(steps, interaction, goal_inf):
 
 def eval_min_pass_inf(ego_agent, interaction, goal_inf):
     pass_inf = np.full(len(ego_agent.pos_log), np.inf)
-    for id in ego_agent.other_agents:
+    for id in goal_inf:
         sl = interaction.int_slice[id]
         if sl.stop - sl.start > 1:
             sliced_inf = goal_inf[id][0 if interaction.passing_idx[id] == 0 else 2]
