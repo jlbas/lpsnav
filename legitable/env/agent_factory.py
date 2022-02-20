@@ -71,7 +71,7 @@ def get_init_configs(config, rng, scenario, n_agents, ws_len):
         elif scenario == "obtuse":
             starts = np.array([[-start_sep, 0], [start_sep - 0.5, lat_sep]])
             goals = -starts
-        elif scenario == "2_agent_split":
+        elif scenario == "split":
             starts = np.array([[-start_sep, 0], [start_sep, lat_sep], [start_sep, -lat_sep]])
             goals = np.array([-1, 1]) * starts
         elif scenario == "t_junction":
