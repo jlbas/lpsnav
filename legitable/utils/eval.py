@@ -555,17 +555,17 @@ class Eval:
                 tbl.title += "_homogeneous"
             if s == "random":
                 tbl.title += f"_{self.conf.env.random_scenarios}_iters"
-            tbl.add_column("Policies", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
+            tbl.add_column("Policy", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
             for m in [v for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
                 tbl.add_column(f"{m.name} ({m.units})", list(m.formatted_vals[s].values()))
             self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
-        for m in self.conf.eval.individual_metrics:
+        for m_str, m in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
             tbl = PrettyTable()
-            tbl.title = m
-            tbl.add_column("Policies", self.conf.env.policies)
-            for s, vals in self.metrics[m].formatted_vals.items():
-                tbl.add_column(s, list(vals.values()))
+            tbl.title = m_str
+            tbl.add_column("Policy", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
+            for vals in m.formatted_vals.values():
+                tbl.add_column(f"{m.name} ({m.units})", list(vals.values()))
             self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
 
