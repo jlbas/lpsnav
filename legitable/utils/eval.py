@@ -610,6 +610,54 @@ class Eval:
         with open(fname, "w") as f:
             f.write(contents)
 
+    def make_bar_chart(self):
+        width = 1 / (1 + len(self.conf.env.policies))
+        p_cnt = len(self.conf.env.policies)
+        for s in self.conf.env.scenarios:
+            for m_k, m_v in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
+                fig, ax = plt.subplots(figsize=(2.34, 1))
+                ax.set_title(m_v.name)
+                ax.set_ylabel(str(m_v).replace("%", "\\%"))
+                ax.set_xticks([width * (i * (p_cnt + 1) + (p_cnt - 1) / 2) for i in range(len(m_v.log[s]))])
+                ax.set_xticklabels([f"{n} Agents" for n in m_v.log[s]])
+                for j, (n_k, n_v) in enumerate(m_v.mean[s].items()):
+                    for k, (p_k, p_v) in enumerate(n_v.items()):
+                        hatch = 6 * 'x' if np.all(self.metrics["failure"].log[s][n_k][p_k]) else None
+                        x = width * (k + j * (1 + p_cnt))
+                        ax.bar(x, p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99)
+                        ax.errorbar(x, p_v, m_v.std[s][n_k][p_k], color='k', elinewidth=0.5)
+                if self.conf.eval.save_bar_chart:
+                    os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
+                    fname = s
+                    if s in ("random", "circle"):
+                        fname += f"_{'_'.join(map(str, self.conf.env.num_of_agents))}_agents"
+                    if self.conf.env.homogeneous:
+                        fname += "_homogeneous"
+                    if s == "random":
+                        fname += f"_{self.conf.env.random_scenarios}_iters"
+                    fname += f"_{m_k}"
+                    fname = os.path.join(self.conf.eval.bar_chart_dir, fname)
+                    fig.savefig(f"{fname}_bar_chart.pdf", bbox_inches="tight")
+                self.conf.eval.show_bar_chart and plt.show()
+        width = 1 / (1 + len(self.conf.env.policies))
+        for m_str, m in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
+            fig, ax = plt.subplots(figsize=(3.4, 1))
+            ax.set_title(m.name)
+            # ax.set_xlabel("Scenario")
+            ax.set_ylabel(str(m).replace("%", "\\%"))
+            ax.set_xticks([width * (i * (p_cnt + 1) + (p_cnt - 1) / 2) for i in range(len(m.log))])
+            ax.set_xticklabels([s.title().replace('_', '-') for s in m.log])
+            for i, (s_k, s_v) in enumerate(m.mean.items()):
+                for j, (n_k, n_v) in enumerate(s_v.items()):
+                    for k, (p_k, p_v) in enumerate(n_v.items()):
+                        hatch = 6 * 'x' if np.all(self.metrics["failure"].log[s_k][n_k][p_k]) else None
+                        ax.bar(width * (k + (i + j) * (1 + p_cnt)), p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99, yerr=m.std[s][n_k][p_k])
+            if self.conf.eval.save_bar_chart:
+                os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
+                fname = os.path.join(self.conf.eval.bar_chart_dir, m_str)
+                fig.savefig(f"{fname}_bar_chart.pdf", bbox_inches="tight")
+            self.conf.eval.show_bar_chart and plt.show()
+
     def get_failure_mask(self):
         mask = {s: {n: False for n in val} for s, val in self.metrics["failure"].log.items()}
         for s, n_dict in self.metrics["failure"].log.items():
@@ -628,3 +676,4 @@ class Eval:
             metric.get_opt()
             metric.format_vals()
         (self.conf.eval.show_tbl or self.conf.eval.save_tbl) and self.make_tbl()
+        (self.conf.eval.show_bar_chart or self.conf.eval.save_bar_chart) and self.make_bar_chart()
