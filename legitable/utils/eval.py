@@ -281,7 +281,7 @@ class Metric:
         trial_cnts,
         val=np.nan,
     ):
-        self.name = name
+        self.name = f"{name.title().replace('_', '-')}"
         self.units = units
         self.scale = 100 if self.units == "%" else 1
         self.decimals = decimals
@@ -292,8 +292,7 @@ class Metric:
         self.log = self.get_log(self.scenarios, self.policies, num_of_agents_lst, val, trial_cnts)
 
     def __repr__(self):
-        units = self.units.replace("%", "$\\%$")
-        return f"{self.name} ({units})"
+        return f"{self.name} ({self.units})"
 
     def __call__(self, scenario, policy, iter, n, *args):
         self.log[scenario][n][policy][iter] = self.update_func(*args)
@@ -566,22 +565,22 @@ class Eval:
                 tbl.title += f"_{self.conf.env.random_scenarios}_iters"
             tbl.add_column("Policy", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
             for m in [v for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
-                tbl.add_column(f"{m.name} ({m.units})", list(m.formatted_vals[s].values()))
+                tbl.add_column(str(m), list(m.formatted_vals[s].values()))
             self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
         for m_str, m in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
             tbl = PrettyTable()
             tbl.title = m_str
             tbl.add_column("Policy", [self.policy_dict.get(p, p) for p in self.conf.env.policies])
-            for vals in m.formatted_vals.values():
-                tbl.add_column(f"{m.name} ({m.units})", list(vals.values()))
+            for s, vals in m.formatted_vals.items():
+                tbl.add_column(s.title().replace('_', '-'), list(vals.values()))
             self.conf.eval.show_tbl and self.logger.info('\n' + str(tbl))
             self.conf.eval.save_tbl and self.save_tbl(tbl)
 
     def save_tbl(self, tbl):
         tbl.field_names = [n.replace('%', "\\%") for n in tbl.field_names]
         rows = [
-            f"\\begin{{tabularx}}{{\\textwidth}}{{@{{}}X*{{{len(tbl.field_names) - 1}}}{{Y}}@{{}}}}"
+            f"\\begin{{tabularx}}{{\\columnwidth}}{{@{{}}X*{{{len(tbl.field_names) - 1}}}{{Y}}@{{}}}}"
         ]
         indent = "  "
         newline = "\\\\"
