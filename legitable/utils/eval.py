@@ -289,6 +289,7 @@ class Metric:
         self.scenarios = scenarios
         self.policies = policies
         self.update_func = update_func
+        self.is_bool = type(val) == bool
         self.log = self.get_log(self.scenarios, self.policies, num_of_agents_lst, val, trial_cnts)
 
     def __repr__(self):
@@ -319,13 +320,22 @@ class Metric:
         }
 
     def compute_std(self):
-        self.std = {
-            s: {
-                n: {p: self.scale * np.nanstd(self.log[s][n][p]) for p in self.log[s][n]}
-                for n in self.log[s]
+        if self.is_bool:
+            self.std = {
+                s: {
+                    n: {p: np.sqrt(self.mean[s][n][p] * (100 - self.mean[s][n][p]) / sum(~np.isnan(self.log[s][n][p]))) for p in self.log[s][n]}
+                    for n in self.log[s]
+                }
+                for s in self.log
             }
-            for s in self.log
-        }
+        else:
+            self.std = {
+                s: {
+                    n: {p: self.scale * np.nanstd(self.log[s][n][p]) for p in self.log[s][n]}
+                    for n in self.log[s]
+                }
+                for s in self.log
+            }
 
     def get_opt(self):
         self.opt_vals = {
