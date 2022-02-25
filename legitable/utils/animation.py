@@ -17,6 +17,7 @@ plt.rcParams.update(
         "font.family": "serif",
         "font.serif": ["Times"],
         "font.size": 6,
+        "legend.fontsize": 4,
         "hatch.linewidth": 0.3,
         "xtick.labelsize": 6,
         "ytick.labelsize": 6,
@@ -127,15 +128,15 @@ class Animate:
 
     def init_ani(self, agents, ego_agent=None, eval=None, fname=None):
         self.config.animation.dark_bg and plt.style.use("dark_background")
-        fig, ax = plt.subplots(constrained_layout=True)
+        dpi=96
+        fig, ax = plt.subplots(constrained_layout=True, figsize=(1920/dpi, 1080/dpi), dpi=dpi)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
-        fig.set_size_inches(9, 9)
         ax.axis("scaled")
-        ax.set(title=self.iter)
+        # ax.set(title=self.iter)
         ax.axis("off")
         x, y = np.concatenate([a.pos_log for a in agents]).T
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
-        pad = 2 * self.config.agent.radius
+        pad = 4 * self.config.agent.radius
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
         for i, a in enumerate(agents):
             a.patches.goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
@@ -143,7 +144,7 @@ class Animate:
                 ((0, 0), (0, 0)),
                 closed=False,
                 fill=False,
-                lw=5,
+                lw=7,
                 zorder=0,
                 color=a.color,
                 capstyle="round",
@@ -188,7 +189,7 @@ class Animate:
             os.makedirs(self.config.animation.ani_dir, exist_ok=True)
             fps = int(self.config.animation.speed / self.config.env.dt)
             ani.save(f"{fname}.mp4", writer="ffmpeg", fps=fps)
-            plt.savefig(f"{fname}.pdf")
+            # plt.savefig(f"{fname}.pdf")
         self.config.animation.show_ani and plt.show()
         pdf is not None and pdf.close()
 
@@ -211,7 +212,6 @@ class Animate:
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * self.config.agent.radius
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-        ax.axis([-3.5 - pad, 3.5 + pad, -3.5 - pad, 3.5 + pad])
         step = int(self.config.animation.body_interval / self.config.env.dt)
         sample_slice = slice(None, None, step)
         first_inattentive = True
@@ -251,11 +251,13 @@ class Animate:
                 )
                 zorder = id if a.policy != "inattentive" else 0
                 for j, (pos, lightness) in enumerate(zip(sampled_traj, lightness_range[::-1])):
-                    if interaction:
-                        start, end = interaction.int_idx.get(id, (-np.inf, np.inf) if a.is_ego else (0, 0))
-                        s, ec = (hls_color[2], a.color) if start <= j * step <= end else (0, None)
-                    else:
-                        s, ec = (hls_color[2], a.color)
+                    # start, end = interaction.int_idx.get(id, (-np.inf, np.inf) if a.is_ego else (0, 0))
+                    # s, ec = (hls_color[2], a.color) if start <= j * step <= end else (0, None)
+                    # if interaction:
+                    #     start, end = interaction.int_idx.get(id, (-np.inf, np.inf) if a.is_ego else (0, 0))
+                    #     s, ec = (hls_color[2], a.color) if start <= j * step <= end else (0, None)
+                    # else:
+                    s, ec = (hls_color[2], a.color)
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, s)
                     ax.add_patch(Circle(pos, a.radius, fc=c, ec=ec, lw=0.1, zorder=zorder))
         # ax.legend()
