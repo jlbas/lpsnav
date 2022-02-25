@@ -9,8 +9,7 @@ from matplotlib import pyplot as plt
 class Sfm(Agent):
     def __init__(self, config, env, id, policy, is_ego, start, goal=None, max_speed=None):
         super().__init__(config, env, id, policy, is_ego, start, goal=goal, max_speed=max_speed)
-        self.color = "#DC267F"
-        self.color = "#bf346a"
+        self.color = "#afadb8"
         self.tau = self.conf.tau
         self.sigma = self.conf.sigma
         self.v_ab0 = self.conf.v_ab0

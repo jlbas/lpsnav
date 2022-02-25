@@ -14,8 +14,7 @@ class Lpnav(Agent):
         self.subgoal_priors = np.array(self.conf.subgoal_priors)
         self.leg_tol = self.conf.legibility_tol
         self.beta = self.conf.beta
-        self.color = "#785EF0"
-        self.color = "#774db9"
+        self.color = "#DC267F"
         self.pred_pos = {}
         self.int_lines = {}
         self.pred_int_lines = {}
