@@ -31,7 +31,7 @@ def main():
     for scenario, n_ws, iters in zip(config.env.scenarios, n_ws_lst, iter_lst):
         for n, ws in zip(*n_ws):
             for i in range(iters):
-                logger.info(f"ITERATION {i}")
+                logger.info(f"{scenario} {n} agent iteration {i}")
                 ani = Animate(config, scenario, i)
                 for policy_id, ego_policy in enumerate(config.env.policies):
                     rng = np.random.default_rng(i)
