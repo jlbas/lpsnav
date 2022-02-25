@@ -1,7 +1,6 @@
 import numpy as np
 from policies.agent import Agent
 from utils import helper
-from utils.animation import snapshot
 
 
 class Lpnav(Agent):
