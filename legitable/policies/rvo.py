@@ -18,7 +18,7 @@ class Rvo(Agent):
             self.max_neighbors,
             self.time_horiz,
             self.time_horiz,
-            self.radius,
+            self.radius * self.conf.scaled_radius,
             self.max_speed,
         )
 
@@ -31,10 +31,9 @@ class Rvo(Agent):
     def get_action(self):
         for id, agent in self.rvo_agents.items():
             self.rvo_sim.setAgentPosition(agent, tuple(self.env.agents[id].pos))
-            pref_vel = self.env.agents[id].max_speed * helper.vec(
-                helper.angle(self.env.agents[id].goal - self.env.agents[id].pos)
-            )
-            self.rvo_sim.setAgentPrefVelocity(agent, tuple(pref_vel))
+            self.rvo_sim.setAgentVelocity(agent, tuple(self.env.agents[id].vel))
+        pref_vel = self.max_speed * helper.unit_vec(self.goal - self.pos)
+        self.rvo_sim.setAgentPrefVelocity(self.rvo_agents[self.id], tuple(pref_vel))
         self.rvo_sim.doStep()
 
         dpos = self.rvo_sim.getAgentPosition(self.rvo_agents[self.id]) - self.pos
