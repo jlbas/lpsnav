@@ -281,7 +281,7 @@ class Metric:
         trial_cnts,
         val=np.nan,
     ):
-        self.name = f"{name.title().replace('_', '-')}"
+        self.name = name
         self.units = units
         self.scale = 100 if self.units == "%" else 1
         self.decimals = decimals
@@ -385,7 +385,7 @@ class Eval:
         self.conf = config
         self.colors = {p: "" for p in self.conf.env.policies}
         self.policy_dict = {
-            "lpnav": "LPNav",
+            "lpnav": "LPSNav",
             "social_momentum": "SM",
             "sa_cadrl": "SA-CADRL",
             "ga3c_cadrl": "GA3C-CADRL",
@@ -402,7 +402,7 @@ class Eval:
     def init_metrics(self, scenarios, policies, num_of_agents_lst, trial_cnts):
         args = (scenarios, policies, num_of_agents_lst, trial_cnts)
         self.metrics = {
-            "extra_ttg": Metric("Extra TTG", "%", 2, min, eval_extra_ttg, *args),
+            "extra_ttg": Metric("Extra Time-to-Goal", "%", 2, min, eval_extra_ttg, *args),
             "failure": Metric("Failure Rate", "%", 0, min, eval_failure, *args, val=False),
             "efficiency": Metric("Path Efficiency", "%", 2, max, eval_efficiency, *args),
             "irregularity": Metric("Path Irregularity", "rad/m", 4, min, eval_irregularity, *args),
@@ -614,7 +614,7 @@ class Eval:
         width = 1 / (1 + len(self.conf.env.policies))
         p_cnt = len(self.conf.env.policies)
         for s in self.conf.env.scenarios:
-            for m_k, m_v in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.metrics]:
+            for I, (m_k, m_v) in enumerate([(k, v) for k, v in self.metrics.items() if k in self.conf.eval.metrics]):
                 fig, ax = plt.subplots(figsize=(2.34, 1))
                 ax.set_title(m_v.name)
                 ax.set_ylabel(str(m_v).replace("%", "\\%"))
@@ -624,8 +624,10 @@ class Eval:
                     for k, (p_k, p_v) in enumerate(n_v.items()):
                         hatch = 6 * 'x' if np.all(self.metrics["failure"].log[s][n_k][p_k]) else None
                         x = width * (k + j * (1 + p_cnt))
-                        ax.bar(x, p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99)
-                        ax.errorbar(x, p_v, m_v.std[s][n_k][p_k], color='k', elinewidth=0.5)
+                        label = self.policy_dict.get(p_k, p_k) if j == 0 else None
+                        ax.bar(x, p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99, label=label)
+                if m_k == "min_pass_inf":
+                    ax.legend()
                 if self.conf.eval.save_bar_chart:
                     os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
                     fname = s
@@ -640,7 +642,7 @@ class Eval:
                     fig.savefig(f"{fname}_bar_chart.pdf", bbox_inches="tight")
                 self.conf.eval.show_bar_chart and plt.show()
         width = 1 / (1 + len(self.conf.env.policies))
-        for m_str, m in [(k, v) for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]:
+        for I, (m_str, m) in enumerate([(k, v) for k, v in self.metrics.items() if k in self.conf.eval.individual_metrics]):
             fig, ax = plt.subplots(figsize=(3.4, 1))
             ax.set_title(m.name)
             # ax.set_xlabel("Scenario")
@@ -651,7 +653,9 @@ class Eval:
                 for j, (n_k, n_v) in enumerate(s_v.items()):
                     for k, (p_k, p_v) in enumerate(n_v.items()):
                         hatch = 6 * 'x' if np.all(self.metrics["failure"].log[s_k][n_k][p_k]) else None
-                        ax.bar(width * (k + (i + j) * (1 + p_cnt)), p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99, yerr=m.std[s][n_k][p_k])
+                        label = self.policy_dict.get(p_k, p_k) if I == 0 else None
+                        ax.bar(width * (k + (i + j) * (1 + p_cnt)), p_v, width=width, color=self.colors[p_k], hatch=hatch, alpha=.99, label=label)
+            ax.legend(loc="lower right")
             if self.conf.eval.save_bar_chart:
                 os.makedirs(self.conf.eval.bar_chart_dir, exist_ok=True)
                 fname = os.path.join(self.conf.eval.bar_chart_dir, m_str)
