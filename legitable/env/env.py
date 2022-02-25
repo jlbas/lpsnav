@@ -34,27 +34,27 @@ class Env:
         return '_'.join(map(str, ret))
 
     def update(self):
-        for a in self.agents.values():
-            a.goal_check()
-        for a in self.agents.values():
-            if not a.at_goal and not a.collided:
+        for a in [a for a in self.agents.values() if not a.collided]:
+            if hasattr(a, "ttg"):
+                a.des_speed = 0
+            else:
                 a.get_action()
         for a in self.agents.values():
             a.step()
         self.time += self.dt
         self.step += 1
         for a in self.agents.values():
-            a.collision_check()
+            not hasattr(a, "ttg") and a.goal_check()
+            not a.collided and a.collision_check()
             a.log_data(self.step)
         self.check_if_done()
-        self.done and self.trim_logs()
 
     def check_if_done(self):
-        if self.ego_agent.at_goal and not self.config.env.homogeneous:
+        if hasattr(self.ego_agent, "ttg") and not self.config.env.homogeneous:
             self.logger.debug(f"Simulation ended at {self.time:.2f}s. Ego agent reached its goal.")
-        elif all([a.at_goal for a in self.agents.values()]) and self.config.env.homogeneous:
+        elif all([hasattr(a, "ttg") for a in self.agents.values()]) and self.config.env.homogeneous:
             self.logger.debug(f"Simulation ended at {self.time:.2f}s. All agents reached their goals.")
-        elif all([a.at_goal or a.collided for a in self.agents.values()]):
+        elif all([hasattr(a, "ttg") or a.collided for a in self.agents.values()]):
             self.logger.debug(f"Simulation ended at {self.time:.2f}s. Some agents have collided.")
         elif self.step >= self.max_step:
             self.logger.debug("Simulation time limit was reached. Not all agents reached their goals.")

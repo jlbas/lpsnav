@@ -77,9 +77,8 @@ class Agent:
         self.other_agents = {id: a for id, a in self.env.agents.items() if id != self.id}
 
     def goal_check(self):
-        self.at_goal = helper.dist(self.pos, self.goal) <= self.goal_tol
-        if self.at_goal and not hasattr(self, "time_to_goal"):
-            self.time_to_goal = self.env.time
+        if helper.dist(self.pos, self.goal) <= self.goal_tol:
+            self.ttg = self.env.time
 
     def collision_check(self):
         for a in self.other_agents.values():
@@ -108,7 +107,7 @@ class Agent:
         self.des_heading = helper.angle(self.goal - self.pos)
 
     def step(self):
-        if not self.at_goal and not self.collided:
+        if not self.collided:
             if self.kinematics == "first_order_unicycle":
                 self.speed = self.des_speed
                 self.heading = self.des_heading
@@ -130,7 +129,7 @@ class Agent:
             self.pos += self.env.dt * self.vel
         else:
             self.speed = 0
-            self.vel = np.array([0, 0])
+            self.vel = np.zeros(2)
 
     def log_data(self, step):
         self.pos_log[step] = self.pos
