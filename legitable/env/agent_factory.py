@@ -82,7 +82,7 @@ def get_init_configs(config, rng, scenario, n_agents, ws_len):
             goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
         elif scenario == "circle":
             thetas = np.linspace(0, 2 * np.pi * (1 - 1 / n_agents), n_agents)
-            starts = ws_len * helper.vec(thetas)
+            starts = config.env.circle_radius * helper.vec(thetas)
             goals = -starts
         else:
             raise ValueError(f"Scenario '{scenario}' is not recognized")
