@@ -15,18 +15,18 @@ from legitable.utils.opt_traj import get_opt_traj
 
 
 def eval_extra_ttg(ego_agent, goal_tol):
-    if hasattr(ego_agent, "time_to_goal"):
+    if hasattr(ego_agent, "ttg"):
         opt_ttg = (helper.dist(ego_agent.start, ego_agent.goal) - goal_tol) / ego_agent.max_speed
-        return (ego_agent.time_to_goal - opt_ttg) / opt_ttg
+        return (ego_agent.ttg - opt_ttg) / opt_ttg
     return np.nan
 
 
 def eval_failure(ego_agent):
-    return False if hasattr(ego_agent, "time_to_goal") else True
+    return False if hasattr(ego_agent, "ttg") else True
 
 
 def eval_efficiency(ego_agent):
-    if hasattr(ego_agent, "time_to_goal"):
+    if hasattr(ego_agent, "ttg"):
         path_len = np.sum(np.linalg.norm(np.diff(ego_agent.pos_log, axis=0), axis=-1))
         opt_path = helper.dist(ego_agent.start, ego_agent.goal) - ego_agent.goal_tol
         return 0 if not path_len else opt_path / path_len
