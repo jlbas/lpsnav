@@ -35,7 +35,7 @@ def main():
                 ani = Animate(config, scenario, i)
                 for policy_id, ego_policy in enumerate(config.env.policies):
                     rng = np.random.default_rng(i)
-                    env = Env(config, rng, ego_policy, i, scenario, n, ws, policy_id)
+                    env = Env(config, rng, ego_policy, i, scenario, n, ws, config.env.sg_ws_ratio, policy_id)
                     while not env.done:
                         env.update()
                     eval.evaluate(i, env.dt, env.ego_agent, scenario, n)

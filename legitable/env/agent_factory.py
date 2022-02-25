@@ -22,8 +22,8 @@ def is_feasible(positions, min_dist):
     return True
 
 
-def init_agents(config, env, rng, ego_policy, scenario, n_agents, ws_len, iter):
-    starts, goals, max_speeds = get_init_configs(config, rng, scenario, n_agents, ws_len)
+def init_agents(config, env, rng, ego_policy, scenario, n_agents, ws_len, sg_ws_ratio, iter):
+    starts, goals, max_speeds = get_init_configs(config, rng, scenario, n_agents, ws_len, sg_ws_ratio)
     agents = {}
     other_policy = ego_policy if config.env.homogeneous else config.env.human_policy
     policies = [ego_policy] + (len(starts) - 1) * [other_policy]
@@ -36,7 +36,7 @@ def init_agents(config, env, rng, ego_policy, scenario, n_agents, ws_len, iter):
     return agents[ids[0]], agents
 
 
-def get_init_configs(config, rng, scenario, n_agents, ws_len):
+def get_init_configs(config, rng, scenario, n_agents, ws_len, sg_ws_ratio):
     if scenario == "custom":
         starts, goals = np.swapaxes(config.env.custom_pos, 0, 1)
         max_speeds = (
@@ -51,7 +51,7 @@ def get_init_configs(config, rng, scenario, n_agents, ws_len):
             starts = ws_len * rng.random((n_agents, 2))
             goals = ws_len * rng.random((n_agents, 2))
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
-            far_enough = np.all(helper.dist(starts, goals) > min_dist)
+            far_enough = np.all(helper.dist(starts[0], goals[0]) > ws_len * sg_ws_ratio)
             if feasible and far_enough:
                 break
         else:
