@@ -55,6 +55,7 @@ class Agent:
         self.collided = False
         self.update_abs_prims()
         self.update_abs_headings()
+        self.update_abs_prim_vels()
         self.goal_check()
 
     def __repr__(self):
@@ -89,6 +90,18 @@ class Agent:
 
     def update_abs_headings(self):
         self.abs_headings = helper.wrap_to_pi(self.heading + self.rel_headings)
+        
+    def update_abs_prim_vels(self):
+        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
+
+    def remove_col_prims(self):
+        self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
+        for t in np.linspace(0, self.conf.col_horiz, 10):
+            ego_pred = self.pos + t * self.abs_prim_vels
+            for a in [a for a in self.other_agents.values() if helper.dist(self.pos, a.pos) < 1.2 * helper.dist(self.pos, self.goal)]:
+                a_pred = a.pos + t * a.vel
+                buffer = 0.2 * self.speed / self.max_speed
+                self.col_mask |= helper.dist(ego_pred, a_pred) < self.radius + a.radius + buffer
 
     def get_action(self):
         self.des_speed = self.max_speed

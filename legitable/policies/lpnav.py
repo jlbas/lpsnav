@@ -45,7 +45,6 @@ class Lpnav(Agent):
         )
         self.opt_log = []
         self.col_mask_log = []
-        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
         self.speed_idx = 0
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
@@ -69,8 +68,6 @@ class Lpnav(Agent):
         }
         self.rel_int_line = {id: np.array([[0, -cw], [0, cw]]) for id, cw in self.col_width.items()}
 
-    def update_abs_prim_vels(self):
-        self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
 
     def update_int_line(self):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
@@ -90,15 +87,6 @@ class Lpnav(Agent):
             intersecting = helper.is_intersecting(self.pos, self.goal, *self.int_lines[id])
             if in_radius and in_horiz and intersecting:
                 self.interacting_agents[id] = agent
-
-    def remove_col_prims(self):
-        self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
-        for t in np.linspace(0, 1, 10):
-            ego_pred = self.pos + t * self.abs_prim_vels * self.conf.col_buffer
-            for a in self.interacting_agents.values():
-                a_pred = a.pos + t * a.vel * self.conf.col_buffer
-                buffer = 0.1 * self.speed / self.max_speed
-                self.col_mask |= helper.dist(ego_pred, a_pred) < self.radius + a.radius + buffer
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
