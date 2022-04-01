@@ -1,0 +1,34 @@
+figure.figsize: 3.4, 1
+
+font.size: 6
+axes.labelsize: 6
+axes.titlesize: 7
+xtick.labelsize: 5
+ytick.labelsize: 5
+legend.fontsize: 5
+
+font.family: serif
+font.serif: Times
+
+text.usetex: True
+text.latex.preamble: \usepackage{amsmath} \usepackage{amssymb}
+
+xtick.direction: in
+ytick.direction: in
+xtick.major.size: 1
+ytick.major.size: 1
+xtick.major.width: 0.5
+ytick.major.width: 0.5
+xtick.minor.width: 0.3
+ytick.minor.width: 0.3
+xtick.major.pad: 4
+ytick.major.pad: 4
+
+lines.linewidth: 0.5
+grid.linewidth: 0.5
+patch.linewidth: 0.2
+lines.markersize: 4
+lines.markeredgewidth: 0
+
+savefig.bbox: tight
+savefig.pad_inches: 0

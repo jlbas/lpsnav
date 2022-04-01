@@ -1,37 +1,31 @@
 import numpy as np
 import sympy as smp
 from policies.agent import Agent
-from utils import animation as ani
 from utils import helper
-from matplotlib import pyplot as plt
 
 
 class Sfm(Agent):
-    def __init__(self, config, env, id, policy, is_ego, start, goal=None, max_speed=None):
-        super().__init__(config, env, id, policy, is_ego, start, goal=goal, max_speed=max_speed)
-        self.color = "#afadb8"
-        self.tau = self.conf.tau
-        self.sigma = self.conf.sigma
-        self.v_ab0 = self.conf.v_ab0
-        self.phi = self.conf.phi
-        self.c = self.conf.c
-        self.step_width = self.conf.step_width
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal):
+        super().__init__(conf, id, policy, is_ego, max_speed, start, goal)
+        self.tau = conf["tau"]
+        self.sigma = conf["sigma"]
+        self.v_ab0 = conf["v_ab0"]
+        self.phi = conf["phi"]
+        self.c = conf["c"]
+        self.step_width = conf["step_width"]
         self.goal_force = np.zeros(2)
         self.ped_force = np.zeros(2)
         self.tot_force = np.zeros(2)
-        self.goal_force_log = np.zeros((self.env.max_step + 1, 2))
-        self.ped_force_log = np.zeros((self.env.max_step + 1, 2))
-        self.tot_force_log = np.zeros((self.env.max_step + 1, 2))
         self.init_gradient()
 
     def init_gradient(self):
         r_abx, r_aby, v_b, dt, e_bx, e_by, sigma, v_ab0 = smp.symbols(
             "r_abx r_aby v_b dt e_bx e_by sigma, v_ab0"
         )
-        arg_11 = smp.sqrt(r_abx ** 2 + r_aby ** 2)
+        arg_11 = smp.sqrt(r_abx**2 + r_aby**2)
         arg_12 = smp.sqrt((r_abx - v_b * dt * e_bx) ** 2 + (r_aby - v_b * dt * e_by) ** 2)
         arg_2 = v_b * dt
-        b = 0.5 * smp.sqrt((arg_11 + arg_12) ** 2 - arg_2 ** 2)
+        b = 0.5 * smp.sqrt((arg_11 + arg_12) ** 2 - arg_2**2)
         v_ab = v_ab0 * smp.exp(-b / sigma)
         partial_r_abx = smp.diff(v_ab, r_abx)
         partial_r_aby = smp.diff(v_ab, r_aby)
@@ -46,9 +40,9 @@ class Sfm(Agent):
         self.e_a = helper.unit_vec(self.goal - self.pos)
         self.goal_force = (self.max_speed * self.e_a - self.vel) / self.tau
 
-    def get_ped_force(self):
+    def get_ped_force(self, agents):
         self.ped_force = np.zeros(2)
-        for a in self.other_agents.values():
+        for a in agents.values():
             r_ab_cc = self.pos - a.pos
             d = helper.dist(self.pos, a.pos)
             scale = (d - 2 * self.radius) / d
@@ -60,16 +54,10 @@ class Sfm(Agent):
             w = self.dir_weight(self.e_a, -f_ab)
             self.ped_force += w * f_ab
 
-    def get_action(self):
+    def get_action(self, dt, agents):
         self.get_goal_force()
-        self.get_ped_force()
+        self.get_ped_force(agents)
         self.tot_force = self.goal_force + self.ped_force
-        des_vel = helper.clip(self.vel + self.tot_force * self.env.dt, self.max_speed)
+        des_vel = helper.clip(self.vel + self.tot_force * dt, self.max_speed)
         self.des_speed = np.linalg.norm(des_vel)
         self.des_heading = helper.wrap_to_pi(helper.angle(des_vel))
-
-    def log_data(self, step):
-        super().log_data(step)
-        self.goal_force_log[step] = self.goal_force
-        self.ped_force_log[step] = self.ped_force
-        self.tot_force_log[step] = self.tot_force

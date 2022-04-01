@@ -1,0 +1,150 @@
+log_dir = "data/logs"
+progress_bar = true
+
+[env]
+dt = 0.05
+max_duration = 30
+
+# passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
+[scenario]
+name = "predefined"
+homogeneous = false
+human_model = "rvo"
+# policy = ["sfm", "rvo", "social_momentum", "ga3c_cadrl", "sa_cadrl", "lpnav"]
+policy = ["lpnav"]
+
+[scenario.predefined]
+configuration = "swap"
+lat_dist = 0.7
+long_dist = 7
+comparison_param = "configuration"
+
+[scenario.random]
+num_of_agents = [5, 7, 9]
+iters = 100
+workspace_length = 8
+min_start_goal_sep = 4
+min_start_buffer = 0.5
+min_des_speed = 0.9
+max_des_speed = 1.1
+max_init_attempts = 10000
+comparison_param = "num_of_agents"
+
+[scenario.circle]
+num_of_agents = [8, 10, 12]
+radius = 4
+comparison_param = "num_of_agents"
+
+[scenario.custom]
+pos = [
+  [[0, 0], [4, 4]],
+  [[4, 0], [0, 4]]
+]
+speeds = [1, 2]
+policy = ["lpnav", "sa_cadrl"]
+
+[animation]
+show_ani = true
+save_ani = false
+save_ani_as_pdf = false
+ani_dir = "data/videos"
+show_plot = false
+save_plot = false
+plot_dir = "data/plots"
+dark_background = true
+overlay = true
+plot_body = true
+body_interval = 0.4
+plot_traj = true
+speed = 2
+autoplay = false
+dpi = 96
+
+[eval]
+show_tbl = true
+save_tbl = false
+tbl_dir = "data/tables"
+metrics = ["extra_ttg", "failure", "min_pass_inf"]
+inferences = ["left", "right"]
+show_inf = false
+save_inf = false
+invalid = false
+inf_dir = "data/inferences"
+show_bar_chart = false
+save_bar_chart = true
+bar_chart_dir = "data/bar_charts"
+save_df = false
+df_dir = "data/dataframes"
+
+[agent]
+radius = 0.25
+eps = 1e-10
+min_speed = 0
+max_speed = 1
+max_accel = 3
+min_accel = -10
+max_ang_accel = 3
+goal_tol = 0.1
+heading_span = 1.57
+speed_samples = 3
+heading_samples = 31
+prim_horiz = 1.5
+kinematics = "second_order_unicycle"
+sensing_dist = 20
+col_horiz = 1
+
+[agent.inattentive]
+name = "Inattentive"
+color = "#868293"
+
+[agent.lpnav]
+name = "LPSNav"
+color = "#DC267F"
+legibility_tol = 1.1
+beta = 1
+subgoal_priors = [0.48, 0.02, 0.5]
+col_buffer = 0.3
+receding_horiz = 2
+sensing_horiz = 5
+max_cost = 1e2
+
+[agent.rvo]
+name = "ORCA"
+color = "#868293"
+max_neighbors = 10
+time_horiz = 5
+neighbor_dist = 10
+scaled_radius = 1.1
+
+[agent.sfm]
+name = "SFM"
+color = "#afadb8"
+tau = 0.5
+sigma = 0.3
+v_ab0 = 2.1
+phi = 1.7453
+c = 0.5
+step_width = 2
+
+[agent.social_momentum]
+name = "SM"
+color = "#c8c35a"
+weight = 0.16
+heading_samples = 50
+heading_span = 3.14 # try reducing this
+speed_samples = 1
+
+[agent.sa_cadrl]
+name = "SA-CADRL"
+color = "#455ec9"
+getting_close_penalty = -0.05
+eps = 1e-5
+getting_close_range = 0.2
+collision_cost = -0.25
+gamma = 0.97
+dt_normal = 0.5
+dist_2_goal_thres = 0.05
+
+[agent.ga3c_cadrl]
+name = "GA3C-CADRL"
+color = "#9379b5"

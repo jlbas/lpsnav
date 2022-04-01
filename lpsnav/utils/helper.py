@@ -1,6 +1,3 @@
-from collections.abc import Iterable
-
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -12,11 +9,8 @@ def rotate(obj, angle):
     return obj @ rot_matrix
 
 
-def angle(vector):
-    if np.ndim(vector) == 1:
-        return np.arctan2(vector[1], vector[0])
-    return np.arctan2(vector[:, 1], vector[:, 0])
-    # return np.arctan2(*vector[::-1])
+def angle(vec):
+    return np.arctan2(vec[1], vec[0]) if np.ndim(vec) == 1 else np.arctan2(vec[:, 1], vec[:, 0])
 
 
 def dist(A, B):
@@ -41,11 +35,6 @@ def unit_vec(vec):
 
 def in_front(pos, th, pt):
     return np.sum((pt - pos) * vec(th), axis=-1) > 0
-    # return np.dot(pt - pos, vec(th)) > 0
-
-
-def interpolate(arr):
-    return (arr - np.min(arr)) / np.ptp(arr)
 
 
 def remove_zero_arrs(list):
@@ -75,7 +64,6 @@ def dynamic_pt_cost(pt, pt_speed, line, line_th, line_vel):
     masks = p_intersect(pt, pt_speed, line, line_th, line_vel, cost_line)
     masked_costs = masked_cost(masks, cost_col_0, cost_col_1, cost_line)
     return masked_costs
-    # return np.where(masked_costs > 1e2, np.inf, masked_costs)
 
 
 def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, line):
@@ -93,9 +81,6 @@ def dynamic_prim_cost(pos, pt, pt_speed, pt_vel, pred_line, line_th, line_vel, l
             prim_costs,
         )
     return prim_costs
-    # return np.where(prim_costs > 1e2, np.inf, prim_costs)
-    # return np.where(~in_front(line_pts[0], line_th, pos), 0, costs)
-    # return np.where(~in_front(line[0], line_th, pt), np.where(masks, 0, np.inf), prim_costs)
 
 
 def cost_to_pt(pos_0, speed_0, pos_1, vel_1=np.array([0, 0])):
@@ -103,7 +88,7 @@ def cost_to_pt(pos_0, speed_0, pos_1, vel_1=np.array([0, 0])):
     d = np.linalg.norm(d_vec, axis=-1)
     d_vec_hat = d_vec / d[..., None]
     speed_1_t = np.abs(np.sum(rotate(d_vec_hat, np.pi / 2) * vel_1, axis=-1))
-    speed_1_r = np.sum(d_vec_hat * vel_1, axis=-1)  # sign is important
+    speed_1_r = np.sum(d_vec_hat * vel_1, axis=-1)
     if not speed_0:
         speed_0_r = 0
     else:
@@ -124,13 +109,12 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
     v = v0 if np.dot(v0, r) >= 0 else v1
     v_hat = v / np.linalg.norm(v)
     d = np.abs(np.dot(r, v_hat))
-    proj_pt_speed = np.dot(pt_vel, -v_hat)  # use other v_hat
-    proj_line_speed = np.dot(line_vel, v_hat)  # Sign is important
+    proj_pt_speed = np.dot(pt_vel, -v_hat)
+    proj_line_speed = np.dot(line_vel, v_hat)
     den = proj_pt_speed + proj_line_speed
     with np.errstate(divide="ignore"):
         t = d / den
     t = np.where(t <= 0, np.inf, t)
-    # return d / np.where(den == 0, 1e-5, den)
     return np.nan_to_num(t)
 
 
@@ -141,12 +125,11 @@ def cost_to_line(pt, pt_speed, line, line_vel):
     v = np.where(np.sum(v0 * r, axis=-1)[..., None] > 0, v0, v1)
     v_hat = v / np.linalg.norm(v, axis=-1)[..., None]
     d = np.abs(np.sum(r * v_hat, axis=-1))
-    proj_line_speed = np.sum(v_hat * line_vel, axis=-1)  # Sign is important
+    proj_line_speed = np.sum(v_hat * line_vel, axis=-1)
     den = pt_speed + proj_line_speed
     with np.errstate(divide="ignore"):
         t = d / den
     t = np.where(t <= 0, np.inf, t)
-    # return d / (pt_speed + proj_line_speed)
     return np.nan_to_num(t)
 
 
@@ -177,24 +160,3 @@ def masked_cost(masks, cost_col_0, cost_col_1, cost_line):
     center = masks[1] * np.stack((cost_col_0, cost_line, cost_col_1))
     right = masks[2] * np.stack((cost_col_0, cost_col_1, cost_line))
     return left + center + right
-
-
-def flatten(list_of_lists):
-    for list in list_of_lists:
-        if isinstance(list, Iterable) and not isinstance(list, (str, bytes)):
-            yield from flatten(list)
-        else:
-            yield list
-
-
-def split_interactions(arr):
-    arr = np.max(arr, axis=-1)
-    zero_mask = arr == 0
-    split_idx = (np.argwhere(np.diff(zero_mask.astype(int))) + 1).flatten()
-    arr = np.split(arr, split_idx)
-    arr = remove_zero_arrs(arr)
-    return arr
-
-
-def sub_lengths(arr):
-    return [len(stride) for stride in arr]
