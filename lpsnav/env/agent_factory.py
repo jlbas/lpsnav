@@ -40,7 +40,7 @@ def init_agents(base_id, s_conf, a_conf, rng):
 def get_init_configs(s_conf, a_conf, rng):
     if s_conf["name"] == "predefined":
         x = s_conf["long_dist"] / 2
-        y = s_conf["lat_dist"] / 2
+        y = 2 * a_conf["radius"] + s_conf["lat_dist"]
         if s_conf["configuration"] == "swap":
             starts = np.array([[-x, 0], [x, 0]])
             goals = starts[::-1]
