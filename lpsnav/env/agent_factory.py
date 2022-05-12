@@ -86,9 +86,6 @@ def get_init_configs(s_conf, a_conf, rng):
         starts = s_conf["radius"] * helper.vec(thetas)
         goals = -starts
         max_speeds = np.full(len(starts), a_conf["max_speed"])
-    elif s_conf["name"] == "custom":
-        starts, goals = np.swapaxes(s_conf["pos"], 0, 1)
-        max_speeds = s_conf.get("speeds", np.full(len(starts), a_conf["max_speed"]))
     else:
         raise ValueError(f"Scenario {s_conf['name']} is not recognized")
     bound = 0.01

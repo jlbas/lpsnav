@@ -35,14 +35,6 @@ num_of_agents = [8, 10, 12]
 radius = 4
 comparison_param = "num_of_agents"
 
-[scenario.custom]
-pos = [
-  [[0, 0], [4, 4]],
-  [[4, 0], [0, 4]]
-]
-speeds = [1, 2]
-policy = ["lpnav", "sa_cadrl"]
-
 [animation]
 show_ani = true
 save_ani = false
