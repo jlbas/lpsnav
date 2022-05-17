@@ -1,11 +1,11 @@
-figure.figsize: 3.4, 1
-
-font.size: 6
-axes.labelsize: 6
-axes.titlesize: 7
-xtick.labelsize: 5
-ytick.labelsize: 5
-legend.fontsize: 5
+figure.figsize: 7.8, 3
+ 
+font.size: 12
+axes.labelsize: 10
+axes.titlesize: 12
+xtick.labelsize: 10
+ytick.labelsize: 10
+legend.fontsize: 8
 
 font.family: serif
 font.serif: Times

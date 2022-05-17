@@ -85,7 +85,6 @@ class Animate:
     def plot(self, dt, agents, logs, fname):
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
-        fig.set_size_inches(1.6, 1.6)
         ax.axis("square")
         ax.set(xlabel=r"$x$ (m)", ylabel=r"$y$ (m)")
         ax.spines["right"].set_visible(False)
