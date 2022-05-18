@@ -87,11 +87,11 @@ col_horiz = 1
 
 [agent.inattentive]
 name = "Inattentive"
-color = "#868293"
+color = "#8c8787"
 
 [agent.lpnav]
 name = "LPSNav"
-color = "#DC267F"
+color = "#785ef0"
 legibility_tol = 1.1
 beta = 1
 subgoal_priors = [0.48, 0.02, 0.5]
@@ -102,7 +102,7 @@ max_cost = 1e2
 
 [agent.rvo]
 name = "ORCA"
-color = "#868293"
+color = "#a9a5a5"
 max_neighbors = 10
 time_horiz = 5
 neighbor_dist = 10
@@ -110,7 +110,7 @@ scaled_radius = 1.1
 
 [agent.sfm]
 name = "SFM"
-color = "#afadb8"
+color = "#c3c0c0"
 tau = 0.5
 sigma = 0.3
 v_ab0 = 2.1
@@ -120,7 +120,7 @@ step_width = 2
 
 [agent.social_momentum]
 name = "SM"
-color = "#c8c35a"
+color = "#7293dc"
 weight = 0.16
 heading_samples = 50
 heading_span = 3.14 # try reducing this
@@ -128,7 +128,7 @@ speed_samples = 1
 
 [agent.sa_cadrl]
 name = "SA-CADRL"
-color = "#455ec9"
+color = "#dcc572"
 getting_close_penalty = -0.05
 eps = 1e-5
 getting_close_range = 0.2
@@ -139,4 +139,4 @@ dist_2_goal_thres = 0.05
 
 [agent.ga3c_cadrl]
 name = "GA3C-CADRL"
-color = "#9379b5"
+color = "#dca272"
