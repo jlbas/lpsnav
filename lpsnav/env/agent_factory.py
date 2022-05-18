@@ -44,7 +44,7 @@ def get_init_configs(s_conf, a_conf, rng):
         if s_conf["configuration"] == "swap":
             starts = np.array([[-x, 0], [x, 0]])
             goals = starts[::-1]
-        elif s_conf["configuration"] == "passing":
+        elif s_conf["configuration"] == "pass":
             starts = np.array([[-x, 0], [x, y]])
             goals = np.array([-1, 1]) * starts
         elif s_conf["configuration"] == "acute":
