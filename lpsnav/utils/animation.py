@@ -135,7 +135,7 @@ class Animate:
                     1 - 0.2 * (1 - hls_color[1]),
                     len(sampled_traj),
                 )
-                zorder = id if a.policy != "inattentive" else 0
+                zorder = id if a.policy != "inattentive" else -1
                 for pos, lightness in zip(sampled_traj, lightness_range[::-1]):
                     s, ec = (hls_color[2], a.color)
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, s)
