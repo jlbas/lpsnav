@@ -137,8 +137,8 @@ class Lpnav(Agent):
         self.prim_pred_score[id] = np.exp(arg)
 
     def check_if_legible(self, id):
-        self.passing_ratio[id] = np.max(self.current_leg_score[id]) / max(
-            np.min(self.current_leg_score[id]), self.eps
+        self.passing_ratio[id] = np.max(self.current_leg_score[id]) / np.min(
+            self.current_leg_score[id]
         )
         self.is_legible[id] = self.passing_ratio[id] > self.leg_tol
 
