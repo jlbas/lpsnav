@@ -20,7 +20,7 @@ long_dist = 7
 comparison_param = "configuration"
 
 [scenario.random]
-num_of_agents = [5, 7, 9]
+number_of_agents = [5, 7, 9, 11]
 iters = 100
 workspace_length = 8
 min_start_goal_sep = 4
@@ -28,12 +28,12 @@ min_start_buffer = 0.5
 min_des_speed = 0.9
 max_des_speed = 1.1
 max_init_attempts = 10000
-comparison_param = "num_of_agents"
+comparison_param = "number_of_agents"
 
 [scenario.circle]
-num_of_agents = [8, 10, 12]
-radius = 4
-comparison_param = "num_of_agents"
+number_of_agents = [4, 5, 8, 13]
+radius = [3, 3, 4, 5]
+comparison_param = "number_of_agents"
 
 [animation]
 show_ani = true

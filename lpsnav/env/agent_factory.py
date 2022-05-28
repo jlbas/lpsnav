@@ -67,12 +67,12 @@ def get_init_configs(s_conf, a_conf, rng):
         max_speeds = np.full(len(starts), a_conf["max_speed"])
     elif s_conf["name"] == "random":
         max_speeds = rng.uniform(
-            s_conf["min_des_speed"], s_conf["max_des_speed"], size=s_conf["num_of_agents"]
+            s_conf["min_des_speed"], s_conf["max_des_speed"], size=s_conf["number_of_agents"]
         )
         min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         for _ in range(s_conf["max_init_attempts"]):
-            starts = s_conf["workspace_length"] * rng.random((s_conf["num_of_agents"], 2))
-            goals = s_conf["workspace_length"] * rng.random((s_conf["num_of_agents"], 2))
+            starts = s_conf["workspace_length"] * rng.random((s_conf["number_of_agents"], 2))
+            goals = s_conf["workspace_length"] * rng.random((s_conf["number_of_agents"], 2))
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
             far_enough = np.all(helper.dist(starts[0], goals[0]) > s_conf["min_start_goal_sep"])
             if feasible and far_enough:
@@ -81,7 +81,7 @@ def get_init_configs(s_conf, a_conf, rng):
             raise AttemptsExceededError(s_conf["max_init_attempts"])
     elif s_conf["name"] == "circle":
         thetas = np.linspace(
-            0, 2 * np.pi * (1 - 1 / s_conf["num_of_agents"]), s_conf["num_of_agents"]
+            0, 2 * np.pi * (1 - 1 / s_conf["number_of_agents"]), s_conf["number_of_agents"]
         )
         starts = s_conf["radius"] * helper.vec(thetas)
         goals = -starts
