@@ -13,30 +13,46 @@ import seaborn as sns
 
 def get_interactions(conf, env):
     interactions = {}
-    line_heading = helper.wrap_to_pi(
-        helper.angle(env.logs[env.ego_id].pos - env.agents[env.ego_id].goal)
-    )
+    goal_vec = env.logs[env.ego_id].pos - env.agents[env.ego_id].goal
+    line_heading = helper.wrap_to_pi(helper.angle(goal_vec))
     for id in list(env.agents)[1:]:
-        in_front = helper.in_front(env.logs[id].pos, line_heading, env.logs[env.ego_id].pos)
         inter_dist = helper.dist(env.logs[env.ego_id].pos, env.logs[id].pos)
         in_radius = inter_dist < conf["agent"]["sensing_dist"]
-        col_width = env.agents[env.ego_id].radius + env.agents[id].radius
-        rel_int_line = np.array([[0, -col_width], [0, col_width]])
-        abs_int_line = helper.rotate(rel_int_line, line_heading)
-        line = abs_int_line + env.logs[id].pos
+
+        in_front = helper.in_front(env.logs[id].pos, line_heading, env.logs[env.ego_id].pos)
         in_horiz = (
-            helper.cost_to_line(
+            helper.cost_to_line_th(
                 env.logs[env.ego_id].pos,
                 env.logs[env.ego_id].speed,
-                line,
+                env.logs[id].pos,
                 env.logs[id].vel,
+                line_heading,
             )
             < conf["agent"]["lpnav"]["sensing_horiz"]
         )
         is_interacting = in_front & in_radius & in_horiz
         start_idx = np.argmax(is_interacting)
+        int_heading = np.full(line_heading.shape, line_heading[start_idx])
+
+        in_front = helper.in_front(env.logs[id].pos, int_heading, env.logs[env.ego_id].pos)
+        in_horiz = (
+            helper.cost_to_line_th(
+                env.logs[env.ego_id].pos,
+                env.logs[env.ego_id].speed,
+                env.logs[id].pos,
+                env.logs[id].vel,
+                int_heading,
+            )
+            < conf["agent"]["lpnav"]["sensing_horiz"]
+        )
+        is_interacting = in_front & in_radius & in_horiz
         rem = is_interacting[start_idx:]
         end_idx = start_idx + (len(rem) - 1 if np.all(rem) else np.argmin(rem))
+
+        col_width = env.agents[env.ego_id].radius + env.agents[id].radius
+        rel_int_line = np.array([[0, -col_width], [0, col_width]])
+        abs_int_line = helper.rotate(rel_int_line, int_heading)
+        line = abs_int_line + env.logs[id].pos
         if env.dt * (end_idx - start_idx) > 1:
             th = helper.angle(np.diff(line[:, end_idx], axis=0))
             right = helper.in_front(
@@ -46,7 +62,7 @@ def get_interactions(conf, env):
             int_idx = [start_idx, end_idx]
             int_slice = slice(start_idx, end_idx + 1)
             int_t = env.dt * np.arange(start_idx, end_idx + 1)
-            interactions[id] = Interaction(int_idx, int_slice, int_t, line, line_heading, pass_idx)
+            interactions[id] = Interaction(int_idx, int_slice, int_t, line, int_heading, pass_idx)
     return interactions
 
 
@@ -116,16 +132,25 @@ def get_traj_inference(_conf, _env, interactions, int_costs):
     return traj_inference
 
 
-def eval_extra_ttg(conf, env):
-    if hasattr(env.agents[env.ego_id], "ttg"):
-        goal_dist = helper.dist(env.agents[env.ego_id].start, env.agents[env.ego_id].goal)
-        opt_ttg = (goal_dist - conf["agent"]["goal_tol"]) / env.agents[env.ego_id].max_speed
-        return (env.agents[env.ego_id].ttg - opt_ttg) / opt_ttg
+def eval_extra_ttg(conf, env, id=None):
+    id = env.ego_id if id is None else id
+    if hasattr(env.agents[id], "ttg"):
+        goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
+        opt_ttg = (goal_dist - conf["agent"]["goal_tol"]) / env.agents[id].max_speed
+        return (env.agents[id].ttg - opt_ttg) / opt_ttg
     return np.nan
+
+
+def eval_others_extra_ttg(conf, env):
+    return np.nanmean([eval_extra_ttg(conf, env, id) for id in env.agents if id != env.ego_id])
 
 
 def eval_failure(_conf, env):
     return 0 if hasattr(env.agents[env.ego_id], "ttg") else 1
+
+
+def eval_others_failure(_conf, env):
+    return np.mean([not hasattr(env.agents[id], "ttg") for id in env.agents if id != env.ego_id])
 
 
 def eval_efficiency(_conf, env):
@@ -140,6 +165,12 @@ def eval_efficiency(_conf, env):
 def eval_irregularity(_conf, env):
     goal_heading = helper.angle(env.agents[env.ego_id].goal - env.logs[env.ego_id].pos)
     return np.mean(np.abs(env.logs[env.ego_id].heading - goal_heading))
+
+
+def eval_others_irregularity(_conf, env, id=None):
+    id = env.ego_id if id is None else id
+    goal_heading = helper.angle(env.agents[id].goal - env.logs[id].pos)
+    return np.mean(np.abs(env.logs[id].heading - goal_heading))
 
 
 def eval_legibility(_conf, env, interactions, goal_inferences):
@@ -168,6 +199,17 @@ def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
             sliced_inf = goal_inf[0 if interaction.passing_idx == 0 else 2]
             pass_inf[sl] = np.where(sliced_inf < pass_inf[sl], sliced_inf, pass_inf[sl])
     return np.min(pass_inf) if np.any(np.isfinite(pass_inf)) else np.nan
+
+
+def eval_avg_min_pass_inf(_conf, env, interactions, goal_inferences):
+    pass_inf = np.full(len(env.logs[env.ego_id].pos), np.inf)
+    for interaction, goal_inf in zip(interactions.values(), goal_inferences.values()):
+        sl = interaction.int_slice
+        if sl.stop - sl.start > 1:
+            sliced_inf = goal_inf[0 if interaction.passing_idx == 0 else 2]
+            pass_inf[sl] = np.where(sliced_inf < pass_inf[sl], sliced_inf, pass_inf[sl])
+    pass_inf = np.where(np.isfinite(pass_inf), pass_inf, np.nan)
+    return np.nanmean(pass_inf) if np.any(np.isfinite(pass_inf)) else np.nan
 
 
 @dataclass
@@ -206,7 +248,7 @@ class Metric:
     opt_func: Callable
     update_func: Callable
     f_args: list[str] = field(default_factory=list)
-    ignore_invalid: bool = True
+    only_valid: bool = True
 
     def __repr__(self):
         return f"{self.name} ({self.units})"
@@ -227,9 +269,12 @@ class Eval:
         }
         self.metrics = {
             "extra_ttg": Metric("Extra Time-to-Goal", "%", 2, min, eval_extra_ttg),
-            "failure": Metric("Failure Rate", "%", 0, min, eval_failure, ignore_invalid=False),
+            "others_extra_ttg": Metric("Others' Extra Time-to-Goal", "%", 2, min, eval_others_extra_ttg, only_valid=False),
+            "failure": Metric("Failure Rate", "%", 0, min, eval_failure, only_valid=False),
+            "others_failure": Metric("Others' Failure Rate", "%", 0, min, eval_others_failure, only_valid=False),
             "efficiency": Metric("Path Efficiency", "%", 2, max, eval_efficiency),
             "irregularity": Metric("Path Irregularity", "rad/m", 4, min, eval_irregularity),
+            "others_irregularity": Metric("Others' Path Irregularity", "rad/m", 4, min, eval_others_irregularity),
             "legibility": Metric(
                 "Legibility", "%", 2, max, eval_legibility, ["interactions", "goal_inferences"]
             ),
@@ -242,6 +287,14 @@ class Eval:
                 2,
                 max,
                 eval_min_pass_inf,
+                ["interactions", "goal_inferences"],
+            ),
+            "avg_min_pass_inf": Metric(
+                "Average Minimum Passing Inference",
+                "%",
+                2,
+                max,
+                eval_avg_min_pass_inf,
                 ["interactions", "goal_inferences"],
             ),
         }
@@ -281,8 +334,8 @@ class Eval:
                 sampled_t = self.feats["interactions"].val[id].int_t[sample_slice]
                 for idx, label, ls in zip((0, 2), lbls, lss):
                     x, y = self.feats["interactions"].val[id].int_t, inf[idx]
-                    ax.plot(x, y, lw=1, color=agents[id].color, label=f"{id}:{label}", ls=ls)
-                    ax.scatter(sampled_t, inf[idx][sample_slice], color=agents[id].color, s=8)
+                    ax.plot(x, y, lw=1, color=agents[id - 1].color, label=f"{id}:{label}", ls=ls)
+                    ax.scatter(sampled_t, inf[idx][sample_slice], color=agents[id - 1].color, s=8)
         fig.legend(loc="lower left", bbox_to_anchor=(0, 0), bbox_transform=ax1.transAxes)
         if self.conf["eval"]["save_inf"]:
             os.makedirs(self.conf["eval"]["inf_dir"], exist_ok=True)
@@ -310,6 +363,11 @@ class Eval:
         palette = {p: self.conf["agent"][p]["color"] for p in list(set(self.df["policy"]))}
         for k, v in [(k, v) for k, v in self.metrics.items() if k in df]:
             ax = sns.barplot(x=self.comp_param, y=k, hue="policy", data=df, palette=palette)
+            ax.legend(loc="lower left")
+            for text in ax.legend_.texts:
+                text.set_text(text._text.replace("_", " ").title())
+            # if k != "min_pass_inf":
+            #     ax.legend_.remove()
             ax.set_title(v.name)
             ax.set_ylabel(f"{v.name} ({v.units.replace('%', '%%')})")
             ax.set_ylabel("{name} ({units})".format(name=v.name, units=v.units.replace("%", "\\%")))
@@ -327,9 +385,9 @@ class Eval:
 
     def get_summary(self, fname):
         df = self.df.copy()
-        if self.conf["eval"]["invalid"]:
+        if self.conf["eval"]["only_valid"]:
             invalid_idx = df[df.failure == 1].i.drop_duplicates().to_list()
-            metrics = [m for m in self.metrics if m != "failure"]
+            metrics = [m_k for m_k, m_v in self.metrics.items() if m_v.only_valid]
             df.loc[df.index[df.i.isin(invalid_idx)], metrics] = np.nan
         df = df[["policy", self.comp_param] + list(set(self.conf["eval"]["metrics"]) & set(df))]
         if self.conf["eval"]["show_tbl"] or self.conf["eval"]["save_tbl"]:
