@@ -4,6 +4,8 @@ progress_bar = true
 [env]
 dt = 0.05
 max_duration = 30
+inactive_outside_ego_range = true
+active_range = 10
 
 # passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
 [scenario]

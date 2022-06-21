@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from env.env import Env
-from env.agent_factory import init_agents
+from env.agent_factory import init_scenario
 from utils.animation import Animate
 from utils.config import load_config
 from utils.eval import Eval
@@ -19,17 +19,17 @@ def run(s_name, config, s_configs):
     overlay = p_cnt > 1 and config["animation"]["overlay"]
     for i, s_conf in enumerate(tqdm(s_configs) if config["progress_bar"] else s_configs):
         rng = np.random.default_rng(s_conf["iter"])
-        agents = init_agents(i, s_conf, config["agent"], rng)
-        env = Env(config["env"], agents)
+        agents, walls = init_scenario(i, s_conf, config["env"], config["agent"], rng)
+        env = Env(config["env"], agents, walls)
         while env.is_running():
             env.update()
         env.trim_logs()
         comp_val = str(s_conf[s_conf["comparison_param"]])
         fname = "_".join([s_name, comp_val, s_conf["policy"], str(s_conf["iter"])])
         eval.evaluate(i, env, fname)
-        ani.animate(env.dt, env.agents, env.logs, fname, overlay)
+        ani.animate(env.dt, env.agents, env.logs, env.walls, fname, overlay, env.ego_id)
         if overlay and i % p_cnt == p_cnt - 1:
-            ani.overlay(env.dt, fname.replace(s_conf["policy"], "overlay"))
+            ani.overlay(env.dt, walls, fname.replace(s_conf["policy"], "overlay"))
     comparison_param = config["scenario"][s_name]["comparison_param"]
     comp_vals = [str(v) for v in val_as_list(config["scenario"][s_name][comparison_param])]
     fname = "_".join([s_name] + comp_vals)

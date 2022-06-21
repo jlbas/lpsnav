@@ -6,14 +6,22 @@ from utils import helper
 
 
 @dataclass
-class ObsAgent:
+class AgentObs:
     radius: float
 
-    def update(self, agent):
+    def get_agent_obs(self, agent):
         self.pos = agent.pos.copy()
         self.heading = agent.heading
         self.speed = agent.speed
         self.vel = agent.vel.copy()
+
+
+@dataclass
+class WallObs:
+    pts: list[list[float]]
+    
+    def get_wall_obs(self, wall):
+        self.pts = wall.copy()
 
 
 @dataclass
@@ -26,10 +34,14 @@ class Logs:
 
 
 class Env:
-    def __init__(self, conf, agents):
+    def __init__(self, conf, agents, walls):
         self.dt = conf["dt"]
         self.max_duration = conf["max_duration"]
+        self.inactive_outside_ego_range = conf["inactive_outside_ego_range"]
+        self.active_range = conf["active_range"]
         self.agents = agents
+        self.active_agents = []
+        self.walls = walls
         self.ego_id = list(agents.values())[0].id
         self.max_step = int(self.max_duration / self.dt)
         self.time = 0
@@ -37,39 +49,77 @@ class Env:
         self.logger = logging.getLogger(__name__)
         self.logs = {id: Logs(self.max_step + 1, np.nan) for id in self.agents}
         self.log_data()
-        self.obs_agents = {id: ObsAgent(a.radius) for id, a in self.agents.items()}
+        self.agent_obs = {id: AgentObs(a.radius) for id, a in self.agents.items()}
+        self.wall_obs = [WallObs(wall) for wall in self.walls]
         for id, a in self.agents.items():
-            self.obs_agents[id].update(a)
+            self.agent_obs[id].get_agent_obs(a)
+        for i, wall in enumerate(self.walls):
+            self.wall_obs[i].get_wall_obs(wall)
         for a in self.agents.values():
             self.logger.debug(a)
-            a.post_init(self.dt, self.obs_agents)
+            a.post_init(self.dt, self.agent_obs, self.wall_obs)
 
     def log_data(self):
         for id, log in self.logs.items():
             for k in vars(log):
                 getattr(log, k)[self.step] = getattr(self.agents[id], k)
 
+    def sense_agents(self, a):
+        agents = {}
+        for neighbour_id, neighbour in self.agent_obs.items():
+            if a.id != neighbour_id:
+                in_range = helper.dist(a.pos, neighbour.pos) < a.sensing_dist
+                in_sight = not any([helper.is_intersecting(a.pos, neighbour.pos, *wall) for wall in self.walls])
+                if in_range and in_sight:
+                    agents[neighbour_id] = neighbour
+        return agents
+
+    def sense_walls(self, a):
+        walls = []
+        for wall in self.wall_obs:
+            if helper.dist_to_line_seg(a.pos, *wall.pts) < a.sensing_dist:
+                walls.append(wall.pts)
+        return walls
+
     def update(self):
-        for id1, a1 in self.agents.items():
-            in_range = lambda a2: helper.dist(a1.pos, a2.pos) < a1.sensing_dist
-            agents = {id2: a2 for id2, a2 in self.obs_agents.items() if id2 != id1 and in_range(a2)}
-            a1.get_action(self.dt, agents)
-        for a1 in self.agents.values():
-            a1.step(self.dt)
+        old_active_agents = self.active_agents.copy()
+        self.active_agents = []
+        for a in self.agents.values():
+            if helper.dist(a.pos, self.agents[self.ego_id].pos) <= self.active_range:
+                self.active_agents.append(a)
+                if not hasattr(a, "start_time"):
+                    a.start_time = self.time
+        for a in old_active_agents:
+            if a not in self.active_agents and not a.collided:
+                a.goal = a.pos
+        for a in self.active_agents:
+            agent_obs = self.sense_agents(a)
+            wall_obs = self.sense_walls(a)
+            a.get_action(self.dt, agent_obs, wall_obs)
+        for a in self.active_agents:
+            a.step(self.dt)
         self.time += self.dt
         self.step += 1
         self.collision_check()
-        for a1 in [a for a in self.agents.values() if not hasattr(a, "ttg")]:
-            a1.goal_check(self.time)
+        for a in [a for a in self.agents.values() if not hasattr(a, "ttg")]:
+            a.goal_check(self.time)
         self.log_data()
-        for id, a1 in self.agents.items():
-            self.obs_agents[id].update(a1)
+        for id, a in self.agents.items():
+            self.agent_obs[id].get_agent_obs(a)
+        for i, wall in enumerate(self.walls):
+            self.wall_obs[i].get_wall_obs(wall)
 
     def collision_check(self):
         for a1, a2 in itertools.combinations(self.agents.values(), 2):
             collided = helper.dist(a1.pos, a2.pos) <= a1.radius + a2.radius
             a1.collided |= collided
             a2.collided |= collided
+        for a in self.agents.values():
+            for wall in self.walls:
+                if not a.collided:
+                    a.collided |= (
+                        helper.dist_to_line_seg(a.pos, *wall) <= a.radius
+                    )
 
     def is_running(self):
         if all([hasattr(a, "ttg") for a in self.agents.values()]):

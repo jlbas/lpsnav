@@ -5,15 +5,15 @@ from utils import helper
 
 
 class Rvo(Agent):
-    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal):
-        super().__init__(conf, id, policy, is_ego, max_speed, start, goal)
         self.neighbor_dist = conf["neighbor_dist"]
         self.max_neighbors = conf["max_neighbors"]
         self.time_horiz = conf["time_horiz"]
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
+        super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.expanded_radius = self.radius * conf["scaled_radius"]
 
-    def post_init(self, dt, agents):
-        super().post_init(dt, agents)
+    def post_init(self, dt, agents, walls):
+        super().post_init(dt, agents, walls)
         self.rvo_sim = rvo2.PyRVOSimulator(
             dt,
             self.neighbor_dist,
@@ -23,11 +23,14 @@ class Rvo(Agent):
             self.expanded_radius,
             self.max_speed,
         )
+        for wall in walls:
+            self.rvo_sim.addObstacle(list(wall.pts))
+        self.rvo_sim.processObstacles()
         self.rvo_agents = {self.id: self.rvo_sim.addAgent(tuple(self.pos))}
         for id, a in agents.items():
             self.rvo_agents[id] = self.rvo_sim.addAgent(tuple(a.pos))
 
-    def get_action(self, dt, agents):
+    def get_action(self, dt, agents, _walls):
         self.rvo_sim.setAgentPosition(self.rvo_agents[self.id], tuple(self.pos))
         self.rvo_sim.setAgentVelocity(self.rvo_agents[self.id], tuple(self.vel))
         for id, a in agents.items():

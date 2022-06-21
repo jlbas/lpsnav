@@ -4,8 +4,8 @@ from utils import helper
 
 
 class Lpnav(Agent):
-    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal):
-        super().__init__(conf, id, policy, is_ego, max_speed, start, goal)
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
+        super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.beta = conf["beta"]
         self.col_buffer = np.array(conf["col_buffer"])
         self.heading_samples = conf["heading_samples"]
@@ -36,8 +36,8 @@ class Lpnav(Agent):
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
 
-    def post_init(self, dt, agents):
-        super().post_init(dt, agents)
+    def post_init(self, dt, agents, walls):
+        super().post_init(dt, agents, walls)
         t_hist = np.linspace(dt, self.receding_horiz, int(self.receding_horiz / dt))
         self.pos_hist = self.pos - self.vel * t_hist[:, None]
         self.tau = {id: 0 for id in agents}
@@ -170,7 +170,7 @@ class Lpnav(Agent):
         goal_cost = np.where(inf_mask, np.inf, goal_cost)
         self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
 
-    def get_action(self, dt, agents):
+    def get_action(self, dt, agents, walls):
         self.update_abs_prims()
         self.update_abs_headings()
         self.update_abs_prim_vels()
@@ -185,7 +185,7 @@ class Lpnav(Agent):
             self.compute_prim_pred(id, a)
             self.check_if_legible(id)
             self.update_tau(id, a)
-        self.remove_col_prims(agents)
+        self.remove_col_prims(dt, agents, walls)
         if np.all(self.col_mask):
             self.des_speed = 0
             self.des_heading = self.heading

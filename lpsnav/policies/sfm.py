@@ -5,8 +5,8 @@ from utils import helper
 
 
 class Sfm(Agent):
-    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal):
-        super().__init__(conf, id, policy, is_ego, max_speed, start, goal)
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
+        super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.tau = conf["tau"]
         self.sigma = conf["sigma"]
         self.v_ab0 = conf["v_ab0"]
@@ -54,7 +54,7 @@ class Sfm(Agent):
             w = self.dir_weight(self.e_a, -f_ab)
             self.ped_force += w * f_ab
 
-    def get_action(self, dt, agents):
+    def get_action(self, dt, agents, _walls):
         self.get_goal_force()
         self.get_ped_force(agents)
         self.tot_force = self.goal_force + self.ped_force

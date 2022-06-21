@@ -19,31 +19,61 @@ class Patches:
 
 
 class Animate:
-    def __init__(self, config):
-        self.conf = config
+    def __init__(self, conf):
+        self.show_ani = conf["show_ani"]
+        self.save_ani = conf["save_ani"]
+        self.save_ani_as_pdf = conf["save_ani_as_pdf"]
+        self.ani_dir = conf["ani_dir"]
+        self.show_plot = conf["show_plot"]
+        self.save_plot = conf["save_plot"]
+        self.plot_dir = conf["plot_dir"]
+        self.plot_body = conf["plot_body"]
+        self.body_interval = conf["body_interval"]
+        self.plot_traj = conf["plot_traj"]
+        self.speed = conf["speed"]
+        self.autoplay = conf["autoplay"]
+        self.dpi = conf["dpi"]
+        self.follow_ego = conf["follow_ego"]
         self.agents = {}
         self.agent_logs = {}
-        self.conf["dark_background"] and plt.style.use("dark_background")
+        conf["dark_background"] and plt.style.use("dark_background")
         plt.style.use("./config/paper.mplstyle")
 
-    def ani(self, i, agents, logs, patches, last_frame, plt, fig):
+    def ani(self, i, agents, ego_id, logs, patches, walls, wall_plots, last_frame, plt, fig):
         for (id, p), log in zip(patches.items(), logs.values()):
-            p.path.set_xy(log.pos[: i + 1])
-            p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + log.pos[i])
-            p.body.center = log.pos[i]
-        i == last_frame - 1 and self.conf["autoplay"] and plt.close(fig)
-        return flatten([sub_p for p in patches.values() for sub_p in p])
+            if self.follow_ego and ego_id is not None:
+                if id == ego_id:
+                    p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]))
+                    p.path.set_xy(log.pos[: i + 1] - log.pos[i])
+                else:
+                    rel_pos = log.pos[i] - logs[ego_id].pos[i]
+                    p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + rel_pos)
+                    p.body.center = rel_pos
+                    p.path.set_xy(log.pos[: i + 1] - logs[ego_id].pos[i])
+                for wall, wall_plt in zip(walls, wall_plots):
+                    wall_plt.set_data(*np.transpose(wall - logs[ego_id].pos[i]))
+            else:
+                p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + log.pos[i])
+                p.body.center = log.pos[i]
+                p.path.set_xy(log.pos[: i + 1])
+        i == last_frame - 1 and self.autoplay and plt.close(fig)
+        return flatten([sub_p for p in patches.values() for sub_p in p] + wall_plots)
 
-    def init_ani(self, dt, agents, logs, fname):
-        figsize = (1920 / self.conf["dpi"], 1080 / self.conf["dpi"])
-        fig, ax = plt.subplots(constrained_layout=True, figsize=figsize, dpi=self.conf["dpi"])
+    def init_ani(self, dt, ego_id, agents, logs, walls, fname):
+        figsize = (1920 / self.dpi, 1080 / self.dpi)
+        fig, ax = plt.subplots(constrained_layout=True, figsize=figsize, dpi=self.dpi)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         ax.axis("scaled")
         ax.axis("off")
-        x, y = np.concatenate([log.pos for log in logs.values()]).T
-        x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
-        pad = 4 * max([a.radius for a in agents.values()])
-        ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
+        if self.follow_ego:
+            x = 5
+            ratio = figsize[0] / figsize[1]
+            ax.axis([-x, x, -x / ratio, x / ratio])
+        else:
+            x, y = np.concatenate([log.pos for log in logs.values()]).T
+            x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
+            pad = 4 * max([a.radius for a in agents.values()])
+            ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
         patches = {id: Patches() for id in agents}
         for id, a in agents.items():
             patches[id].goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
@@ -62,27 +92,28 @@ class Animate:
             patches[id].body = Circle((0, 0), a.radius, color=a.color, zorder=id + 2)
         for patch in flatten([p for id in agents for p in patches[id]]):
             ax.add_patch(patch)
-        buf = os.path.join(self.conf["ani_dir"], fname)
+        wall_plots = [ax.plot(*np.transpose(wall), lw=5, c="sienna", solid_capstyle="round")[0] for wall in walls]
+        buf = os.path.join(self.ani_dir, fname)
         frames = max([len(log.pos) for log in logs.values()])
         ani = FuncAnimation(
             fig,
             self.ani,
             frames=frames,
-            interval=int(1000 / self.conf["speed"] * dt),
-            fargs=(agents, logs, patches, frames, plt, fig),
+            interval=int(1000 / self.speed * dt),
+            fargs=(agents, ego_id, logs, patches, walls, wall_plots, frames, plt, fig),
             blit=True,
             repeat=False,
         )
-        if self.conf["save_ani"]:
-            os.makedirs(self.conf["ani_dir"], exist_ok=True)
-            fps = int(self.conf["speed"] / dt)
+        if self.save_ani:
+            os.makedirs(self.ani_dir, exist_ok=True)
+            fps = int(self.speed / dt)
             ani.save(f"{buf}.mp4", writer="ffmpeg", fps=fps)
-        if self.conf["save_ani_as_pdf"]:
-            os.makedirs(self.conf["ani_dir"], exist_ok=True)
+        if self.save_ani_as_pdf:
+            os.makedirs(self.ani_dir, exist_ok=True)
             ani.save(f"{buf}.pdf", writer="imagemagick")
-        self.conf["show_ani"] and plt.show() or plt.close()
+        self.show_ani and plt.show() or plt.close()
 
-    def plot(self, dt, agents, logs, fname):
+    def plot(self, dt, agents, logs, walls, fname):
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         ax.axis("square")
@@ -98,7 +129,7 @@ class Animate:
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * max([a.radius for a in agents.values()])
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-        step = int(self.conf["body_interval"] / dt)
+        step = int(self.body_interval / dt)
         sample_slice = slice(None, None, step)
         first_inattentive = True
         for (id, a), log in zip(agents.items(), logs.values()):
@@ -108,11 +139,11 @@ class Animate:
                     a.goal_tol,
                     ec=a.color,
                     fill=None,
-                    lw=0.5,
+                    lw=1,
                     zorder=2 * len(agents) + id,
                 )
             )
-            if self.conf["plot_traj"]:
+            if self.plot_traj:
                 if (a.policy != "inattentive") or (a.policy == "inattentive" and first_inattentive):
                     label = a.policy
                     first_inattentive = False
@@ -122,12 +153,12 @@ class Animate:
                     np.array(log.pos)[:, 0],
                     np.array(log.pos)[:, 1],
                     c=a.color,
-                    lw=0.5,
+                    lw=1,
                     solid_capstyle="round",
                     zorder=len(agents) + id,
                     label=label,
                 )
-            if self.conf["plot_body"]:
+            if self.plot_body:
                 hls_color = colorsys.rgb_to_hls(*mc.to_rgb(a.color))
                 sampled_traj = log.pos[sample_slice]
                 lightness_range = np.linspace(
@@ -140,12 +171,14 @@ class Animate:
                     s, ec = (hls_color[2], a.color)
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, s)
                     ax.add_patch(Circle(pos, a.radius, fc=c, ec=ec, lw=0.1, zorder=zorder))
-        if self.conf["save_plot"]:
-            os.makedirs(self.conf["plot_dir"], exist_ok=True)
-            plt.savefig(os.path.join(self.conf["plot_dir"], f"{fname}.pdf"))
-        self.conf["show_plot"] and plt.show() or plt.close()
+        for wall in walls:
+            ax.plot(*np.transpose(wall), lw=5, c="sienna", solid_capstyle="round")
+        if self.save_plot:
+            os.makedirs(self.plot_dir, exist_ok=True)
+            plt.savefig(os.path.join(self.plot_dir, f"{fname}.pdf"))
+        self.show_plot and plt.show() or plt.close()
 
-    def overlay(self, dt, fname):
+    def overlay(self, dt, walls, fname):
         max_len = max([len(getattr(log, k)) for log in self.agent_logs.values() for k in vars(log)])
         for log in self.agent_logs.values():
             for k in vars(log):
@@ -153,15 +186,15 @@ class Animate:
                 pad_len = max_len - len(arr)
                 pad_width = (0, pad_len) if arr.ndim == 1 else [(0, pad_len), (0, 0)]
                 setattr(log, k, np.pad(arr, pad_width, mode="edge"))
-        self.animate(dt, self.agents, self.agent_logs, fname, overlay=True)
+        self.animate(dt, self.agents, self.agent_logs, walls, fname, overlay=True)
         self.agents.clear()
         self.agent_logs.clear()
 
-    def animate(self, dt, agents, logs, fname, overlay):
-        if any((self.conf["show_ani"], self.conf["save_ani"], self.conf["save_ani_as_pdf"])):
-            self.init_ani(dt, agents, logs, fname)
-        if any((self.conf["show_plot"], self.conf["save_plot"])):
-            self.plot(dt, agents, logs, fname)
+    def animate(self, dt, agents, logs, walls, fname, overlay, ego_id=None):
+        if any((self.show_ani, self.save_ani, self.save_ani_as_pdf)):
+            self.init_ani(dt, ego_id, agents, logs, walls, fname)
+        if any((self.show_plot, self.save_plot)):
+            self.plot(dt, agents, logs, walls, fname)
         if overlay:
             self.agents.update(agents)
             self.agent_logs.update(logs)

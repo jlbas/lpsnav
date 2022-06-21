@@ -3,7 +3,7 @@ from utils import helper
 
 
 class Agent:
-    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal):
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, _rng):
         self.id = id
         self.name = conf["name"]
         self.color = conf["color"]
@@ -29,7 +29,8 @@ class Agent:
         self.prim_horiz = conf["prim_horiz"]
         self.kinematics = conf["kinematics"]
         self.sensing_dist = conf["sensing_dist"]
-        self.col_horiz = conf["col_horiz"]
+        self.agent_col_horiz = conf["agent_col_horiz"]
+        self.wall_col_horiz = conf["wall_col_horiz"]
         self.heading = helper.angle(self.goal - self.start)
         self.speed = np.clip(conf.get("init_speed", self.max_speed), self.min_speed, self.max_speed)
         self.vel = self.speed * helper.vec(self.heading)
@@ -54,12 +55,12 @@ class Agent:
             + f"max_speed={self.max_speed:.2f}"
         )
 
-    def post_init(self, _dt, _agents):
+    def post_init(self, _dt, _agents, _walls):
         pass
 
     def goal_check(self, time):
         if helper.dist(self.pos, self.goal) <= self.goal_tol:
-            self.ttg = time
+            self.ttg = time - getattr(self, "start_time", 0)
 
     def update_abs_prims(self):
         self.abs_prims = self.pos + helper.rotate(self.rel_prims, self.heading)
@@ -70,17 +71,21 @@ class Agent:
     def update_abs_prim_vels(self):
         self.abs_prim_vels = np.multiply.outer(self.speeds, helper.vec(self.abs_headings))
 
-    def remove_col_prims(self, agents):
+    def remove_col_prims(self, dt, agents, walls):
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
         goal_dist = helper.dist(self.pos, self.goal)
-        for t in np.linspace(0, self.col_horiz, 10):
+        buffer = 0.2 * self.speed / self.max_speed
+        for t in np.linspace(0, self.agent_col_horiz, int(0.5 * self.agent_col_horiz / dt)):
             ego_pred = self.pos + t * self.abs_prim_vels
             for a in [a for a in agents.values() if helper.dist(self.pos, a.pos) < 1.2 * goal_dist]:
                 a_pred = a.pos + t * a.vel
-                buffer = 0.2 * self.speed / self.max_speed
                 self.col_mask |= helper.dist(ego_pred, a_pred) < self.radius + a.radius + buffer
+        for t in np.linspace(0, self.wall_col_horiz, int(0.5 * self.wall_col_horiz / dt)):
+            ego_pred = self.pos + t * self.abs_prim_vels
+            for wall in walls:
+                self.col_mask |= helper.dist_to_line_seg(ego_pred, *wall) < self.radius + buffer
 
-    def get_action(self, _dt, _agents):
+    def get_action(self, _dt, _agents, _walls):
         self.des_speed = self.max_speed
         self.des_heading = helper.angle(self.goal - self.pos)
 

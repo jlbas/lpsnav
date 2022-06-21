@@ -22,8 +22,8 @@ def is_feasible(positions, min_dist):
     return True
 
 
-def init_agents(base_id, s_conf, a_conf, rng):
-    starts, goals, max_speeds = get_init_configs(s_conf, a_conf, rng)
+def init_scenario(base_id, s_conf, e_conf, a_conf, rng):
+    starts, goals, max_speeds, walls = get_init_configuration(s_conf, e_conf, a_conf, rng)
     other_policy = s_conf["policy"] if s_conf["homogeneous"] else s_conf["human_model"]
     policies = [s_conf["policy"]] + (len(starts) - 1) * [other_policy]
     ids = range(base_id * len(policies), (base_id + 1) * len(policies))
@@ -33,11 +33,12 @@ def init_agents(base_id, s_conf, a_conf, rng):
         cls = getattr(module, "".join(wd.capitalize() for wd in p.split("_")))
         is_ego = i == 0
         merged_conf = {**{k: v for k, v in a_conf.items() if not isinstance(v, dict)}, **a_conf[p]}
-        agents[id] = cls(merged_conf, id, p, is_ego, v_max, s, g)
-    return agents
+        agents[id] = cls(merged_conf, id, p, is_ego, v_max, s, g, rng)
+    return agents, walls
 
 
-def get_init_configs(s_conf, a_conf, rng):
+def get_init_configuration(s_conf, e_conf, a_conf, rng):
+    walls = np.array(e_conf.get("walls", []), dtype="float64")
     if s_conf["name"] == "predefined":
         x = s_conf["long_dist"] / 2
         y = 2 * a_conf["radius"] + s_conf["lat_dist"]
@@ -91,4 +92,4 @@ def get_init_configs(s_conf, a_conf, rng):
     bound = 0.01
     starts += rng.uniform(-bound, bound, np.shape(starts))
     goals += rng.uniform(-bound, bound, np.shape(goals))
-    return starts, goals, max_speeds
+    return starts, goals, max_speeds, walls
