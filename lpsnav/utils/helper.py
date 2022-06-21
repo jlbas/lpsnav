@@ -37,10 +37,6 @@ def in_front(pos, th, pt):
     return np.sum((pt - pos) * vec(th), axis=-1) > 0
 
 
-def remove_zero_arrs(list):
-    return [arr for arr in list if not np.all(arr == 0)]
-
-
 def clip(vec, mag):
     scale = min(1, mag / np.linalg.norm(vec))
     return scale * vec
@@ -114,6 +110,22 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
     den = proj_pt_speed + proj_line_speed
     with np.errstate(divide="ignore"):
         t = d / den
+    t = np.where(t <= 0, np.inf, t)
+    return np.nan_to_num(t)
+
+
+def dist_to_line_seg(pt, seg0, seg1):
+    t = np.dot(pt - seg0, seg1 - seg0) / np.linalg.norm(seg1 - seg0)**2
+    t = np.minimum(1, np.maximum(0, t))
+    return np.linalg.norm(seg0 + t[...,None] * (seg1 - seg0) - pt, axis=-1)
+
+
+def cost_to_line_th(p1, p1_speed, p2, p2_vel, th):
+    dx, dy = np.subtract(p1, p2).T
+    d = np.abs(np.cos(th) * dy - np.sin(th) * dx)
+    proj_p2_speed = np.sum(vec(th) * p2_vel, axis=-1)
+    with np.errstate(divide="ignore"):
+        t = d / (p1_speed + proj_p2_speed)
     t = np.where(t <= 0, np.inf, t)
     return np.nan_to_num(t)
 
