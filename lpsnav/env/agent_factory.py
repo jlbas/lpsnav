@@ -37,6 +37,12 @@ def init_scenario(base_id, s_conf, e_conf, a_conf, rng):
     return agents, walls
 
 
+def get_random_pos(rng, length, width=None, num=1):
+    if width is None:
+        return length * (rng.random((num, 2)) - 0.5)
+    return np.column_stack((length * (rng.random(num) - 0.5), width * (rng.random(num) - 0.5)))
+
+
 def get_init_configuration(s_conf, e_conf, a_conf, rng):
     walls = np.array(e_conf.get("walls", []), dtype="float64")
     if s_conf["name"] == "predefined":
@@ -72,11 +78,30 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         )
         min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         for _ in range(s_conf["max_init_attempts"]):
-            starts = s_conf["workspace_length"] * rng.random((s_conf["number_of_agents"], 2))
-            goals = s_conf["workspace_length"] * rng.random((s_conf["number_of_agents"], 2))
+            starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
+            goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
             far_enough = np.all(helper.dist(starts[0], goals[0]) > s_conf["min_start_goal_sep"])
             if feasible and far_enough:
+                break
+        else:
+            raise AttemptsExceededError(s_conf["max_init_attempts"])
+    elif s_conf["name"] == "hallway":
+        x = s_conf["length"]
+        y = s_conf["width"] / 2
+        scenario_walls = np.array([[[-x, -y], [x, -y]], [[-x, y], [x, y]]])
+        walls = np.vstack((walls, scenario_walls)) if np.any(walls) else scenario_walls
+        max_speeds = rng.uniform(
+            s_conf["min_des_speed"], s_conf["max_des_speed"], size=s_conf["number_of_agents"]
+        )
+        min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
+        for _ in range(s_conf["max_init_attempts"]):
+            starts = get_random_pos(rng, s_conf["length"], s_conf["width"] - 2 * a_conf["radius"], s_conf["number_of_agents"])
+            starts[0][0] = -s_conf["length"] / 2
+            goals = starts - np.array([s_conf["length"], 0])
+            goals[0][0] = s_conf["length"] / 2
+            feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
+            if feasible:
                 break
         else:
             raise AttemptsExceededError(s_conf["max_init_attempts"])
