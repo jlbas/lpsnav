@@ -130,6 +130,8 @@ v_ab0 = 2.1
 phi = 1.7453
 c = 0.5
 step_width = 2
+u_ab0 = 10
+R = 0.2
 
 [agent.social_momentum]
 name = "SM"

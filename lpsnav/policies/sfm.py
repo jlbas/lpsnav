@@ -13,6 +13,8 @@ class Sfm(Agent):
         self.phi = conf["phi"]
         self.c = conf["c"]
         self.step_width = conf["step_width"]
+        self.u_ab0 = conf["u_ab0"]
+        self.R = conf["R"]
         self.goal_force = np.zeros(2)
         self.ped_force = np.zeros(2)
         self.tot_force = np.zeros(2)
@@ -27,11 +29,11 @@ class Sfm(Agent):
         arg_2 = v_b * dt
         b = 0.5 * smp.sqrt((arg_11 + arg_12) ** 2 - arg_2**2)
         v_ab = v_ab0 * smp.exp(-b / sigma)
-        partial_r_abx = smp.diff(v_ab, r_abx)
-        partial_r_aby = smp.diff(v_ab, r_aby)
         self.grad_v_ab = smp.lambdify(
-            (r_abx, r_aby, v_b, dt, e_bx, e_by, sigma, v_ab0), [partial_r_abx, partial_r_aby]
+            (r_abx, r_aby, v_b, dt, e_bx, e_by, sigma, v_ab0), [smp.diff(v_ab, r_abx), smp.diff(v_ab, r_aby)]
         )
+        u_ab = self.u_ab0 * smp.exp(-arg_11 / self.R)
+        self.grad_u_ab = smp.lambdify((r_abx, r_aby), [smp.diff(u_ab, r_abx), smp.diff(u_ab, r_aby)])
 
     def dir_weight(self, e, f):
         return 1 if np.dot(e, f) >= np.linalg.norm(f) * np.cos(self.phi) else self.c
@@ -54,10 +56,17 @@ class Sfm(Agent):
             w = self.dir_weight(self.e_a, -f_ab)
             self.ped_force += w * f_ab
 
-    def get_action(self, dt, agents, _walls):
+    def get_borders_force(self, walls):
+        self.borders_force = np.zeros(2)
+        for wall in walls:
+            r_ab = -helper.nearest_pt_on_line_seg(self.pos, *wall)
+            self.borders_force -= np.array(self.grad_u_ab(*r_ab))
+
+    def get_action(self, dt, agents, walls):
         self.get_goal_force()
         self.get_ped_force(agents)
-        self.tot_force = self.goal_force + self.ped_force
+        self.get_borders_force(walls)
+        self.tot_force = self.goal_force + self.ped_force + self.borders_force
         des_vel = helper.clip(self.vel + self.tot_force * dt, self.max_speed)
         self.des_speed = np.linalg.norm(des_vel)
         self.des_heading = helper.wrap_to_pi(helper.angle(des_vel))

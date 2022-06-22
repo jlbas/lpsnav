@@ -115,9 +115,13 @@ def directed_cost_to_line(pos, pt_vel, line, line_vel):
 
 
 def dist_to_line_seg(pt, seg0, seg1):
+    return np.linalg.norm(nearest_pt_on_line_seg(pt, seg0, seg1), axis=-1)
+
+
+def nearest_pt_on_line_seg(pt, seg0, seg1):
     t = np.dot(pt - seg0, seg1 - seg0) / np.linalg.norm(seg1 - seg0)**2
     t = np.minimum(1, np.maximum(0, t))
-    return np.linalg.norm(seg0 + t[...,None] * (seg1 - seg0) - pt, axis=-1)
+    return seg0 + t[...,None] * (seg1 - seg0) - pt
 
 
 def cost_to_line_th(p1, p1_speed, p2, p2_vel, th):
