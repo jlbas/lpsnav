@@ -50,6 +50,7 @@ class Animate:
                     p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + rel_pos)
                     p.body.center = rel_pos
                     p.path.set_xy(log.pos[: i + 1] - logs[ego_id].pos[i])
+                p.goal.center = agents[id].goal - logs[ego_id].pos[i]
                 for wall, wall_plt in zip(walls, wall_plots):
                     wall_plt.set_data(*np.transpose(wall - logs[ego_id].pos[i]))
             else:
