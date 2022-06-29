@@ -102,7 +102,7 @@ col_horiz = 1
 name = "Inattentive"
 color = "#8c8787"
 
-[agent.lpnav]
+[agent.lpsnav]
 name = "LPSNav"
 color = "#785ef0"
 legibility_tol = 1.1

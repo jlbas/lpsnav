@@ -28,7 +28,7 @@ def get_interactions(conf, env):
                 env.logs[id].vel,
                 line_heading,
             )
-            < conf["agent"]["lpnav"]["sensing_horiz"]
+            < conf["agent"]["lpsnav"]["sensing_horiz"]
         )
         is_interacting = in_front & in_radius & in_horiz
         start_idx = np.argmax(is_interacting)
@@ -43,7 +43,7 @@ def get_interactions(conf, env):
                 env.logs[id].vel,
                 int_heading,
             )
-            < conf["agent"]["lpnav"]["sensing_horiz"]
+            < conf["agent"]["lpsnav"]["sensing_horiz"]
         )
         is_interacting = in_front & in_radius & in_horiz
         rem = is_interacting[start_idx:]
@@ -68,7 +68,7 @@ def get_interactions(conf, env):
 
 def get_int_costs(conf, env, interactions):
     int_costs = {}
-    receding_steps = int(conf["agent"]["lpnav"]["receding_horiz"] / env.dt)
+    receding_steps = int(conf["agent"]["lpsnav"]["receding_horiz"] / env.dt)
     for id, interaction in interactions.items():
         init_receded_pos = (
             env.logs[env.ego_id].pos[0]
@@ -79,7 +79,7 @@ def get_int_costs(conf, env, interactions):
         )[interaction.int_slice]
         receded_line = (
             interaction.int_line[:, interaction.int_slice]
-            - env.logs[id].vel[interaction.int_slice] * conf["agent"]["lpnav"]["receding_horiz"]
+            - env.logs[id].vel[interaction.int_slice] * conf["agent"]["lpsnav"]["receding_horiz"]
         )
         receded_start_line = (
             interaction.int_line[:, interaction.int_slice]
@@ -100,7 +100,7 @@ def get_int_costs(conf, env, interactions):
             interaction.int_line_heading[interaction.int_slice],
             env.logs[id].vel[interaction.int_slice],
         )
-        cost_rtg = conf["agent"]["lpnav"]["receding_horiz"] + cost_tg
+        cost_rtg = conf["agent"]["lpsnav"]["receding_horiz"] + cost_tg
         cost_sg = helper.dynamic_pt_cost(
             env.logs[env.ego_id].pos[interaction.int_idx[0]],
             scaled_speed,
@@ -117,7 +117,7 @@ def get_goal_inference(conf, _env, int_costs):
     for id, int_cost in int_costs.items():
         arg = int_cost.rg - int_cost.rtg
         goal_infs[id] = np.exp(arg) * np.expand_dims(
-            conf["agent"]["lpnav"]["subgoal_priors"], axis=-1
+            conf["agent"]["lpsnav"]["subgoal_priors"], axis=-1
         )
         goal_infs[id] /= np.sum(goal_infs[id], axis=0)
     return goal_infs

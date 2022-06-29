@@ -3,7 +3,7 @@ from policies.agent import Agent
 from utils import helper
 
 
-class Lpnav(Agent):
+class Lpsnav(Agent):
     def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
         super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.beta = conf["beta"]
