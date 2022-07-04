@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from env.env import Env
-from env.agent_factory import init_scenario
+from env.scenario_factory import init_scenario
 from utils.animation import Animate
 from utils.config import load_config
 from utils.eval import Eval
