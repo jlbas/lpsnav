@@ -71,7 +71,9 @@ class Animate:
             ratio = figsize[0] / figsize[1]
             ax.axis([-x, x, -x / ratio, x / ratio])
         else:
-            x, y = np.concatenate([log.pos for log in logs.values()]).T
+            a_pos = [log.pos for log in logs.values()]
+            wall_pos = list(np.reshape(walls, (1, -1, 2)))
+            x, y = np.concatenate(a_pos + wall_pos).T
             x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
             pad = 4 * max([a.radius for a in agents.values()])
             ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
@@ -126,7 +128,9 @@ class Animate:
         ax.tick_params(length=0, pad=2)
         ax.xaxis.labelpad = 1
         ax.yaxis.labelpad = 1
-        x, y = np.concatenate([log.pos for log in logs.values()]).T
+        a_pos = [log.pos for log in logs.values()]
+        wall_pos = list(np.reshape(walls, (1, -1, 2)))
+        x, y = np.concatenate(a_pos + wall_pos).T
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * max([a.radius for a in agents.values()])
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
