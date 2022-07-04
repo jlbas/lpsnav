@@ -34,6 +34,8 @@ def run(s_name, config, s_configs):
     comp_vals = [str(v) for v in val_as_list(config["scenario"][s_name][comparison_param])]
     fname = "_".join([s_name] + comp_vals)
     eval.get_summary(fname)
+    if config["eval"]["relative_increase"]:
+        eval.get_summary(f"{fname}_rel_inc", True)
 
 
 def main():

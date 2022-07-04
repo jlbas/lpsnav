@@ -382,10 +382,15 @@ class Eval:
         buf = os.path.join(self.conf["eval"]["df_dir"], f"{fname}_df.csv")
         self.conf["eval"]["save_df"] and self.df.to_csv(buf)
 
-    def get_summary(self, fname):
+    def get_summary(self, fname, relative_increase=False):
         df = self.df.copy()
         for k in [k for k, v in self.metrics.items() if k in df and v.units == '%']:
             df[k] *= 100
+        if relative_increase:
+            for k in [k for k in self.metrics if k in df]:
+                human_df = df[df.policy == self.conf["scenario"]["human_model"]][k]
+                human_vals = np.repeat(human_df, len(set(self.df.policy))).values
+                df[k] = 100 * (df[k].values - human_vals) / human_vals
         if self.conf["eval"]["only_valid"]:
             invalid_idx = df[df.failure == 1].i.drop_duplicates().to_list()
             metrics = [m_k for m_k, m_v in self.metrics.items() if m_v.only_valid]
