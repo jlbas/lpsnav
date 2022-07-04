@@ -346,7 +346,6 @@ class Eval:
     def print_df(self, fname, df):
         for v in df[self.comp_param].drop_duplicates().to_list():
             means = df[df[self.comp_param] == v].groupby("policy", as_index=False).mean()
-            means[[k for k, v in self.metrics.items() if k in means and v.units == "%"]] *= 100
             for k, v in [(k, v) for k, v in self.metrics.items() if k in means]:
                 means[k] = means[k].round(v.decimals)
                 means[k] = means[k].map(lambda x: f"<{x}>" if x == v.opt_func(means[k]) else x)
@@ -385,6 +384,8 @@ class Eval:
 
     def get_summary(self, fname):
         df = self.df.copy()
+        for k in [k for k, v in self.metrics.items() if k in df and v.units == '%']:
+            df[k] *= 100
         if self.conf["eval"]["only_valid"]:
             invalid_idx = df[df.failure == 1].i.drop_duplicates().to_list()
             metrics = [m_k for m_k, m_v in self.metrics.items() if m_v.only_valid]
