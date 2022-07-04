@@ -40,3 +40,20 @@ def flatten(list_of_lists):
             yield from flatten(list)
         else:
             yield list
+
+
+def get_scenario_name(s_name, config):
+    if "scenario" in config:
+        if "comparison_param" in config["scenario"][s_name]:
+            comparison_param = config["scenario"][s_name]["comparison_param"]
+            comp_vals = [str(v) for v in val_as_list(config["scenario"][s_name][comparison_param])]
+            fname = "_".join([s_name] + comp_vals)
+        else:
+            fname = s_name
+    else:
+        if "comparison_param" not in config:
+            fname = "_".join([s_name, config["policy"], str(config["iter"])])
+        else:
+            comp_val = str(config[config["comparison_param"]])
+            fname = "_".join([s_name, comp_val, config["policy"], str(config["iter"])])
+    return fname

@@ -260,7 +260,7 @@ class Metric:
 class Eval:
     def __init__(self, conf, s_configs):
         self.conf = conf
-        self.comp_param = s_configs[0]["comparison_param"]
+        self.comp_param = s_configs[0].get("comparison_param")
         self.feats = {
             "interactions": Feature(get_interactions),
             "int_costs": Feature(get_int_costs, ["interactions"]),
@@ -344,19 +344,18 @@ class Eval:
         self.conf["eval"]["show_inf"] and plt.show() or plt.close()
 
     def print_df(self, fname, df):
-        for v in df[self.comp_param].drop_duplicates().to_list():
-            means = df[df[self.comp_param] == v].groupby("policy", as_index=False).mean()
-            for k, v in [(k, v) for k, v in self.metrics.items() if k in means]:
-                means[k] = means[k].round(v.decimals)
-                means[k] = means[k].map(lambda x: f"<{x}>" if x == v.opt_func(means[k]) else x)
-            colalign = ["left" if k == "policy" else "right" for k in means]
-            md = means.to_markdown(index=False, colalign=colalign)
-            self.conf["eval"]["show_tbl"] and print(fname, md, sep="\n")
-            if self.conf["eval"]["save_tbl"]:
-                os.makedirs(self.conf["eval"]["tbl_dir"], exist_ok=True)
-                means = means.applymap(lambda x: str(x).replace("<", "\\textbf{").replace(">", "}"))
-                buf = os.path.join(self.conf["eval"]["tbl_dir"], f"{fname}.latex")
-                means.style.to_latex(buf=buf, hrules=True)
+        means = df.groupby("policy", as_index=False).mean()
+        for k, v in [(k, v) for k, v in self.metrics.items() if k in means]:
+            means[k] = means[k].round(v.decimals)
+            means[k] = means[k].map(lambda x: f"<{x}>" if x == v.opt_func(means[k]) else x)
+        colalign = ["left" if k == "policy" else "right" for k in means]
+        md = means.to_markdown(index=False, colalign=colalign)
+        self.conf["eval"]["show_tbl"] and print(fname, md, sep="\n")
+        if self.conf["eval"]["save_tbl"]:
+            os.makedirs(self.conf["eval"]["tbl_dir"], exist_ok=True)
+            means = means.applymap(lambda x: str(x).replace("<", "\\textbf{").replace(">", "}"))
+            buf = os.path.join(self.conf["eval"]["tbl_dir"], f"{fname}.latex")
+            means.style.to_latex(buf=buf, hrules=True)
 
     def plot_df(self, fname, df):
         palette = {p: self.conf["agent"][p]["color"] for p in list(set(self.df["policy"]))}
@@ -395,9 +394,14 @@ class Eval:
             invalid_idx = df[df.failure == 1].i.drop_duplicates().to_list()
             metrics = [m_k for m_k, m_v in self.metrics.items() if m_v.only_valid]
             df.loc[df.index[df.i.isin(invalid_idx)], metrics] = np.nan
-        df = df[["policy", self.comp_param] + list(set(self.conf["eval"]["metrics"]) & set(df))]
+        first_cols = ["policy", self.comp_param] if self.comp_param else ["policy"]
+        df = df[first_cols + list(set(self.conf["eval"]["metrics"]) & set(df))]
         if self.conf["eval"]["show_tbl"] or self.conf["eval"]["save_tbl"]:
-            self.print_df(fname, df)
+            if self.comp_param is None:
+                self.print_df(fname, df)
+            else:
+                for v in df[self.comp_param].drop_duplicates().to_list():
+                    self.print_df(fname, df[df[self.comp_param] == v])
         if self.conf["eval"]["show_bar_chart"] or self.conf["eval"]["save_bar_chart"]:
             self.plot_df(fname, df)
         if self.conf["eval"]["save_df"]:
