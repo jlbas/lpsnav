@@ -153,13 +153,18 @@ def eval_others_failure(_conf, env):
     return np.mean([not hasattr(env.agents[id], "ttg") for id in env.agents if id != env.ego_id])
 
 
-def eval_efficiency(_conf, env):
-    if hasattr(env.agents[env.ego_id], "ttg"):
-        path_len = np.sum(np.linalg.norm(np.diff(env.logs[env.ego_id].pos, axis=0), axis=-1))
-        goal_dist = helper.dist(env.agents[env.ego_id].start, env.agents[env.ego_id].goal)
-        opt_path = goal_dist - env.agents[env.ego_id].goal_tol
+def eval_efficiency(_conf, env, id=None):
+    id = env.ego_id if id is None else id
+    if hasattr(env.agents[id], "ttg"):
+        path_len = np.sum(np.linalg.norm(np.diff(env.logs[id].pos, axis=0), axis=-1))
+        goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
+        opt_path = goal_dist - env.agents[id].goal_tol
         return 0 if not path_len else opt_path / path_len
     return np.nan
+
+
+def eval_others_efficiency(conf, env):
+    return np.nanmean([eval_efficiency(conf, env, id) for id in env.agents if id != env.ego_id])
 
 
 def eval_irregularity(_conf, env):
@@ -273,6 +278,7 @@ class Eval:
             "failure": Metric("Failure Rate", "%", 0, min, eval_failure, only_valid=False),
             "others_failure": Metric("Others' Failure Rate", "%", 0, min, eval_others_failure, only_valid=False),
             "efficiency": Metric("Path Efficiency", "%", 2, max, eval_efficiency),
+            "others_efficiency": Metric("Others' Path Efficiency", "%", 2, max, eval_others_efficiency),
             "irregularity": Metric("Path Irregularity", "rad/m", 4, min, eval_irregularity),
             "others_irregularity": Metric("Others' Path Irregularity", "rad/m", 4, min, eval_others_irregularity),
             "legibility": Metric(
