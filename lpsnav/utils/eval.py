@@ -167,15 +167,14 @@ def eval_others_efficiency(conf, env):
     return np.nanmean([eval_efficiency(conf, env, id) for id in env.agents if id != env.ego_id])
 
 
-def eval_irregularity(_conf, env):
-    goal_heading = helper.angle(env.agents[env.ego_id].goal - env.logs[env.ego_id].pos)
-    return np.mean(np.abs(env.logs[env.ego_id].heading - goal_heading))
-
-
-def eval_others_irregularity(_conf, env, id=None):
+def eval_irregularity(_conf, env, id=None):
     id = env.ego_id if id is None else id
     goal_heading = helper.angle(env.agents[id].goal - env.logs[id].pos)
     return np.mean(np.abs(env.logs[id].heading - goal_heading))
+
+
+def eval_others_irregularity(conf, env):
+    return np.nanmean([eval_irregularity(conf, env, id) for id in env.agents if id != env.ego_id])
 
 
 def eval_legibility(_conf, env, interactions, goal_inferences):
