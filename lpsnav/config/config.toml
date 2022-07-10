@@ -20,6 +20,8 @@ configuration = "swap"
 lat_dist = 0.7
 long_dist = 7
 comparison_param = "configuration"
+iters = 100
+scale = 1
 
 [scenario.random]
 number_of_agents = [5, 7, 9, 11]

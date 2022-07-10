@@ -71,6 +71,8 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
         else:
             raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
+        starts += rng.normal(scale=s_conf["scale"], size=np.shape(starts))
+        goals += rng.normal(scale=s_conf["scale"], size=np.shape(goals))
         max_speeds = np.full(len(starts), a_conf["max_speed"])
     elif s_conf["name"] == "random":
         max_speeds = rng.normal(
