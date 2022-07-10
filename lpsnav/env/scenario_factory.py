@@ -83,7 +83,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
-            far_enough = np.all(helper.dist(starts[0], goals[0]) > s_conf["min_start_goal_sep"])
+            far_enough = np.all(helper.dist(starts, goals) > s_conf["min_start_goal_sep"])
             if feasible and far_enough:
                 break
         else:
