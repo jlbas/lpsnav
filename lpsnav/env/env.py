@@ -37,7 +37,6 @@ class Env:
     def __init__(self, conf, agents, walls):
         self.dt = conf["dt"]
         self.max_duration = conf["max_duration"]
-        self.inactive_outside_ego_range = conf["inactive_outside_ego_range"]
         self.active_range = conf["active_range"]
         self.agents = agents
         self.active_agents = []
