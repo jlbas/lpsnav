@@ -27,8 +27,8 @@ iters = 100
 workspace_length = 8
 min_start_goal_sep = 4
 min_start_buffer = 0.5
-min_des_speed = 0.9
-max_des_speed = 1.1
+des_speed_mean = 1.36
+des_speed_std_dev = 0.19
 max_init_attempts = 10000
 comparison_param = "number_of_agents"
 
@@ -46,8 +46,8 @@ perp_agents = 0
 width = 3
 door_width = 1
 min_start_buffer = 1
-min_des_speed = 0.7
-max_des_speed = 1.5
+des_speed_mean = 1.36
+des_speed_std_dev = 0.19
 max_init_attempts = 10000
 comparison_param = "number_of_agents"
 

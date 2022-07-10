@@ -73,8 +73,8 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
         max_speeds = np.full(len(starts), a_conf["max_speed"])
     elif s_conf["name"] == "random":
-        max_speeds = rng.uniform(
-            s_conf["min_des_speed"], s_conf["max_des_speed"], size=s_conf["number_of_agents"]
+        max_speeds = rng.normal(
+            s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
         )
         min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         for _ in range(s_conf["max_init_attempts"]):
@@ -90,7 +90,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         x = s_conf["length"]
         y = s_conf["width"] / 2
         n = 1 + s_conf["par_agents"] + s_conf["perp_agents"]
-        max_speeds = rng.uniform(s_conf["min_des_speed"], s_conf["max_des_speed"], size=n)
+        max_speeds = rng.normal(s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=n)
         min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         lb = s_conf["length"] - 2 * a_conf["radius"]
         wb = s_conf["width"] - 2 * a_conf["radius"]
