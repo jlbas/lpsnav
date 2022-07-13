@@ -146,6 +146,20 @@ def eval_others_extra_ttg(conf, env):
     return np.nanmean([eval_extra_ttg(conf, env, id) for id in env.agents if id != env.ego_id])
 
 
+def eval_extra_dist(conf, env, id=None):
+    id = env.ego_id if id is None else id
+    if hasattr(env.agents[id], "ttg"):
+        goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
+        goal_dist -= conf["agent"]["goal_tol"]
+        path_len = helper.path_len(env.logs[id].pos)
+        return path_len - goal_dist
+    return np.nan
+
+
+def eval_others_extra_dist(conf, env):
+    return np.nanmean([eval_extra_dist(conf, env, id) for id in env.agents if id != env.ego_id])
+
+
 def eval_failure(_conf, env):
     return 0 if hasattr(env.agents[env.ego_id], "ttg") else 1
 
@@ -276,6 +290,8 @@ class Eval:
         self.metrics = {
             "extra_ttg": Metric("Extra Time-to-Goal", "%", 2, min, eval_extra_ttg),
             "others_extra_ttg": Metric("Others' Extra Time-to-Goal", "%", 2, min, eval_others_extra_ttg, only_valid=False),
+            "extra_dist": Metric("Extra Distance", "m", 2, min, eval_extra_dist),
+            "others_extra_dist": Metric("Others' Extra Distance", "m", 2, min, eval_others_extra_dist, only_valid=False),
             "failure": Metric("Failure Rate", "%", 0, min, eval_failure, only_valid=False),
             "others_failure": Metric("Others' Failure Rate", "%", 0, min, eval_others_failure, only_valid=False),
             "efficiency": Metric("Path Efficiency", "%", 2, max, eval_efficiency),
