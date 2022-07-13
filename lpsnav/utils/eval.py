@@ -157,7 +157,7 @@ def eval_others_failure(_conf, env):
 def eval_efficiency(conf, env, id=None):
     id = env.ego_id if id is None else id
     if hasattr(env.agents[id], "ttg"):
-        path_len = np.sum(np.linalg.norm(np.diff(env.logs[id].pos, axis=0), axis=-1))
+        path_len = helper.path_len(env.logs[id].pos)
         goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
         goal_dist -= conf["agent"]["goal_tol"]
         opt_path = goal_dist - env.agents[id].goal_tol

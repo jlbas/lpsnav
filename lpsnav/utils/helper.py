@@ -21,6 +21,10 @@ def dist(A, B):
     return np.sqrt(np.sum(np.square(difference), axis=-1))
 
 
+def path_len(path):
+    return np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
+
+
 def wrap_to_pi(th):
     return np.arctan2(np.sin(th), np.cos(th))
 
