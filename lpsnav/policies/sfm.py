@@ -55,6 +55,7 @@ class Sfm(Agent):
             )
             w = self.dir_weight(self.e_a, -f_ab)
             self.ped_force += w * f_ab
+            self.ped_force = np.nan_to_num(self.ped_force)
 
     def get_borders_force(self, walls):
         self.borders_force = np.zeros(2)
