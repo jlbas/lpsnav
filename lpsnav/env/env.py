@@ -37,9 +37,7 @@ class Env:
     def __init__(self, conf, agents, walls):
         self.dt = conf["dt"]
         self.max_duration = conf["max_duration"]
-        self.active_range = conf["active_range"]
         self.agents = agents
-        self.active_agents = []
         self.walls = walls
         self.ego_id = list(agents.values())[0].id
         self.max_step = int(self.max_duration / self.dt)
@@ -81,21 +79,11 @@ class Env:
         return walls
 
     def update(self):
-        old_active_agents = self.active_agents.copy()
-        self.active_agents = []
         for a in self.agents.values():
-            if helper.dist(a.pos, self.agents[self.ego_id].pos) <= self.active_range:
-                self.active_agents.append(a)
-                if not hasattr(a, "start_time"):
-                    a.start_time = self.time
-        for a in old_active_agents:
-            if a not in self.active_agents and not a.collided:
-                a.goal = a.pos
-        for a in self.active_agents:
             agent_obs = self.sense_agents(a)
             wall_obs = self.sense_walls(a)
             a.get_action(self.dt, agent_obs, wall_obs)
-        for a in self.active_agents:
+        for a in self.agents.values():
             a.step(self.dt)
         self.time += self.dt
         self.step += 1

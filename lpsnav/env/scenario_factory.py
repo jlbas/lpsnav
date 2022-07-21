@@ -97,11 +97,11 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         lb = s_conf["length"] - 2 * a_conf["radius"]
         wb = s_conf["width"] - 2 * a_conf["radius"]
         for _ in range(s_conf["max_init_attempts"]):
+            ego_start = np.array([[-1.5 * s_conf["length"], 0]])
             par_starts = get_random_pos(rng, lb, wb, s_conf["par_agents"])
             perp_starts = np.sort(get_random_pos(rng, lb, 1, s_conf["perp_agents"]), axis=0)
-            perp_starts[:,1] += e_conf["active_range"] / np.sqrt(2)
+            perp_starts[:,1] += helper.dist(ego_start, perp_starts)
             perp_starts[:,1] *= rng.choice([1, -1], s_conf["perp_agents"])
-            ego_start = np.array([[-1.5 * s_conf["length"], 0]])
             starts = np.concatenate((ego_start, par_starts, perp_starts))
             par_goals = par_starts - np.array([s_conf["length"], 0])
             perp_goals = perp_starts * np.array([1, -1])
