@@ -384,7 +384,6 @@ class Eval:
         palette = {p: self.conf["agent"][p]["color"] for p in list(set(self.df["policy"]))}
         for k, v in [(k, v) for k, v in self.metrics.items() if k in df]:
             ax = sns.barplot(x=self.comp_param, y=k, hue="policy", data=df, palette=palette)
-            ax.legend(loc="lower left")
             for text in ax.legend_.texts:
                 text.set_text(text._text.replace("_", " ").title())
             # if k != "min_pass_inf":
