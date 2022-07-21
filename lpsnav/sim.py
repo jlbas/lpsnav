@@ -31,8 +31,6 @@ def run(s_name, config, s_configs):
             ani.overlay(env.dt, walls, fname.replace(s_conf["policy"], "overlay"))
     fname = get_scenario_name(s_name, config)
     eval.get_summary(fname)
-    if config["eval"]["relative_increase"]:
-        eval.get_summary(f"{fname}_rel_inc", True)
 
 
 def main():

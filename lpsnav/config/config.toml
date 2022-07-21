@@ -85,7 +85,6 @@ save_bar_chart = true
 bar_chart_dir = "data/bar_charts"
 save_df = false
 df_dir = "data/dataframes"
-relative_increase = true
 
 [agent]
 radius = 0.25
