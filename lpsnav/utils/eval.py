@@ -136,7 +136,7 @@ def eval_extra_ttg(conf, env, id=None):
     id = env.ego_id if id is None else id
     if hasattr(env.agents[id], "ttg"):
         goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
-        goal_dist -= conf["agent"]["goal_tol"]
+        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
         opt_ttg = goal_dist / env.agents[id].max_speed
         return (env.agents[id].ttg - opt_ttg) / opt_ttg
     return np.nan
@@ -150,7 +150,7 @@ def eval_extra_dist(conf, env, id=None):
     id = env.ego_id if id is None else id
     if hasattr(env.agents[id], "ttg"):
         goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
-        goal_dist -= conf["agent"]["goal_tol"]
+        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
         path_len = helper.path_len(env.logs[id].pos)
         return path_len - goal_dist
     return np.nan
@@ -173,7 +173,7 @@ def eval_efficiency(conf, env, id=None):
     if hasattr(env.agents[id], "ttg"):
         path_len = helper.path_len(env.logs[id].pos)
         goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
-        goal_dist -= conf["agent"]["goal_tol"]
+        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
         opt_path = goal_dist - env.agents[id].goal_tol
         return 0 if not path_len else opt_path / path_len
     return np.nan
