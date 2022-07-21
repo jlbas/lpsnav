@@ -45,6 +45,7 @@ def main():
     for s_name in val_as_list(config["scenario"]["name"]):
         s_configs = format_scenarios(s_name, config)
         run(s_name, config, s_configs)
+    print("Completed all scenarios")
 
 
 if __name__ == "__main__":
