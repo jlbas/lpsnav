@@ -124,3 +124,4 @@ class Env:
         for log in self.logs.values():
             for k in vars(log):
                 setattr(log, k, getattr(log, k)[: self.step + 1])
+        self.time_log = np.around(np.linspace(0, self.time, self.step + 1), 3)
