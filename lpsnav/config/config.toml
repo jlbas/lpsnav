@@ -37,18 +37,6 @@ number_of_agents = [4, 5, 8, 13]
 radius = [3, 3, 4, 5]
 comparison_param = "number_of_agents"
 
-[scenario.hallway]
-iters = 100
-number_of_agents = 7
-length = 20
-par_agents = 3
-perp_agents = 0
-width = 3
-door_width = 1
-min_start_buffer = 1
-des_speed_mean = 1.36
-des_speed_std_dev = 0.19
-comparison_param = "number_of_agents"
 
 [animation]
 show_ani = true

@@ -93,45 +93,6 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
                 break
         else:
             raise AttemptsExceededError(e_conf["max_init_attempts"])
-    elif s_conf["name"] == "hallway":
-        x = s_conf["length"]
-        y = s_conf["width"] / 2
-        n = 1 + s_conf["par_agents"] + s_conf["perp_agents"]
-        max_speeds = rng.normal(s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=n)
-        lb = s_conf["length"] - 2 * a_conf["radius"]
-        wb = s_conf["width"] - 2 * a_conf["radius"]
-            ego_start = np.array([[-1.5 * s_conf["length"], 0]])
-        for _ in range(e_conf["max_init_attempts"]):
-            par_starts = get_random_pos(rng, lb, wb, s_conf["par_agents"])
-            perp_starts = np.sort(get_random_pos(rng, lb, 1, s_conf["perp_agents"]), axis=0)
-            perp_starts[:,1] += helper.dist(ego_start, perp_starts)
-            perp_starts[:,1] *= rng.choice([1, -1], s_conf["perp_agents"])
-            starts = np.concatenate((ego_start, par_starts, perp_starts))
-            par_goals = par_starts - np.array([s_conf["length"], 0])
-            perp_goals = perp_starts * np.array([1, -1])
-            ego_goal = np.array([[s_conf["length"] / 2, 0]])
-            goals = np.concatenate((ego_goal, par_goals, perp_goals))
-            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist):
-                if s_conf["walls"]:
-                    if s_conf["perp_agents"]:
-                        x_offset = perp_starts[0][0] - s_conf["door_width"] / 2
-                        wall = np.array([[-3 * x / 2, y], [x_offset, y]])
-                        s_walls = np.tile(wall, (2 * (s_conf["perp_agents"] + 1), 1, 1))
-                        for i in range(1, s_conf["perp_agents"]):
-                            pt0 = [s_walls[i-1][1][0] + s_conf["door_width"], y]
-                            pt1 = [perp_starts[i][0] - s_conf["door_width"] / 2, y]
-                            s_walls[i] = np.array([pt0, pt1])
-                        pt0 = [s_walls[s_conf["perp_agents"]-1][1][0] + s_conf["door_width"], y]
-                        pt1 = [x / 2, y]
-                        s_walls[s_conf["perp_agents"]] = np.array([pt0, pt1])
-                        mirrored_walls = np.array([1, -1]) * s_walls[:s_conf["perp_agents"]+1]
-                        s_walls[s_conf["perp_agents"]+1:] = mirrored_walls
-                    else:
-                        s_walls = np.array([[[-x / 2, y], [x / 2, y]], [[-x / 2, -y], [x / 2, -y]]])
-                    walls = np.vstack((walls, s_walls)) if np.any(walls) else s_walls.copy()
-                break
-        else:
-            raise AttemptsExceededError(e_conf["max_init_attempts"])
     elif s_conf["name"] == "circle":
         thetas = np.linspace(
             0, 2 * np.pi * (1 - 1 / s_conf["number_of_agents"]), s_conf["number_of_agents"]
