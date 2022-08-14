@@ -79,7 +79,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         max_speeds = rng.normal(
             s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
         )
-        for _ in range(s_conf["max_init_attempts"]):
+        for i in range(e_conf["max_init_attempts"]):
             starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
@@ -87,7 +87,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             if feasible and far_enough:
                 break
         else:
-            raise AttemptsExceededError(s_conf["max_init_attempts"])
+            raise AttemptsExceededError(e_conf["max_init_attempts"])
     elif s_conf["name"] == "hallway":
         x = s_conf["length"]
         y = s_conf["width"] / 2
@@ -95,8 +95,8 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         max_speeds = rng.normal(s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=n)
         lb = s_conf["length"] - 2 * a_conf["radius"]
         wb = s_conf["width"] - 2 * a_conf["radius"]
-        for _ in range(s_conf["max_init_attempts"]):
             ego_start = np.array([[-1.5 * s_conf["length"], 0]])
+        for _ in range(e_conf["max_init_attempts"]):
             par_starts = get_random_pos(rng, lb, wb, s_conf["par_agents"])
             perp_starts = np.sort(get_random_pos(rng, lb, 1, s_conf["perp_agents"]), axis=0)
             perp_starts[:,1] += helper.dist(ego_start, perp_starts)
@@ -126,7 +126,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
                     walls = np.vstack((walls, s_walls)) if np.any(walls) else s_walls.copy()
                 break
         else:
-            raise AttemptsExceededError(s_conf["max_init_attempts"])
+            raise AttemptsExceededError(e_conf["max_init_attempts"])
     elif s_conf["name"] == "circle":
         thetas = np.linspace(
             0, 2 * np.pi * (1 - 1 / s_conf["number_of_agents"]), s_conf["number_of_agents"]

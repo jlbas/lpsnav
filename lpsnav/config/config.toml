@@ -4,6 +4,7 @@ progress_bar = true
 [env]
 dt = 0.05
 max_duration = 30
+max_init_attempts = 10000
 
 # passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
 [scenario]
@@ -29,7 +30,6 @@ min_start_goal_sep = 4
 min_start_buffer = 0.5
 des_speed_mean = 1.36
 des_speed_std_dev = 0.19
-max_init_attempts = 10000
 comparison_param = "number_of_agents"
 
 [scenario.circle]
@@ -48,7 +48,6 @@ door_width = 1
 min_start_buffer = 1
 des_speed_mean = 1.36
 des_speed_std_dev = 0.19
-max_init_attempts = 10000
 comparison_param = "number_of_agents"
 
 [animation]
