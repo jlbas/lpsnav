@@ -60,6 +60,7 @@ show_tbl = true
 save_tbl = false
 tbl_dir = "data/tables"
 metrics = ["extra_ttg", "failure", "min_pass_inf"]
+tracked_metrics = ["mpd"]
 inferences = ["left", "right"]
 show_inf = false
 save_inf = false
@@ -69,6 +70,9 @@ show_bar_chart = false
 save_bar_chart = true
 bar_chart_dir = "data/bar_charts"
 save_df = false
+show_tracked_metrics = false
+save_tracked_metrics = false
+tracked_metrics_dir = "data/tracked_metrics"
 df_dir = "data/dataframes"
 
 [agent]
