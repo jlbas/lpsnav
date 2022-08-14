@@ -1,5 +1,13 @@
+/* figure.figsize: 1.6, 1.6 */
+/* figure.figsize: 1.28, 1.28 */
+/* font.size: 6 */
+/* axes.labelsize: 6 */
+/* axes.titlesize: 6 */
+/* xtick.labelsize: 6 */
+/* ytick.labelsize: 6 */
+/* legend.fontsize: 6 */
+
 figure.figsize: 7.8, 3
- 
 font.size: 12
 axes.labelsize: 10
 axes.titlesize: 12
