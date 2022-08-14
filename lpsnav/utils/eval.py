@@ -341,7 +341,7 @@ class Metric:
     f_args: list[str] = field(default_factory=list)
     only_valid: bool = True
 
-    def __repr__(self):
+    def __str__(self):
         return f"{self.name} ({self.units})"
 
     def __call__(self, *args):
