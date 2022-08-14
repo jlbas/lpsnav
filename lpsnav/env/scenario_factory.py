@@ -45,6 +45,7 @@ def get_random_pos(rng, length, width=None, num=1):
 
 def get_init_configuration(s_conf, e_conf, a_conf, rng):
     walls = np.array(e_conf.get("walls", []), dtype="float64")
+    min_dist = 2 * a_conf["radius"] + e_conf["min_start_buffer"]
     if s_conf["name"] == "predefined":
         x = s_conf["long_dist"] / 2
         y = 2 * a_conf["radius"] + s_conf["lat_dist"]
@@ -78,7 +79,6 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         max_speeds = rng.normal(
             s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
         )
-        min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         for _ in range(s_conf["max_init_attempts"]):
             starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
@@ -93,7 +93,6 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         y = s_conf["width"] / 2
         n = 1 + s_conf["par_agents"] + s_conf["perp_agents"]
         max_speeds = rng.normal(s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=n)
-        min_dist = 2 * a_conf["radius"] + s_conf["min_start_buffer"]
         lb = s_conf["length"] - 2 * a_conf["radius"]
         wb = s_conf["width"] - 2 * a_conf["radius"]
         for _ in range(s_conf["max_init_attempts"]):
