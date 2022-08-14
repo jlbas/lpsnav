@@ -47,34 +47,39 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
     walls = np.array(e_conf.get("walls", []), dtype="float64")
     min_dist = 2 * a_conf["radius"] + e_conf["min_start_buffer"]
     if s_conf["name"] == "predefined":
-        x = s_conf["long_dist"] / 2
-        y = 2 * a_conf["radius"] + s_conf["lat_dist"]
-        if s_conf["configuration"] == "swap":
-            starts = np.array([[-x, 0], [x, 0]])
-            goals = starts[::-1]
-        elif s_conf["configuration"] == "pass":
-            starts = np.array([[-x, 0], [x, y]])
-            goals = np.array([-1, 1]) * starts
-        elif s_conf["configuration"] == "acute":
-            starts = np.array([[-x, 0], [-x + 0.5, -y]])
-            goals = -starts
-        elif s_conf["configuration"] == "obtuse":
-            starts = np.array([[-x, 0], [x - 0.5, y]])
-            goals = -starts
-        elif s_conf["configuration"] == "split":
-            starts = np.array([[-x, 0], [x, y], [x, -y]])
-            goals = np.array([-1, 1]) * starts
-        elif s_conf["configuration"] == "t_junction":
-            starts = [[-x, 0], [0, -x]]
-            goals = np.array([[-1, 1], [1, -1]]) * starts
-        elif s_conf["configuration"] == "2_agent_t_junction":
-            starts = np.array([[-x, 0], [-y / 2, x], [y / 2, -x]])
-            goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
+        for _ in range(e_conf["max_init_attempts"]):
+            x = s_conf["long_dist"] / 2
+            y = 2 * a_conf["radius"] + s_conf["lat_dist"]
+            if s_conf["configuration"] == "swap":
+                starts = np.array([[-x, 0], [x, 0]])
+                goals = starts[::-1]
+            elif s_conf["configuration"] == "pass":
+                starts = np.array([[-x, 0], [x, y]])
+                goals = np.array([-1, 1]) * starts
+            elif s_conf["configuration"] == "acute":
+                starts = np.array([[-x, 0], [-x + 0.5, -y]])
+                goals = -starts
+            elif s_conf["configuration"] == "obtuse":
+                starts = np.array([[-x, 0], [x - 0.5, y]])
+                goals = -starts
+            elif s_conf["configuration"] == "split":
+                starts = np.array([[-x, 0], [x, y], [x, -y]])
+                goals = np.array([-1, 1]) * starts
+            elif s_conf["configuration"] == "t_junction":
+                starts = [[-x, 0], [0, -x]]
+                goals = np.array([[-1, 1], [1, -1]]) * starts
+            elif s_conf["configuration"] == "2_agent_t_junction":
+                starts = np.array([[-x, 0], [-y / 2, x], [y / 2, -x]])
+                goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
+            else:
+                raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
+            starts += rng.normal(scale=s_conf["scale"], size=np.shape(starts))
+            goals += rng.normal(scale=s_conf["scale"], size=np.shape(goals))
+            max_speeds = np.full(len(starts), a_conf["max_speed"])
+            if is_feasible(starts, min_dist) and is_feasible(goals, min_dist):
+                break
         else:
-            raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
-        starts += rng.normal(scale=s_conf["scale"], size=np.shape(starts))
-        goals += rng.normal(scale=s_conf["scale"], size=np.shape(goals))
-        max_speeds = np.full(len(starts), a_conf["max_speed"])
+            raise AttemptsExceededError(e_conf["max_init_attempts"])
     elif s_conf["name"] == "random":
         max_speeds = rng.normal(
             s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
