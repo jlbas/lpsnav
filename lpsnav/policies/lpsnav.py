@@ -40,39 +40,39 @@ class Lpsnav(Agent):
         super().post_init(dt, agents, walls)
         t_hist = np.linspace(dt, self.receding_horiz, int(self.receding_horiz / dt))
         self.pos_hist = self.pos - self.vel * t_hist[:, None]
-        self.tau = {id: 0 for id in agents}
-        self.int_start = {id: -1 for id in agents}
-        self.col_width = {id: self.radius + a.radius + self.col_buffer for id, a in agents.items()}
-        self.rel_int_line = {id: np.array([[0, -cw], [0, cw]]) for id, cw in self.col_width.items()}
+        self.tau = {k: 0 for k in agents}
+        self.int_start = {k: -1 for k in agents}
+        self.col_width = {k: self.radius + a.radius + self.col_buffer for k, a in agents.items()}
+        self.rel_int_line = {k: np.array([[0, -cw], [0, cw]]) for k, cw in self.col_width.items()}
 
     def update_int_line(self, agents):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
         self.rel_int_lines = {}
-        for id, a in agents.items():
-            self.rel_int_lines[id] = helper.rotate(self.rel_int_line[id], self.int_line_heading)
-            self.int_lines[id] = self.rel_int_lines[id] + a.pos
+        for k, a in agents.items():
+            self.rel_int_lines[k] = helper.rotate(self.rel_int_line[k], self.int_line_heading)
+            self.int_lines[k] = self.rel_int_lines[k] + a.pos
 
     def get_interacting_agents(self, agents):
         self.interacting_agents = {}
-        for id, a in agents.items():
+        for k, a in agents.items():
             time_to_interaction = helper.cost_to_line(
-                self.pos, self.speed, self.int_lines[id], a.vel
+                self.pos, self.speed, self.int_lines[k], a.vel
             )
             in_radius = helper.dist(self.pos, a.pos) < self.sensing_dist
             in_horiz = time_to_interaction < self.sensing_horiz
-            intersecting = helper.is_intersecting(self.pos, self.goal, *self.int_lines[id])
+            intersecting = helper.is_intersecting(self.pos, self.goal, *self.int_lines[k])
             if in_radius and in_horiz and intersecting:
-                self.interacting_agents[id] = a
+                self.interacting_agents[k] = a
 
     def predict_pos(self, id, agent):
         self.pred_pos[id] = agent.pos + agent.vel * self.prim_horiz
         self.pred_int_lines[id] = self.pred_pos[id] + self.rel_int_lines[id]
 
-    def update_int_start(self, id):
-        if id in self.interacting_agents:
-            self.int_start[id] = 1 if self.int_start[id] == -1 else 0
+    def update_int_start(self, k):
+        if k in self.interacting_agents:
+            self.int_start[k] = 1 if self.int_start[k] == -1 else 0
         else:
-            self.int_start[id] = -1
+            self.int_start[k] = -1
 
     def get_int_costs(self, id, agent):
         receded_line = self.int_lines[id] - agent.vel * self.receding_horiz
@@ -151,10 +151,10 @@ class Lpsnav(Agent):
 
     def get_leg_pred_prims(self, dt):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
-        for id in self.interacting_agents:
-            new_score = (1 - self.tau[id]) * self.prim_leg_score[id] + self.tau[
-                id
-            ] * self.prim_pred_score[id]
+        for k in self.interacting_agents:
+            new_score = (1 - self.tau[k]) * self.prim_leg_score[k] + self.tau[
+                k
+            ] * self.prim_pred_score[k]
             score = np.minimum(score, np.max(new_score, axis=0))
         score = np.where(self.col_mask, -np.inf, score)
         is_max = score == np.max(score)
@@ -176,15 +176,15 @@ class Lpsnav(Agent):
         self.update_abs_prim_vels()
         self.update_int_line(agents)
         self.get_interacting_agents(agents)
-        for id, a in agents.items():
-            self.predict_pos(id, a)
-            self.update_int_start(id)
-            self.get_int_costs(id, a)
-            self.compute_leg(id)
-            self.compute_prim_leg(id)
-            self.compute_prim_pred(id, a)
-            self.check_if_legible(id)
-            self.update_tau(id, a)
+        for k, a in agents.items():
+            self.predict_pos(k, a)
+            self.update_int_start(k)
+            self.get_int_costs(k, a)
+            self.compute_leg(k)
+            self.compute_prim_leg(k)
+            self.compute_prim_pred(k, a)
+            self.check_if_legible(k)
+            self.update_tau(k, a)
         self.remove_col_prims(dt, agents, walls)
         if np.all(self.col_mask):
             self.des_speed = 0

@@ -27,15 +27,15 @@ class Rvo(Agent):
             self.rvo_sim.addObstacle(list(wall.pts))
         self.rvo_sim.processObstacles()
         self.rvo_agents = {self.id: self.rvo_sim.addAgent(tuple(self.pos))}
-        for id, a in agents.items():
-            self.rvo_agents[id] = self.rvo_sim.addAgent(tuple(a.pos))
+        for k, a in agents.items():
+            self.rvo_agents[k] = self.rvo_sim.addAgent(tuple(a.pos))
 
     def get_action(self, dt, agents, _walls):
         self.rvo_sim.setAgentPosition(self.rvo_agents[self.id], tuple(self.pos))
         self.rvo_sim.setAgentVelocity(self.rvo_agents[self.id], tuple(self.vel))
-        for id, a in agents.items():
-            self.rvo_sim.setAgentPosition(self.rvo_agents[id], tuple(a.pos))
-            self.rvo_sim.setAgentVelocity(self.rvo_agents[id], tuple(a.vel))
+        for k, a in agents.items():
+            self.rvo_sim.setAgentPosition(self.rvo_agents[k], tuple(a.pos))
+            self.rvo_sim.setAgentVelocity(self.rvo_agents[k], tuple(a.vel))
         pref_vel = self.max_speed * helper.unit_vec(self.goal - self.pos)
         self.rvo_sim.setAgentPrefVelocity(self.rvo_agents[self.id], tuple(pref_vel))
         self.rvo_sim.doStep()

@@ -26,17 +26,17 @@ def get_interactions(conf, env):
     interactions = {}
     goal_vec = env.logs[env.ego_id].pos - env.agents[env.ego_id].goal
     line_heading = helper.wrap_to_pi(helper.angle(goal_vec))
-    for id in list(env.agents)[1:]:
-        inter_dist = helper.dist(env.logs[env.ego_id].pos, env.logs[id].pos)
+    for k in list(env.agents)[1:]:
+        inter_dist = helper.dist(env.logs[env.ego_id].pos, env.logs[k].pos)
         in_radius = inter_dist < conf["agent"]["sensing_dist"]
 
-        in_front = helper.in_front(env.logs[id].pos, line_heading, env.logs[env.ego_id].pos)
+        in_front = helper.in_front(env.logs[k].pos, line_heading, env.logs[env.ego_id].pos)
         in_horiz = (
             helper.cost_to_line_th(
                 env.logs[env.ego_id].pos,
                 env.logs[env.ego_id].speed,
-                env.logs[id].pos,
-                env.logs[id].vel,
+                env.logs[k].pos,
+                env.logs[k].vel,
                 line_heading,
             )
             < conf["agent"]["lpsnav"]["sensing_horiz"]
@@ -45,13 +45,13 @@ def get_interactions(conf, env):
         start_idx = np.argmax(is_interacting)
         int_heading = np.full(line_heading.shape, line_heading[start_idx])
 
-        in_front = helper.in_front(env.logs[id].pos, int_heading, env.logs[env.ego_id].pos)
+        in_front = helper.in_front(env.logs[k].pos, int_heading, env.logs[env.ego_id].pos)
         in_horiz = (
             helper.cost_to_line_th(
                 env.logs[env.ego_id].pos,
                 env.logs[env.ego_id].speed,
-                env.logs[id].pos,
-                env.logs[id].vel,
+                env.logs[k].pos,
+                env.logs[k].vel,
                 int_heading,
             )
             < conf["agent"]["lpsnav"]["sensing_horiz"]
@@ -60,27 +60,27 @@ def get_interactions(conf, env):
         rem = is_interacting[start_idx:]
         end_idx = start_idx + (len(rem) - 1 if np.all(rem) else np.argmin(rem))
 
-        col_width = env.agents[env.ego_id].radius + env.agents[id].radius
+        col_width = env.agents[env.ego_id].radius + env.agents[k].radius
         rel_int_line = np.array([[0, -col_width], [0, col_width]])
         abs_int_line = helper.rotate(rel_int_line, int_heading)
-        line = abs_int_line + env.logs[id].pos
+        line = abs_int_line + env.logs[k].pos
         if env.dt * (end_idx - start_idx) > 1:
             th = helper.angle(np.diff(line[:, end_idx], axis=0))
             right = helper.in_front(
-                env.logs[id].pos[end_idx], th, env.logs[env.ego_id].pos[end_idx]
+                env.logs[k].pos[end_idx], th, env.logs[env.ego_id].pos[end_idx]
             )
             pass_idx = 1 if right else 0
             int_idx = [start_idx, end_idx]
             int_slice = slice(start_idx, end_idx + 1)
             int_t = env.dt * np.arange(start_idx, end_idx + 1)
-            interactions[id] = Interaction(int_idx, int_slice, int_t, line, int_heading, pass_idx)
+            interactions[k] = Interaction(int_idx, int_slice, int_t, line, int_heading, pass_idx)
     return interactions
 
 
 def get_int_costs(conf, env, interactions):
     int_costs = {}
     receding_steps = int(conf["agent"]["lpsnav"]["receding_horiz"] / env.dt)
-    for id, interaction in interactions.items():
+    for k, interaction in interactions.items():
         init_receded_pos = (
             env.logs[env.ego_id].pos[0]
             - env.dt * np.arange(receding_steps + 1, 1, -1)[:, None] * env.logs[env.ego_id].vel[0]
@@ -90,26 +90,26 @@ def get_int_costs(conf, env, interactions):
         )[interaction.int_slice]
         receded_line = (
             interaction.int_line[:, interaction.int_slice]
-            - env.logs[id].vel[interaction.int_slice] * conf["agent"]["lpsnav"]["receding_horiz"]
+            - env.logs[k].vel[interaction.int_slice] * conf["agent"]["lpsnav"]["receding_horiz"]
         )
         receded_start_line = (
             interaction.int_line[:, interaction.int_slice]
-            - env.logs[id].vel[interaction.int_slice] * interaction.int_t[:, None]
+            - env.logs[k].vel[interaction.int_slice] * interaction.int_t[:, None]
         )
-        scaled_speed = max(env.agents[env.ego_id].max_speed, env.agents[id].max_speed + 0.1)
+        scaled_speed = max(env.agents[env.ego_id].max_speed, env.agents[k].max_speed + 0.1)
         cost_rg = helper.dynamic_pt_cost(
             receded_pos,
             scaled_speed,
             receded_line,
             interaction.int_line_heading[interaction.int_slice],
-            env.logs[id].vel[interaction.int_slice],
+            env.logs[k].vel[interaction.int_slice],
         )
         cost_tg = helper.dynamic_pt_cost(
             env.logs[env.ego_id].pos[interaction.int_slice],
             scaled_speed,
             interaction.int_line[:, interaction.int_slice],
             interaction.int_line_heading[interaction.int_slice],
-            env.logs[id].vel[interaction.int_slice],
+            env.logs[k].vel[interaction.int_slice],
         )
         cost_rtg = conf["agent"]["lpsnav"]["receding_horiz"] + cost_tg
         cost_sg = helper.dynamic_pt_cost(
@@ -117,46 +117,46 @@ def get_int_costs(conf, env, interactions):
             scaled_speed,
             receded_start_line,
             interaction.int_line_heading[interaction.int_slice],
-            env.logs[id].vel[interaction.int_slice],
+            env.logs[k].vel[interaction.int_slice],
         )
-        int_costs[id] = IntCost(cost_rg, cost_rtg, cost_tg, cost_sg)
+        int_costs[k] = IntCost(cost_rg, cost_rtg, cost_tg, cost_sg)
     return int_costs
 
 
 def get_goal_inference(conf, _env, int_costs):
     goal_infs = {}
-    for id, int_cost in int_costs.items():
+    for k, int_cost in int_costs.items():
         arg = int_cost.rg - int_cost.rtg
-        goal_infs[id] = np.exp(arg) * np.expand_dims(
+        goal_infs[k] = np.exp(arg) * np.expand_dims(
             conf["agent"]["lpsnav"]["subgoal_priors"], axis=-1
         )
-        goal_infs[id] /= np.sum(goal_infs[id], axis=0)
+        goal_infs[k] /= np.sum(goal_infs[k], axis=0)
     return goal_infs
 
 
 def get_traj_inference(_conf, _env, interactions, int_costs):
     traj_inference = {}
-    for (id, interaction), int_cost in zip(interactions.items(), int_costs.values()):
+    for (k, interaction), int_cost in zip(interactions.items(), int_costs.values()):
         if np.diff(interaction.int_idx) > 1:
             cost_stg = interaction.int_t + int_cost.tg
-            traj_inference[id] = np.exp(int_cost.sg - cost_stg)
+            traj_inference[k] = np.exp(int_cost.sg - cost_stg)
     return traj_inference
 
 
 def get_mpd(_conf, env, interactions):
     mpd = Mpd()
-    for id, interaction in interactions.items():
+    for k, interaction in interactions.items():
         with np.errstate(invalid="ignore"):
             # mpd.vals[id] = gaussian_filter(mpd_fn(*mpd.args[id]), sigma=2)
-            mpd.vals[id] = mpd_fn(
+            mpd.vals[k] = mpd_fn(
                 *env.logs[env.ego_id].pos[interaction.int_slice].T,
-                *env.logs[id].pos[interaction.int_slice].T,
+                *env.logs[k].pos[interaction.int_slice].T,
                 env.logs[env.ego_id].speed[interaction.int_slice],
                 env.logs[env.ego_id].heading[interaction.int_slice],
-                env.logs[id].speed[interaction.int_slice],
-                env.logs[id].heading[interaction.int_slice],
+                env.logs[k].speed[interaction.int_slice],
+                env.logs[k].heading[interaction.int_slice],
             )
-            mpd.time[id] = interaction.int_t
+            mpd.time[k] = interaction.int_t
     return mpd
 
 
@@ -171,7 +171,7 @@ def eval_extra_ttg(conf, env, id=None):
 
 
 def eval_others_extra_ttg(conf, env):
-    return np.nanmean([eval_extra_ttg(conf, env, id) for id in env.agents if id != env.ego_id])
+    return np.nanmean([eval_extra_ttg(conf, env, k) for k in env.agents if k != env.ego_id])
 
 
 def eval_extra_dist(conf, env, id=None):
@@ -185,7 +185,7 @@ def eval_extra_dist(conf, env, id=None):
 
 
 def eval_others_extra_dist(conf, env):
-    return np.nanmean([eval_extra_dist(conf, env, id) for id in env.agents if id != env.ego_id])
+    return np.nanmean([eval_extra_dist(conf, env, k) for k in env.agents if k != env.ego_id])
 
 
 def eval_failure(_conf, env):
@@ -193,7 +193,7 @@ def eval_failure(_conf, env):
 
 
 def eval_others_failure(_conf, env):
-    return np.mean([not hasattr(env.agents[id], "ttg") for id in env.agents if id != env.ego_id])
+    return np.mean([not hasattr(env.agents[k], "ttg") for k in env.agents if k != env.ego_id])
 
 
 def eval_efficiency(conf, env, id=None):
@@ -208,7 +208,7 @@ def eval_efficiency(conf, env, id=None):
 
 
 def eval_others_efficiency(conf, env):
-    return np.nanmean([eval_efficiency(conf, env, id) for id in env.agents if id != env.ego_id])
+    return np.nanmean([eval_efficiency(conf, env, k) for k in env.agents if k != env.ego_id])
 
 
 def eval_irregularity(_conf, env, id=None):
@@ -218,24 +218,24 @@ def eval_irregularity(_conf, env, id=None):
 
 
 def eval_others_irregularity(conf, env):
-    return np.nanmean([eval_irregularity(conf, env, id) for id in env.agents if id != env.ego_id])
+    return np.nanmean([eval_irregularity(conf, env, k) for k in env.agents if k != env.ego_id])
 
 
 def eval_legibility(_conf, env, interactions, goal_inferences):
     leg_scores = {}
-    for (id, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
         t_discount = interaction.int_t[::-1]
         num = np.trapz(t_discount * goal_inf, dx=env.dt)
         den = np.trapz(t_discount, dx=env.dt)
-        leg_scores[id] = np.delete(num / den, 1)[interaction.passing_idx]
+        leg_scores[k] = np.delete(num / den, 1)[interaction.passing_idx]
     return np.mean(list(leg_scores.values())) if leg_scores else np.nan
 
 
 def eval_predictability(_conf, _env, traj_inferences):
     pred_scores = {}
-    for id, traj_inf in traj_inferences.items():
+    for k, traj_inf in traj_inferences.items():
         passing_sides = np.delete(traj_inf, 1, 0)
-        pred_scores[id] = np.max(passing_sides[:, -1])
+        pred_scores[k] = np.max(passing_sides[:, -1])
     return np.mean(list(pred_scores.values())) if pred_scores else np.nan
 
 
@@ -436,16 +436,16 @@ class Eval:
         t_lbls = [r"$P(\xi_{s\to t}\mid\mathcal{I}_L)$"]
         t_lbls.append(t_lbls[0].replace("L", "R"))
         fs = (self.tracked_metrics["goal_inferences"].val.items(), self.tracked_metrics["traj_inferences"].val.values())
-        for (id, g), t in zip(*fs):
+        for (k, g), t in zip(*fs):
             attrs = (g, t), (ax1, ax2), (g_lbls, t_lbls), (("--", ":"), ("-.", (9, (3, 1, 1, 1))))
             for inf, ax, lbls, lss in zip(*attrs):
                 step = int(self.conf["animation"]["body_interval"] / dt)
                 sample_slice = slice(None, None, step)
-                sampled_t = self.tracked_metrics["interactions"].val[id].int_t[sample_slice]
+                sampled_t = self.tracked_metrics["interactions"].val[k].int_t[sample_slice]
                 for idx, label, ls in zip((0, 2), lbls, lss):
-                    x, y = self.tracked_metrics["interactions"].val[id].int_t, inf[idx]
-                    ax.plot(x, y, lw=1, color=agents[id - 1].color, label=f"{id}:{label}", ls=ls)
-                    ax.scatter(sampled_t, inf[idx][sample_slice], color=agents[id - 1].color, s=8)
+                    x, y = self.tracked_metrics["interactions"].val[k].int_t, inf[idx]
+                    ax.plot(x, y, lw=1, color=agents[k - 1].color, label=f"{k}:{label}", ls=ls)
+                    ax.scatter(sampled_t, inf[idx][sample_slice], color=agents[k - 1].color, s=8)
         fig.legend(loc="lower left", bbox_to_anchor=(0, 0), bbox_transform=ax1.transAxes)
         if self.conf["eval"]["save_inf"]:
             os.makedirs(self.conf["eval"]["inf_dir"], exist_ok=True)

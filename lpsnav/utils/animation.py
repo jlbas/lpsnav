@@ -40,21 +40,21 @@ class Animate:
         plt.style.use("./config/paper.mplstyle")
 
     def ani(self, i, agents, ego_id, logs, patches, walls, wall_plots, last_frame, plt, fig):
-        for (id, p), log in zip(patches.items(), logs.values()):
+        for (k, p), log in zip(patches.items(), logs.values()):
             if self.follow_ego and ego_id is not None:
-                if id == ego_id:
-                    p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]))
+                if k == ego_id:
+                    p.triangle.set_xy(helper.rotate(agents[k].body_coords, log.heading[i]))
                     p.path.set_xy(log.pos[: i + 1] - log.pos[i])
                 else:
                     rel_pos = log.pos[i] - logs[ego_id].pos[i]
-                    p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + rel_pos)
+                    p.triangle.set_xy(helper.rotate(agents[k].body_coords, log.heading[i]) + rel_pos)
                     p.body.center = rel_pos
                     p.path.set_xy(log.pos[: i + 1] - logs[ego_id].pos[i])
-                p.goal.center = agents[id].goal - logs[ego_id].pos[i]
+                p.goal.center = agents[k].goal - logs[ego_id].pos[i]
                 for wall, wall_plt in zip(walls, wall_plots):
                     wall_plt.set_data(*np.transpose(wall - logs[ego_id].pos[i]))
             else:
-                p.triangle.set_xy(helper.rotate(agents[id].body_coords, log.heading[i]) + log.pos[i])
+                p.triangle.set_xy(helper.rotate(agents[k].body_coords, log.heading[i]) + log.pos[i])
                 p.body.center = log.pos[i]
                 p.path.set_xy(log.pos[: i + 1])
         i == last_frame - 1 and self.autoplay and plt.close(fig)
@@ -77,10 +77,10 @@ class Animate:
             x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
             pad = 4 * max([a.radius for a in agents.values()])
             ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
-        patches = {id: Patches() for id in agents}
-        for id, a in agents.items():
-            patches[id].goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
-            patches[id].path = Polygon(
+        patches = {k: Patches() for k in agents}
+        for k, a in agents.items():
+            patches[k].goal = Circle((a.goal), 0.05, color=a.color, fill=False, lw=3, zorder=1)
+            patches[k].path = Polygon(
                 ((0, 0), (0, 0)),
                 closed=False,
                 fill=False,
@@ -89,11 +89,11 @@ class Animate:
                 color=a.color,
                 capstyle="round",
             )
-            patches[id].triangle = Polygon(
-                a.body_coords, fc=ax.get_facecolor(), lw=4, zorder=id + 3
+            patches[k].triangle = Polygon(
+                a.body_coords, fc=ax.get_facecolor(), lw=4, zorder=k + 3
             )
-            patches[id].body = Circle((0, 0), a.radius, color=a.color, zorder=id + 2)
-        for patch in flatten([p for id in agents for p in patches[id]]):
+            patches[k].body = Circle((0, 0), a.radius, color=a.color, zorder=k + 2)
+        for patch in flatten([p for k in agents for p in patches[k]]):
             ax.add_patch(patch)
         wall_plots = [ax.plot(*np.transpose(wall), lw=5, c="sienna", solid_capstyle="round")[0] for wall in walls]
         buf = os.path.join(self.ani_dir, fname)
@@ -137,7 +137,7 @@ class Animate:
         step = int(self.body_interval / dt)
         sample_slice = slice(None, None, step)
         first_inattentive = True
-        for (id, a), log in zip(agents.items(), logs.values()):
+        for (k, a), log in zip(agents.items(), logs.values()):
             ax.add_patch(
                 Circle(
                     a.goal,
@@ -145,7 +145,7 @@ class Animate:
                     ec=a.color,
                     fill=None,
                     lw=1,
-                    zorder=2 * len(agents) + id,
+                    zorder=2 * len(agents) + k,
                 )
             )
             if self.plot_traj:
@@ -160,7 +160,7 @@ class Animate:
                     c=a.color,
                     lw=1,
                     solid_capstyle="round",
-                    zorder=len(agents) + id,
+                    zorder=len(agents) + k,
                     label=label,
                 )
             if self.plot_body:
@@ -171,7 +171,7 @@ class Animate:
                     1 - 0.2 * (1 - hls_color[1]),
                     len(sampled_traj),
                 )
-                zorder = id if a.policy != "inattentive" else -1
+                zorder = k if a.policy != "inattentive" else -1
                 for pos, lightness in zip(sampled_traj, lightness_range[::-1]):
                     s, ec = (hls_color[2], a.color)
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, s)

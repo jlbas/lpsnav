@@ -44,12 +44,12 @@ class Env:
         self.time = 0
         self.step = 0
         self.logger = logging.getLogger(__name__)
-        self.logs = {id: Logs(self.max_step + 1, np.nan) for id in self.agents}
+        self.logs = {k: Logs(self.max_step + 1, np.nan) for k in self.agents}
         self.log_data()
-        self.agent_obs = {id: AgentObs(a.radius) for id, a in self.agents.items()}
+        self.agent_obs = {k: AgentObs(a.radius) for k, a in self.agents.items()}
         self.wall_obs = [WallObs(wall) for wall in self.walls]
-        for id, a in self.agents.items():
-            self.agent_obs[id].get_agent_obs(a)
+        for k, a in self.agents.items():
+            self.agent_obs[k].get_agent_obs(a)
         for i, wall in enumerate(self.walls):
             self.wall_obs[i].get_wall_obs(wall)
         for a in self.agents.values():
@@ -57,9 +57,9 @@ class Env:
             a.post_init(self.dt, self.agent_obs, self.wall_obs)
 
     def log_data(self):
-        for id, log in self.logs.items():
-            for k in vars(log):
-                getattr(log, k)[self.step] = getattr(self.agents[id], k)
+        for k, log in self.logs.items():
+            for attr in vars(log):
+                getattr(log, attr)[self.step] = getattr(self.agents[k], attr)
 
     def sense_agents(self, a):
         agents = {}
@@ -91,8 +91,8 @@ class Env:
         for a in [a for a in self.agents.values() if not hasattr(a, "ttg")]:
             a.goal_check(self.time)
         self.log_data()
-        for id, a in self.agents.items():
-            self.agent_obs[id].get_agent_obs(a)
+        for k, a in self.agents.items():
+            self.agent_obs[k].get_agent_obs(a)
         for i, wall in enumerate(self.walls):
             self.wall_obs[i].get_wall_obs(wall)
 
