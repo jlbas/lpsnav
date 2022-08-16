@@ -36,7 +36,8 @@ class Animate:
         self.follow_ego = conf["follow_ego"]
         self.agents = {}
         self.agent_logs = {}
-        conf["dark_background"] and plt.style.use("dark_background")
+        if conf["dark_background"]:
+            plt.style.use("dark_background")
         plt.style.use("./config/paper.mplstyle")
 
     def ani(self, i, agents, ego_id, logs, patches, walls, wall_plots, last_frame, plt, fig):
@@ -57,7 +58,8 @@ class Animate:
                 p.triangle.set_xy(helper.rotate(agents[k].body_coords, log.heading[i]) + log.pos[i])
                 p.body.center = log.pos[i]
                 p.path.set_xy(log.pos[: i + 1])
-        i == last_frame - 1 and self.autoplay and plt.close(fig)
+        if i == last_frame - 1 and self.autoplay:
+            plt.close(fig)
         return flatten([sub_p for p in patches.values() for sub_p in p] + wall_plots)
 
     def init_ani(self, dt, ego_id, agents, logs, walls, fname):
@@ -114,7 +116,10 @@ class Animate:
         if self.save_ani_as_pdf:
             os.makedirs(self.ani_dir, exist_ok=True)
             ani.save(f"{buf}.pdf", writer="imagemagick")
-        self.show_ani and plt.show() or plt.close()
+        if self.show_ani:
+            plt.show()
+        else:
+            plt.close()
 
     def plot(self, dt, agents, logs, walls, fname):
         fig, ax = plt.subplots(constrained_layout=True)
@@ -181,7 +186,10 @@ class Animate:
         if self.save_plot:
             os.makedirs(self.plot_dir, exist_ok=True)
             plt.savefig(os.path.join(self.plot_dir, f"{fname}.pdf"))
-        self.show_plot and plt.show() or plt.close()
+        if self.show_plot:
+            plt.show()
+        else:
+            plt.close()
 
     def overlay(self, dt, walls, fname):
         max_len = max([len(getattr(log, k)) for log in self.agent_logs.values() for k in vars(log)])

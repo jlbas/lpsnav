@@ -451,7 +451,10 @@ class Eval:
             os.makedirs(self.conf["eval"]["inf_dir"], exist_ok=True)
             buf = os.path.join(self.conf["eval"]["inf_dir"], f"{fname}_inferences.pdf")
             plt.savefig(buf, bbox_inches="tight")
-        self.conf["eval"]["show_inf"] and plt.show() or plt.close()
+        if self.conf["eval"]["show_inf"]:
+            plt.show()
+        else:
+            plt.close()
 
     def print_df(self, fname, df):
         means = df.groupby("policy", as_index=False).mean()
@@ -460,7 +463,8 @@ class Eval:
             means[k] = means[k].map(lambda x: f"<{x}>" if x == v.opt_func(means[k]) else x)
         colalign = ["left" if k == "policy" else "right" for k in means]
         md = means.to_markdown(index=False, colalign=colalign)
-        self.conf["eval"]["show_tbl"] and print(fname, md, sep="\n")
+        if self.conf["eval"]["show_tbl"]:
+            print(fname, md, sep="\n")
         if self.conf["eval"]["save_tbl"]:
             os.makedirs(self.conf["eval"]["tbl_dir"], exist_ok=True)
             means = means.applymap(lambda x: str(x).replace("<", "\\textbf{").replace(">", "}"))
@@ -483,12 +487,16 @@ class Eval:
                 os.makedirs(self.conf["eval"]["bar_chart_dir"], exist_ok=True)
                 buf = os.path.join(self.conf["eval"]["bar_chart_dir"], f"{fname}_{k}_bar_chart.pdf")
                 plt.savefig(buf)
-            self.conf["eval"]["show_bar_chart"] and plt.show() or plt.close()
+            if self.conf["eval"]["show_bar_chart"]:
+                plt.show()
+            else:
+                plt.close()
 
     def save_df(self, fname):
         os.makedirs(self.conf["eval"]["df_dir"], exist_ok=True)
         buf = os.path.join(self.conf["eval"]["df_dir"], f"{fname}_df.csv")
-        self.conf["eval"]["save_df"] and self.df.to_csv(buf)
+        if self.conf["eval"]["save_df"]:
+            self.df.to_csv(buf)
 
     def plot_tracked_metrics(self, fname, df):
         palette = {p: self.conf["agent"][p]["color"] for p in list(set(df["policy"]))}
