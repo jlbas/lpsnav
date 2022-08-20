@@ -26,9 +26,12 @@ def run(s_name, config, s_configs):
         env.trim_logs()
         fname = f"{s_name}_{s_conf.get(s_conf['comparison_param'], '0')}_iter_{s_conf.get('iter', '0')}_{s_conf['policy']}"
         eval.evaluate(i, env, fname)
-        ani.animate(env.dt, env.agents, env.logs, env.walls, fname, overlay, env.ego_id)
-        if overlay and i % p_cnt == p_cnt - 1:
-            ani.overlay(env.dt, walls, fname.replace(s_conf["policy"], "overlay"))
+        if overlay:
+            fname = fname.replace(s_conf["policy"], "overlay")
+            display = i % p_cnt == p_cnt - 1
+            ani.overlay(env.dt, env.agents, env.logs, env.walls, fname, display)
+        else:
+            ani.animate(env.dt, env.agents, env.logs, env.walls, fname, env.ego_id)
     eval.get_summary(s_name)
 
 

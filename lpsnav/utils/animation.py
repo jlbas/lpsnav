@@ -191,23 +191,23 @@ class Animate:
         else:
             plt.close()
 
-    def overlay(self, dt, walls, fname):
-        max_len = max([len(getattr(log, k)) for log in self.agent_logs.values() for k in vars(log)])
-        for log in self.agent_logs.values():
-            for k in vars(log):
-                arr = getattr(log, k)
-                pad_len = max_len - len(arr)
-                pad_width = (0, pad_len) if arr.ndim == 1 else [(0, pad_len), (0, 0)]
-                setattr(log, k, np.pad(arr, pad_width, mode="edge"))
-        self.animate(dt, self.agents, self.agent_logs, walls, fname, overlay=True)
-        self.agents.clear()
-        self.agent_logs.clear()
+    def overlay(self, dt, agents, logs, walls, fname, display):
+        self.agents.update(agents)
+        self.agent_logs.update(logs)
+        if display:
+            max_len = max([len(getattr(log, k)) for log in self.agent_logs.values() for k in vars(log)])
+            for log in self.agent_logs.values():
+                for k in vars(log):
+                    arr = getattr(log, k)
+                    pad_len = max_len - len(arr)
+                    pad_width = (0, pad_len) if arr.ndim == 1 else [(0, pad_len), (0, 0)]
+                    setattr(log, k, np.pad(arr, pad_width, mode="edge"))
+            self.animate(dt, self.agents, self.agent_logs, walls, fname)
+            self.agents.clear()
+            self.agent_logs.clear()
 
-    def animate(self, dt, agents, logs, walls, fname, overlay, ego_id=None):
+    def animate(self, dt, agents, logs, walls, fname, ego_id=None):
         if any((self.show_ani, self.save_ani, self.save_ani_as_pdf)):
             self.init_ani(dt, ego_id, agents, logs, walls, fname)
         if any((self.show_plot, self.save_plot)):
             self.plot(dt, agents, logs, walls, fname)
-        if overlay:
-            self.agents.update(agents)
-            self.agent_logs.update(logs)
