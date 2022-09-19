@@ -52,16 +52,16 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             y = 2 * a_conf["radius"] + s_conf["lat_dist"]
             if s_conf["configuration"] == "swap":
                 starts = np.array([[-x, 0], [x, 0]])
-                goals = starts[::-1]
+                goals = starts.copy()[::-1]
             elif s_conf["configuration"] == "pass":
                 starts = np.array([[-x, 0], [x, y]])
                 goals = np.array([-1, 1]) * starts
             elif s_conf["configuration"] == "acute":
                 starts = np.array([[-x, 0], [-x + 0.5, -y]])
-                goals = -starts
+                goals = -starts.copy()
             elif s_conf["configuration"] == "obtuse":
                 starts = np.array([[-x, 0], [x - 0.5, y]])
-                goals = -starts
+                goals = -starts.copy()
             elif s_conf["configuration"] == "split":
                 starts = np.array([[-x, 0], [x, y], [x, -y]])
                 goals = np.array([-1, 1]) * starts
