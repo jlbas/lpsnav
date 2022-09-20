@@ -401,6 +401,9 @@ class Eval:
         }
         base_df = pd.DataFrame(s_configs)
         self.base_df_cols = ("i", "name", "policy", self.comp_param)
+        for col in base_df:
+            if isinstance(base_df[col][0], list):
+                base_df[col] = base_df[col].apply(','.join)
         base_df = base_df[[c for c in base_df if len(set(base_df[c])) > 1 or c in self.base_df_cols]]
         self.df = base_df.reindex(columns=base_df.columns.tolist() + list(self.metrics))
         self.tracked_dfs = {}
