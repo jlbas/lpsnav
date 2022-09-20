@@ -67,7 +67,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
                 starts = np.array([[-x, 0], [x, y], [x, -y]])
                 goals = np.array([-1, 1]) * starts
             elif s_conf["configuration"] == "t_junction":
-                starts = [[-x, 0], [0, -x]]
+                starts = np.array([[-x, 0], [0, -x]])
                 goals = np.array([[-1, 1], [1, -1]]) * starts
             elif s_conf["configuration"] == "2_agent_t_junction":
                 starts = np.array([[-x, 0], [-y / 2, x], [y / 2, -x]])
