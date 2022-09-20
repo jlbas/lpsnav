@@ -54,7 +54,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
                 starts = np.array([[-x, 0], [x, 0]])
                 goals = starts.copy()[::-1]
             elif s_conf["configuration"] == "pass":
-                starts = np.array([[-x, 0], [x, y]])
+                starts = np.array([[-x, -y / 2], [x, y / 2]])
                 goals = np.array([-1, 1]) * starts
             elif s_conf["configuration"] == "acute":
                 starts = np.array([[-x, 0], [-x + 0.5, -y]])
