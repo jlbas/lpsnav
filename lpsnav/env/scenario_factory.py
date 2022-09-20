@@ -1,7 +1,6 @@
-import importlib
-
 import numpy as np
 from utils import helper
+from utils import utils
 
 
 class AttemptsExceededError(Exception):
@@ -29,11 +28,9 @@ def init_scenario(base_id, s_conf, e_conf, a_conf, rng):
     ids = range(base_id * len(policies), (base_id + 1) * len(policies))
     agents = {}
     for i, (id, s, g, v_max, p) in enumerate(zip(ids, starts, goals, max_speeds, policies)):
-        module = importlib.import_module(f"policies.{p}")
-        cls = getattr(module, "".join(wd.capitalize() for wd in p.split("_")))
         is_ego = i == 0
         merged_conf = {**{k: v for k, v in a_conf.items() if not isinstance(v, dict)}, **a_conf[p]}
-        agents[id] = cls(merged_conf, id, p, is_ego, v_max, s, g, rng)
+        agents[id] = utils.get_cls("policies", p)(merged_conf, id, p, is_ego, v_max, s, g, rng)
     return agents, walls
 
 

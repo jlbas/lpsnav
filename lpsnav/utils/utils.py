@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+import importlib
 
 
 def val_as_list(val):
@@ -40,3 +41,11 @@ def flatten(list_of_lists):
             yield from flatten(list)
         else:
             yield list
+
+
+def get_cls(abs_path, class_name):
+    try:
+        module = importlib.import_module(f"{abs_path}.{class_name}")
+    except ModuleNotFoundError:
+        module = importlib.import_module(abs_path)
+    return getattr(module, "".join(wd.capitalize() for wd in class_name.split("_")))
