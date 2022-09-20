@@ -400,10 +400,11 @@ class Eval:
             "pass_inf": Metric("Passing Inference", "%", 2, max, eval_pass_inf, ["interactions", "goal_inferences"]),
         }
         base_df = pd.DataFrame(s_configs)
-        self.base_df_cols = ("i", "name", "policy", self.comp_param)
         for col in base_df:
             if isinstance(base_df[col][0], list):
                 base_df[col] = base_df[col].apply(','.join)
+        cols = ["i", "name", "policy"]
+        self.base_df_cols = cols if self.comp_param is None else cols + [self.comp_param]
         base_df = base_df[[c for c in base_df if len(set(base_df[c])) > 1 or c in self.base_df_cols]]
         self.df = base_df.reindex(columns=base_df.columns.tolist() + list(self.metrics))
         self.tracked_dfs = {}
