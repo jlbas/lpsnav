@@ -50,6 +50,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         for _ in range(e_conf["max_init_attempts"]):
             x = s_conf["long_dist"] / 2
             y = 2 * a_conf["radius"] + s_conf["lat_dist"]
+            max_speeds = np.nan
             if s_conf["configuration"] == "swap":
                 starts = np.array([[-x, 0], [x, 0]])
                 goals = starts.copy()[::-1]
@@ -71,11 +72,16 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             elif s_conf["configuration"] == "2_agent_t_junction":
                 starts = np.array([[-x, 0], [-y / 2, x], [y / 2, -x]])
                 goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
+            elif s_conf["configuration"] == "overtake":
+                starts = np.array([[-x - 2, 0], [-x, 0]])
+                goals = np.array([-1, 1]) * starts
+                max_speeds = np.array([a_conf["max_speed"], 0.6 * a_conf["max_speed"]])
             else:
                 raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
-            starts += rng.normal(scale=s_conf["scale"], size=np.shape(starts))
-            goals += rng.normal(scale=s_conf["scale"], size=np.shape(goals))
-            max_speeds = np.full(len(starts), a_conf["max_speed"])
+            starts += rng.uniform(-s_conf["uniform_bnd"], s_conf["uniform_bnd"], np.shape(starts))
+            goals += rng.uniform(-s_conf["uniform_bnd"], s_conf["uniform_bnd"], np.shape(goals))
+            if np.all(np.isnan(max_speeds)):
+                max_speeds = np.full(len(starts), a_conf["max_speed"])
             if is_feasible(starts, min_dist) and is_feasible(goals, min_dist):
                 break
         else:
