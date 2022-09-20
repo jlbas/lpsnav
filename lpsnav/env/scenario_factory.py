@@ -108,7 +108,4 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         max_speeds = np.full(len(starts), a_conf["max_speed"])
     else:
         raise ValueError(f"Scenario {s_conf['name']} is not recognized")
-    bound = 0.01
-    starts += rng.uniform(-bound, bound, np.shape(starts))
-    goals += rng.uniform(-bound, bound, np.shape(goals))
     return starts, goals, max_speeds, walls
