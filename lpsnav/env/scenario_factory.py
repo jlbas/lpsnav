@@ -90,7 +90,7 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         max_speeds = rng.normal(
             s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
         )
-        for i in range(e_conf["max_init_attempts"]):
+        for _ in range(e_conf["max_init_attempts"]):
             starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
