@@ -24,7 +24,7 @@ def is_feasible(positions, min_dist):
 
 def init_scenario(base_id, s_conf, e_conf, a_conf, rng):
     starts, goals, max_speeds, walls = get_init_configuration(s_conf, e_conf, a_conf, rng)
-    other_policy = val_as_list(["policy"] if s_conf["homogeneous"] else s_conf["human_model"])
+    other_policy = val_as_list(s_conf["policy"] if s_conf["homogeneous"] else s_conf["human_model"])
     policies = [s_conf["policy"]] + list(rng.choice(other_policy, len(starts) - 1))
     ids = range(base_id * len(policies), (base_id + 1) * len(policies))
     agents = {}
