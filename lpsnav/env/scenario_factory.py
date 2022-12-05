@@ -35,10 +35,8 @@ def init_scenario(base_id, s_conf, e_conf, a_conf, rng):
     return agents, walls
 
 
-def get_random_pos(rng, length, width=None, num=1):
-    if width is None:
-        return length * (rng.random((num, 2)) - 0.5)
-    return np.column_stack((length * (rng.random(num) - 0.5), width * (rng.random(num) - 0.5)))
+def get_random_pos(rng, w, h, n):
+    return np.column_stack((w * (rng.random(n) - 0.5), h * (rng.random(n) - 0.5)))
 
 
 def get_init_configuration(s_conf, e_conf, a_conf, rng):
@@ -89,8 +87,8 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
             s_conf["des_speed_mean"], s_conf["des_speed_std_dev"], size=s_conf["number_of_agents"]
         )
         for _ in range(e_conf["max_init_attempts"]):
-            starts = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
-            goals = get_random_pos(rng, s_conf["length"], num=s_conf["number_of_agents"])
+            starts = get_random_pos(rng, s_conf["width"], s_conf["height"], s_conf["number_of_agents"])
+            goals = get_random_pos(rng, s_conf["width"], s_conf["height"], s_conf["number_of_agents"])
             feasible = is_feasible(starts, min_dist) and is_feasible(goals, min_dist)
             far_enough = np.all(helper.dist(starts, goals) > s_conf["min_start_goal_sep"])
             if feasible and far_enough:

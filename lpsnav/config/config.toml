@@ -25,11 +25,12 @@ scale = 1
 [scenario.random]
 number_of_agents = [5, 7, 9, 11]
 iters = 100
-workspace_length = 8
 min_start_goal_sep = 4
 min_start_buffer = 0.5
 des_speed_mean = 1.36
 des_speed_std_dev = 0.19
+width = 8
+height = 8
 comparison_param = "number_of_agents"
 
 [scenario.circle]
