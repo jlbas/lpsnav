@@ -43,7 +43,6 @@ comparison_param = "number_of_agents"
 [animation]
 show_ani = true
 save_ani = false
-save_ani_as_pdf = false
 ani_dir = "data/videos"
 show_plot = false
 save_plot = false

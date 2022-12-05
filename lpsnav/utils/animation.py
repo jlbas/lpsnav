@@ -22,7 +22,6 @@ class Animate:
     def __init__(self, conf):
         self.show_ani = conf["show_ani"]
         self.save_ani = conf["save_ani"]
-        self.save_ani_as_pdf = conf["save_ani_as_pdf"]
         self.ani_dir = conf["ani_dir"]
         self.show_plot = conf["show_plot"]
         self.save_plot = conf["save_plot"]
@@ -109,9 +108,6 @@ class Animate:
             os.makedirs(self.ani_dir, exist_ok=True)
             fps = int(self.speed / dt)
             ani.save(f"{buf}.mp4", writer="ffmpeg", fps=fps)
-        if self.save_ani_as_pdf:
-            os.makedirs(self.ani_dir, exist_ok=True)
-            ani.save(f"{buf}.pdf", writer="imagemagick")
         if self.show_ani:
             plt.show()
         else:
@@ -199,8 +195,8 @@ class Animate:
             self.agents.clear()
             self.agent_logs.clear()
 
-        if any((self.show_ani, self.save_ani, self.save_ani_as_pdf)):
     def animate(self, dt, agents, logs, fname, ego_id=None):
+        if any((self.show_ani, self.save_ani)):
             self.init_ani(dt, ego_id, agents, logs, fname)
         if any((self.show_plot, self.save_plot)):
             self.plot(dt, agents, logs, fname)
