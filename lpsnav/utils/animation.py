@@ -32,6 +32,8 @@ class Animate:
         self.speed = conf["speed"]
         self.autoplay = conf["autoplay"]
         self.dpi = conf["dpi"]
+        self.width = conf["width"]
+        self.height = conf["height"]
         self.follow_ego = conf["follow_ego"]
         self.agents = {}
         self.agent_logs = {}
@@ -59,8 +61,8 @@ class Animate:
             plt.close(fig)
         return flatten([sub_p for p in patches.values() for sub_p in p])
 
-        figsize = (1920 / self.dpi, 1080 / self.dpi)
     def init_ani(self, dt, ego_id, agents, logs, fname):
+        figsize = (self.width / self.dpi, self.height / self.dpi)
         fig, ax = plt.subplots(constrained_layout=True, figsize=figsize, dpi=self.dpi)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         ax.axis("scaled")

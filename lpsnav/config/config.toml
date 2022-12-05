@@ -55,6 +55,8 @@ plot_traj = true
 speed = 2
 autoplay = false
 dpi = 96
+width = 1920
+height = 1080
 
 [eval]
 show_tbl = true
