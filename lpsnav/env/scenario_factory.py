@@ -69,9 +69,9 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
                 starts = np.array([[-x, 0], [-y / 2, x], [y / 2, -x]])
                 goals = np.array([[-1, 1], [1, -1], [1, -1]]) * starts
             elif s_conf["configuration"] == "overtake":
-                starts = np.array([[-x - 2, 0], [-x, 0]])
+                starts = np.array([[-x - 1, 0], [-x + 1, 0]])
                 goals = np.array([-1, 1]) * starts
-                max_speeds = np.array([a_conf["max_speed"], 0.6 * a_conf["max_speed"]])
+                max_speeds = np.array([a_conf["max_speed"], 0.4 * a_conf["max_speed"]])
             else:
                 raise ValueError(f"Scenario {s_conf['configuration']} is not recognized")
             starts += rng.uniform(-s_conf["uniform_bnd"], s_conf["uniform_bnd"], np.shape(starts))
