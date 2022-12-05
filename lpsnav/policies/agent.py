@@ -41,6 +41,7 @@ class Agent:
         )
         self.pos = self.start.copy()
         self.collided = False
+        self.goal_check(0)
         self.update_abs_prims()
         self.update_abs_headings()
         self.update_abs_prim_vels()
@@ -58,7 +59,7 @@ class Agent:
 
     def goal_check(self, time):
         if helper.dist(self.pos, self.goal) <= self.goal_tol:
-            self.ttg = time - getattr(self, "start_time", 0)
+            self.ttg = time
 
     def update_abs_prims(self):
         self.abs_prims = self.pos + helper.rotate(self.rel_prims, self.heading)
