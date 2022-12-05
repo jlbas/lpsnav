@@ -104,7 +104,6 @@ color = "#785ef0"
 legibility_tol = 1.1
 beta = 1
 subgoal_priors = [0.48, 0.02, 0.5]
-col_buffer = 0.3
 receding_horiz = 2
 sensing_horiz = 5
 max_cost = 1e2

@@ -7,7 +7,6 @@ class Lpsnav(Agent):
     def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
         super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.beta = conf["beta"]
-        self.col_buffer = np.array(conf["col_buffer"])
         self.heading_samples = conf["heading_samples"]
         self.leg_tol = conf["legibility_tol"]
         self.max_cost = conf["max_cost"]
@@ -42,14 +41,19 @@ class Lpsnav(Agent):
         self.pos_hist = self.pos - self.vel * t_hist[:, None]
         self.tau = {k: 0 for k in agents}
         self.int_start = {k: -1 for k in agents}
-        self.col_width = {k: self.radius + a.radius + self.col_buffer for k, a in agents.items()}
-        self.rel_int_line = {k: np.array([[0, -cw], [0, cw]]) for k, cw in self.col_width.items()}
 
     def update_int_line(self, agents):
         self.int_line_heading = helper.wrap_to_pi(helper.angle(self.pos - self.goal))
         self.rel_int_lines = {}
+        n = len(agents)
         for k, a in agents.items():
-            self.rel_int_lines[k] = helper.rotate(self.rel_int_line[k], self.int_line_heading)
+            dtheta = helper.wrap_to_pi(a.heading - self.int_line_heading - np.pi / 2)
+            lat_space = self.lat_space[0] + (self.lat_space[1] - self.lat_space[0]) / n
+            long_space = self.long_space[0] + (self.long_space[1] - self.long_space[0]) / n
+            long_space = lat_space + min(1, a.speed / self.max_speed) * (long_space - lat_space)
+            r = self.radius + a.radius
+            col_width = helper.polar_ellipse(long_space + r, lat_space + r, dtheta)
+            self.rel_int_lines[k] = helper.rotate(np.array([[0, -col_width], [0, col_width]]), self.int_line_heading)
             self.int_lines[k] = self.rel_int_lines[k] + a.pos
 
     def get_interacting_agents(self, agents):
