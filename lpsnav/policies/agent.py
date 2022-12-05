@@ -20,7 +20,6 @@ class Agent:
         self.min_speed = conf["min_speed"]
         self.max_speed = max_speed
         self.max_accel = conf["max_accel"]
-        self.min_accel = conf["min_accel"]
         self.max_ang_accel = conf["max_ang_accel"]
         self.goal_tol = conf["goal_tol"]
         self.speed_samples = conf["speed_samples"]
@@ -100,7 +99,7 @@ class Agent:
             elif self.kinematics == "second_order_unicycle":
                 self.speed += dt * np.clip(
                     (self.des_speed - self.speed) / dt,
-                    self.min_accel,
+                    -self.max_accel,
                     self.max_accel,
                 )
                 self.heading += dt * np.clip(

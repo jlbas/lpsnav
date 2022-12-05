@@ -83,7 +83,6 @@ eps = 1e-10
 min_speed = 0
 max_speed = 1
 max_accel = 3
-min_accel = -10
 max_ang_accel = 3
 goal_tol = 0.1
 heading_span = 1.57
