@@ -37,6 +37,7 @@ number_of_agents = [4, 5, 8, 13]
 radius = [3, 3, 4, 5]
 comparison_param = "number_of_agents"
 
+[scenario.custom]
 
 [animation]
 show_ani = true

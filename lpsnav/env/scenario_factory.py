@@ -104,6 +104,10 @@ def get_init_configuration(s_conf, e_conf, a_conf, rng):
         starts = s_conf["radius"] * helper.vec(thetas)
         goals = -starts
         max_speeds = np.full(len(starts), a_conf["max_speed"])
+    elif s_conf["name"] == "custom":
+        starts = np.array(s_conf["starts"])
+        goals = np.array(s_conf["goals"])
+        max_speeds = np.array(s_conf.get("max_speeds", len(starts) * [a_conf["max_speed"]]))
     else:
         raise ValueError(f"Scenario {s_conf['name']} is not recognized")
     return starts, goals, max_speeds, walls

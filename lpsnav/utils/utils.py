@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 import importlib
+import itertools
 
 
 def val_as_list(val):
@@ -16,21 +17,22 @@ def repeat_to_match(*vals):
 def format_scenarios(scenario, config):
     s_configs = []
     top_level_conf = {k: v for k, v in config["scenario"].items() if not isinstance(v, dict)}
-    s_conf = config["scenario"][scenario].copy()
-    opts, n_opts = repeat_to_match(*s_conf.values())
-    s_conf.update(dict(zip(s_conf.keys(), opts)))
-    for i in range(n_opts):
-        iters = s_conf.get("iters", [1])[0]
+    s_conf = {k: val_as_list(v) for k, v in config["scenario"][scenario].items()}
+    if scenario == "custom":
+        conf_combos = [list(s_conf.values())]
+    else:
+        conf_combos = list(itertools.product(*s_conf.values()))
+    iters = s_conf.get("iters", [1])[0]
+    for i, conf in enumerate(conf_combos):
         for j in range(iters):
             for p in val_as_list(config["scenario"]["policy"]):
                 d = {
                     "i": i * iters + j,
                     "iter": j,
+                    **top_level_conf,
                     "policy": p,
-                    **{k: v[i] for k, v in s_conf.items()},
+                    **dict(zip(s_conf.keys(), conf)),
                 }
-                for k, v in top_level_conf.items():
-                    d.setdefault(k, v)
                 s_configs.append(d)
     return s_configs
 
