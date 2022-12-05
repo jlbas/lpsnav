@@ -57,17 +57,10 @@ class Sfm(Agent):
             self.ped_force += w * f_ab
             self.ped_force = np.nan_to_num(self.ped_force)
 
-    def get_borders_force(self, walls):
-        self.borders_force = np.zeros(2)
-        for wall in walls:
-            r_ab = -helper.nearest_pt_on_line_seg(self.pos, *wall)
-            self.borders_force -= np.array(self.grad_u_ab(*r_ab))
-
-    def get_action(self, dt, agents, walls):
+    def get_action(self, dt, agents):
         self.get_goal_force()
         self.get_ped_force(agents)
-        self.get_borders_force(walls)
-        self.tot_force = self.goal_force + self.ped_force + self.borders_force
+        self.tot_force = self.goal_force + self.ped_force
         des_vel = helper.clip(self.vel + self.tot_force * dt, self.max_speed)
         self.des_speed = np.linalg.norm(des_vel)
         self.des_heading = helper.wrap_to_pi(helper.angle(des_vel))

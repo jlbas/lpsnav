@@ -40,7 +40,7 @@ class Animate:
             plt.style.use("dark_background")
         plt.style.use("./config/paper.mplstyle")
 
-    def ani(self, i, agents, ego_id, logs, patches, walls, wall_plots, last_frame, plt, fig):
+    def ani(self, i, agents, ego_id, logs, patches, last_frame, plt, fig):
         for (k, p), log in zip(patches.items(), logs.values()):
             if self.follow_ego and ego_id is not None:
                 if k == ego_id:
@@ -52,18 +52,16 @@ class Animate:
                     p.body.center = rel_pos
                     p.path.set_xy(log.pos[: i + 1] - logs[ego_id].pos[i])
                 p.goal.center = agents[k].goal - logs[ego_id].pos[i]
-                for wall, wall_plt in zip(walls, wall_plots):
-                    wall_plt.set_data(*np.transpose(wall - logs[ego_id].pos[i]))
             else:
                 p.triangle.set_xy(helper.rotate(agents[k].body_coords, log.heading[i]) + log.pos[i])
                 p.body.center = log.pos[i]
                 p.path.set_xy(log.pos[: i + 1])
         if i == last_frame - 1 and self.autoplay:
             plt.close(fig)
-        return flatten([sub_p for p in patches.values() for sub_p in p] + wall_plots)
+        return flatten([sub_p for p in patches.values() for sub_p in p])
 
-    def init_ani(self, dt, ego_id, agents, logs, walls, fname):
         figsize = (1920 / self.dpi, 1080 / self.dpi)
+    def init_ani(self, dt, ego_id, agents, logs, fname):
         fig, ax = plt.subplots(constrained_layout=True, figsize=figsize, dpi=self.dpi)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         ax.axis("scaled")
@@ -74,8 +72,7 @@ class Animate:
             ax.axis([-x, x, -x / ratio, x / ratio])
         else:
             a_pos = [log.pos for log in logs.values()]
-            wall_pos = list(np.reshape(walls, (1, -1, 2)))
-            x, y = np.concatenate(a_pos + wall_pos).T
+            x, y = np.concatenate(a_pos).T
             x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
             pad = 4 * max([a.radius for a in agents.values()])
             ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
@@ -97,7 +94,6 @@ class Animate:
             patches[k].body = Circle((0, 0), a.radius, color=a.color, zorder=k + 2)
         for patch in flatten([p for k in agents for p in patches[k]]):
             ax.add_patch(patch)
-        wall_plots = [ax.plot(*np.transpose(wall), lw=5, c="sienna", solid_capstyle="round")[0] for wall in walls]
         buf = os.path.join(self.ani_dir, fname)
         frames = max([len(log.pos) for log in logs.values()])
         ani = FuncAnimation(
@@ -105,7 +101,7 @@ class Animate:
             self.ani,
             frames=frames,
             interval=int(1000 / self.speed * dt),
-            fargs=(agents, ego_id, logs, patches, walls, wall_plots, frames, plt, fig),
+            fargs=(agents, ego_id, logs, patches, frames, plt, fig),
             blit=True,
             repeat=False,
         )
@@ -121,7 +117,7 @@ class Animate:
         else:
             plt.close()
 
-    def plot(self, dt, agents, logs, walls, fname):
+    def plot(self, dt, agents, logs, fname):
         fig, ax = plt.subplots(constrained_layout=True)
         fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
         ax.axis("square")
@@ -134,8 +130,7 @@ class Animate:
         ax.xaxis.labelpad = 1
         ax.yaxis.labelpad = 1
         a_pos = [log.pos for log in logs.values()]
-        wall_pos = list(np.reshape(walls, (1, -1, 2)))
-        x, y = np.concatenate(a_pos + wall_pos).T
+        x, y = np.concatenate(a_pos).T
         x_min, x_max, y_min, y_max = np.min(x), np.max(x), np.min(y), np.max(y)
         pad = 2 * max([a.radius for a in agents.values()])
         ax.axis([x_min - pad, x_max + pad, y_min - pad, y_max + pad])
@@ -181,8 +176,6 @@ class Animate:
                     s, ec = (hls_color[2], a.color)
                     c = colorsys.hls_to_rgb(hls_color[0], lightness, s)
                     ax.add_patch(Circle(pos, a.radius, fc=c, ec=ec, lw=0.1, zorder=zorder))
-        for wall in walls:
-            ax.plot(*np.transpose(wall), lw=5, c="sienna", solid_capstyle="round")
         if self.save_plot:
             os.makedirs(self.plot_dir, exist_ok=True)
             plt.savefig(os.path.join(self.plot_dir, f"{fname}.pdf"))
@@ -191,7 +184,7 @@ class Animate:
         else:
             plt.close()
 
-    def overlay(self, dt, agents, logs, walls, fname, display):
+    def overlay(self, dt, agents, logs, fname, display):
         self.agents.update(agents)
         self.agent_logs.update(logs)
         if display:
@@ -202,12 +195,12 @@ class Animate:
                     pad_len = max_len - len(arr)
                     pad_width = (0, pad_len) if arr.ndim == 1 else [(0, pad_len), (0, 0)]
                     setattr(log, k, np.pad(arr, pad_width, mode="edge"))
-            self.animate(dt, self.agents, self.agent_logs, walls, fname)
+            self.animate(dt, self.agents, self.agent_logs, fname)
             self.agents.clear()
             self.agent_logs.clear()
 
-    def animate(self, dt, agents, logs, walls, fname, ego_id=None):
         if any((self.show_ani, self.save_ani, self.save_ani_as_pdf)):
-            self.init_ani(dt, ego_id, agents, logs, walls, fname)
+    def animate(self, dt, agents, logs, fname, ego_id=None):
+            self.init_ani(dt, ego_id, agents, logs, fname)
         if any((self.show_plot, self.save_plot)):
-            self.plot(dt, agents, logs, walls, fname)
+            self.plot(dt, agents, logs, fname)

@@ -36,8 +36,8 @@ class Lpsnav(Agent):
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
 
-    def post_init(self, dt, agents, walls):
-        super().post_init(dt, agents, walls)
+    def post_init(self, dt, agents):
+        super().post_init(dt, agents)
         t_hist = np.linspace(dt, self.receding_horiz, int(self.receding_horiz / dt))
         self.pos_hist = self.pos - self.vel * t_hist[:, None]
         self.tau = {k: 0 for k in agents}
@@ -170,7 +170,7 @@ class Lpsnav(Agent):
         goal_cost = np.where(inf_mask, np.inf, goal_cost)
         self.speed_idx, self.heading_idx = np.unravel_index(np.argmin(goal_cost), goal_cost.shape)
 
-    def get_action(self, dt, agents, walls):
+    def get_action(self, dt, agents):
         self.update_abs_prims()
         self.update_abs_headings()
         self.update_abs_prim_vels()
@@ -185,7 +185,7 @@ class Lpsnav(Agent):
             self.compute_prim_pred(k, a)
             self.check_if_legible(k)
             self.update_tau(k, a)
-        self.remove_col_prims(dt, agents, walls)
+        self.remove_col_prims(dt, agents)
         if np.all(self.col_mask):
             self.des_speed = 0
             self.des_heading = self.heading

@@ -17,14 +17,6 @@ class AgentObs:
 
 
 @dataclass
-class WallObs:
-    pts: list[list[float]]
-    
-    def get_wall_obs(self, wall):
-        self.pts = wall.copy()
-
-
-@dataclass
 class Logs:
     def __init__(self, cnt, val):
         self.pos = np.full((cnt, 2), val)
@@ -34,11 +26,10 @@ class Logs:
 
 
 class Env:
-    def __init__(self, conf, agents, walls):
+    def __init__(self, conf, agents):
         self.dt = conf["dt"]
         self.max_duration = conf["max_duration"]
         self.agents = agents
-        self.walls = walls
         self.ego_id = list(agents.values())[0].id
         self.max_step = int(self.max_duration / self.dt)
         self.time = 0
@@ -47,14 +38,11 @@ class Env:
         self.logs = {k: Logs(self.max_step + 1, np.nan) for k in self.agents}
         self.log_data()
         self.agent_obs = {k: AgentObs(a.radius) for k, a in self.agents.items()}
-        self.wall_obs = [WallObs(wall) for wall in self.walls]
         for k, a in self.agents.items():
             self.agent_obs[k].get_agent_obs(a)
-        for i, wall in enumerate(self.walls):
-            self.wall_obs[i].get_wall_obs(wall)
         for a in self.agents.values():
             self.logger.debug(a)
-            a.post_init(self.dt, self.agent_obs, self.wall_obs)
+            a.post_init(self.dt, self.agent_obs)
 
     def log_data(self):
         for k, log in self.logs.items():
@@ -65,24 +53,14 @@ class Env:
         agents = {}
         for neighbour_id, neighbour in self.agent_obs.items():
             if a.id != neighbour_id:
-                in_range = helper.dist(a.pos, neighbour.pos) < a.sensing_dist
-                in_sight = not any([helper.is_intersecting(a.pos, neighbour.pos, *wall) for wall in self.walls])
-                if in_range and in_sight:
+                if helper.dist(a.pos, neighbour.pos) < a.sensing_dist:
                     agents[neighbour_id] = neighbour
         return agents
-
-    def sense_walls(self, a):
-        walls = []
-        for wall in self.wall_obs:
-            if helper.dist_to_line_seg(a.pos, *wall.pts) < a.sensing_dist:
-                walls.append(wall.pts)
-        return walls
 
     def update(self):
         for a in self.agents.values():
             agent_obs = self.sense_agents(a)
-            wall_obs = self.sense_walls(a)
-            a.get_action(self.dt, agent_obs, wall_obs)
+            a.get_action(self.dt, agent_obs)
         for a in self.agents.values():
             a.step(self.dt)
         self.time += self.dt
@@ -93,20 +71,12 @@ class Env:
         self.log_data()
         for k, a in self.agents.items():
             self.agent_obs[k].get_agent_obs(a)
-        for i, wall in enumerate(self.walls):
-            self.wall_obs[i].get_wall_obs(wall)
 
     def collision_check(self):
         for a1, a2 in itertools.combinations(self.agents.values(), 2):
             collided = helper.dist(a1.pos, a2.pos) <= a1.radius + a2.radius
             a1.collided |= collided
             a2.collided |= collided
-        for a in self.agents.values():
-            for wall in self.walls:
-                if not a.collided:
-                    a.collided |= (
-                        helper.dist_to_line_seg(a.pos, *wall) <= a.radius
-                    )
 
     def is_running(self):
         if all([hasattr(a, "ttg") for a in self.agents.values()]):

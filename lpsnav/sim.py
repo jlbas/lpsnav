@@ -19,8 +19,8 @@ def run(s_name, config, s_configs):
     overlay = p_cnt > 1 and config["animation"]["overlay"]
     for i, s_conf in enumerate(tqdm(s_configs) if config["progress_bar"] else s_configs):
         rng = np.random.default_rng(s_conf["iter"])
-        agents, walls = init_scenario(i, s_conf, config["env"], config["agent"], rng)
-        env = Env(config["env"], agents, walls)
+        agents = init_scenario(i, s_conf, config["env"], config["agent"], rng)
+        env = Env(config["env"], agents)
         while env.is_running():
             env.update()
         env.trim_logs()
@@ -29,9 +29,9 @@ def run(s_name, config, s_configs):
         if overlay:
             fname = fname.replace(s_conf["policy"], "overlay")
             display = i % p_cnt == p_cnt - 1
-            ani.overlay(env.dt, env.agents, env.logs, env.walls, fname, display)
+            ani.overlay(env.dt, env.agents, env.logs, fname, display)
         else:
-            ani.animate(env.dt, env.agents, env.logs, env.walls, fname, env.ego_id)
+            ani.animate(env.dt, env.agents, env.logs, fname, env.ego_id)
     eval.get_summary(s_name)
 
 
