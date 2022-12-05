@@ -6,7 +6,7 @@ from utils.animation import Animate
 from utils.config import load_config
 from utils.eval import Eval
 from utils.parser import get_parser
-from utils.utils import format_scenarios, val_as_list
+from utils.utils import format_scenarios, get_fname, val_as_list
 import logging
 import logging.config
 from tqdm import tqdm
@@ -24,7 +24,7 @@ def run(s_name, config, s_configs):
         while env.is_running():
             env.update()
         env.trim_logs()
-        fname = f"{s_name}_{s_conf.get(s_conf['comparison_param'], '0')}_iter_{s_conf.get('iter', '0')}_{s_conf['policy']}"
+        fname = get_fname(s_name, s_conf)
         eval.evaluate(i, env, fname)
         if overlay:
             fname = fname.replace(s_conf["policy"], "overlay")

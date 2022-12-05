@@ -49,3 +49,9 @@ def get_cls(abs_path, class_name):
     except ModuleNotFoundError:
         module = importlib.import_module(abs_path)
     return getattr(module, "".join(wd.capitalize() for wd in class_name.split("_")))
+
+
+def get_fname(s_name, s_conf):
+    param = s_conf.get('comparison_param'), '0'
+    iter = s_conf.get('iter', '0')
+    return f"{s_name}_{s_conf.get(param)}_iter_{iter}_{s_conf['policy']}"
