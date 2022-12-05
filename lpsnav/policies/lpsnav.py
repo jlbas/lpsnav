@@ -6,18 +6,19 @@ from utils import helper
 class Lpsnav(Agent):
     def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
         super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
-        self.beta = conf["beta"]
         self.heading_samples = conf["heading_samples"]
         self.leg_tol = conf["legibility_tol"]
+        self.pred_tol = conf["predictability_tol"]
         self.max_cost = conf["max_cost"]
         self.receding_horiz = conf["receding_horiz"]
         self.sensing_horiz = conf["sensing_horiz"]
         self.speed_samples = conf["speed_samples"]
+        self.long_space = conf["longitudinal_space"]
+        self.lat_space = conf["lateral_space"]
         self.subgoal_priors = np.array(conf["subgoal_priors"])
         self.pred_pos = {}
         self.int_lines = {}
         self.pred_int_lines = {}
-        self.interacting_agents = {}
         self.cost_rt = self.receding_horiz
         self.cost_tp = self.prim_horiz
         self.cost_tg = {}
@@ -30,16 +31,16 @@ class Lpsnav(Agent):
         self.prim_pred_score = {}
         self.current_leg_score = {}
         self.passing_ratio = {}
-        self.is_legible = {}
         self.speed_idx = 0
         self.heading_idx = self.heading_samples // 2
         self.col_mask = np.full((self.speed_samples, self.heading_samples), False)
+        self.tau = {}
+        self.pass_inf_diff_hist = {}
 
     def post_init(self, dt, agents):
         super().post_init(dt, agents)
         t_hist = np.linspace(dt, self.receding_horiz, int(self.receding_horiz / dt))
         self.pos_hist = self.pos - self.vel * t_hist[:, None]
-        self.tau = {k: 0 for k in agents}
         self.int_start = {k: -1 for k in agents}
 
     def update_int_line(self, agents):
@@ -140,18 +141,19 @@ class Lpsnav(Agent):
             arg = arg[np.argmin(helper.dist(self.goal, self.int_lines[id]))]
         self.prim_pred_score[id] = np.exp(arg)
 
-    def check_if_legible(self, id):
-        self.passing_ratio[id] = np.max(self.current_leg_score[id]) / np.min(
-            self.current_leg_score[id]
-        )
-        self.is_legible[id] = self.passing_ratio[id] > self.leg_tol
-
-    def update_tau(self, id, agent):
-        legible_at_start = self.is_legible[id] and (self.int_start[id] == 1 or self.tau[id] == 1)
-        if legible_at_start:
-            self.tau[id] = 1
+    def update_passing_ratio(self, id):
+        pass_inf_diff = np.max(self.current_leg_score[id]) - np.min(self.current_leg_score[id])
+        if id not in self.pass_inf_diff_hist:
+            self.pass_inf_diff_hist[id] = np.full(len(self.pos_hist), pass_inf_diff)
         else:
-            self.tau[id] = 1 - np.exp(max(-self.beta * (self.passing_ratio[id] - 1), -1e2))
+            self.pass_inf_diff_hist[id] = np.roll(self.pass_inf_diff_hist[id], 1, axis=0)
+            self.pass_inf_diff_hist[id][0] = pass_inf_diff
+        self.passing_ratio[id] = np.mean(self.pass_inf_diff_hist[id])
+
+    def update_tau(self, id):
+        num = self.passing_ratio[id] - self.leg_tol
+        den = self.pred_tol - self.leg_tol
+        self.tau[id] = max(0, min(1, num / den))
 
     def get_leg_pred_prims(self, dt):
         score = np.full((self.speed_samples, self.heading_samples), np.inf)
@@ -181,17 +183,20 @@ class Lpsnav(Agent):
         self.update_int_line(agents)
         self.get_interacting_agents(agents)
         for k, a in agents.items():
-            self.predict_pos(k, a)
-            self.update_int_start(k)
-            self.get_int_costs(k, a)
-            self.compute_leg(k)
-            self.compute_prim_leg(k)
-            self.compute_prim_pred(k, a)
-            self.check_if_legible(k)
-            self.update_tau(k, a)
+            if k in self.interacting_agents:
+                self.predict_pos(k, a)
+                self.update_int_start(k)
+                self.get_int_costs(k, a)
+                self.compute_leg(k)
+                self.compute_prim_leg(k)
+                self.compute_prim_pred(k, a)
+                self.update_passing_ratio(k)
+                self.update_tau(k)
+            else:
+                self.pass_inf_diff_hist.pop(k, None)
         self.remove_col_prims(dt, agents)
         if np.all(self.col_mask):
-            self.des_speed = 0
+            self.des_speed = self.min_speed
             self.des_heading = self.heading
         else:
             if self.interacting_agents:

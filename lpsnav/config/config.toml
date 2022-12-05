@@ -102,7 +102,6 @@ color = "#8c8787"
 name = "LPSNav"
 color = "#785ef0"
 legibility_tol = 1.1
-beta = 1
 subgoal_priors = [0.48, 0.02, 0.5]
 receding_horiz = 2
 sensing_horiz = 5
