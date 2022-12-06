@@ -5,11 +5,11 @@ from utils import helper
 
 
 class Rvo(Agent):
+    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
+        super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.neighbor_dist = conf["neighbor_dist"]
         self.max_neighbors = conf["max_neighbors"]
         self.time_horiz = conf["time_horiz"]
-    def __init__(self, conf, id, policy, is_ego, max_speed, start, goal, rng):
-        super().__init__(conf, id, policy, is_ego, max_speed, start, goal, rng)
         self.expanded_radius = self.radius * conf["scaled_radius"]
 
     def post_init(self, dt, agents):
