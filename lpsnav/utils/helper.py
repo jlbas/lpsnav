@@ -21,6 +21,10 @@ def dist(A, B):
     return np.sqrt(np.sum(np.square(difference), axis=-1))
 
 
+def polar_ellipse(a, b, theta):
+    return a * b / np.sqrt((b * np.cos(theta))**2 + (a * np.sin(theta))**2)
+
+
 def path_len(path):
     return np.sum(np.linalg.norm(np.diff(path, axis=0), axis=-1))
 
