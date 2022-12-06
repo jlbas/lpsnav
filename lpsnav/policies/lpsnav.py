@@ -54,7 +54,8 @@ class Lpsnav(Agent):
             long_space = lat_space + min(1, a.speed / self.max_speed) * (long_space - lat_space)
             r = self.radius + a.radius
             col_width = helper.polar_ellipse(long_space + r, lat_space + r, dtheta)
-            self.rel_int_lines[k] = helper.rotate(np.array([[0, -col_width], [0, col_width]]), self.int_line_heading)
+            pts = np.array([[0, -col_width], [0, col_width]])
+            self.rel_int_lines[k] = helper.rotate(pts, self.int_line_heading)
             self.int_lines[k] = self.rel_int_lines[k] + a.pos
 
     def get_interacting_agents(self, agents):
