@@ -231,7 +231,7 @@ def eval_legibility(_conf, env, interactions, goal_inferences):
         num = np.trapz(t_discount * goal_inf, dx=env.dt)
         den = np.trapz(t_discount, dx=env.dt)
         leg_scores[k] = np.delete(num / den, 1)[interaction.passing_idx]
-    return np.mean(list(leg_scores.values())) if leg_scores else np.nan
+    return np.nan if not leg_scores else np.mean(list(leg_scores.values()))
 
 
 def eval_predictability(_conf, _env, traj_inferences):
@@ -239,7 +239,7 @@ def eval_predictability(_conf, _env, traj_inferences):
     for k, traj_inf in traj_inferences.items():
         passing_sides = np.delete(traj_inf, 1, 0)
         pred_scores[k] = np.max(passing_sides[:, -1])
-    return np.mean(list(pred_scores.values())) if pred_scores else np.nan
+    return np.nan if not pred_scores else np.mean(list(pred_scores.values()))
 
 
 def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
