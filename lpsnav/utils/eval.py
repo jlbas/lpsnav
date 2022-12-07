@@ -165,8 +165,9 @@ def get_mpd(_conf, env, interactions):
 def eval_extra_ttg(conf, env, id=None):
     id = env.ego_id if id is None else id
     if hasattr(env.agents[id], "ttg"):
-        goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
-        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
+        if env.agents[id].ttg == 0:
+            return 0
+        goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal) - conf["agent"]["goal_tol"]
         opt_ttg = goal_dist / env.agents[id].max_speed
         return (env.agents[id].ttg - opt_ttg) / opt_ttg
     return np.nan
