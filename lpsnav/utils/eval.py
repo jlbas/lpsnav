@@ -243,7 +243,7 @@ def eval_predictability(_conf, _env, traj_inferences):
 
 
 def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
-    pass_inf = np.full(len(env.logs[env.ego_id].pos), np.inf)
+    pass_inf = np.full(env.step + 1, np.inf)
     for interaction, goal_inf in zip(interactions.values(), goal_inferences.values()):
         sl = interaction.slice
         if sl.stop - sl.start > 1:
@@ -253,7 +253,7 @@ def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
 
 
 def eval_avg_min_pass_inf(_conf, env, interactions, goal_inferences):
-    pass_inf = np.full(len(env.logs[env.ego_id].pos), np.inf)
+    pass_inf = np.full(env.step + 1, np.inf)
     for interaction, goal_inf in zip(interactions.values(), goal_inferences.values()):
         sl = interaction.slice
         if sl.stop - sl.start > 1:
