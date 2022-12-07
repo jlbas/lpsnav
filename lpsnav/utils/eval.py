@@ -182,7 +182,7 @@ def eval_extra_dist(conf, env, id=None):
     if hasattr(env.agents[id], "ttg"):
         goal_dist = helper.dist(env.agents[id].start, env.agents[id].goal)
         goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
-        path_len = helper.path_len(env.logs[id].pos)
+        path_len = helper.path_len(env.logs[id].pos[:int(np.around(env.agents[id].ttg, 2) / env.dt)+2])
         return path_len - goal_dist
     return np.nan
 
