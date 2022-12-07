@@ -347,7 +347,7 @@ class Metric:
     only_valid: bool = True
 
     def __str__(self):
-        return f"{self.name} ({self.units})"
+        return "{name} ({units})".format(name=self.name, units=self.units.replace("%", "\\%"))
 
     def __call__(self, *args):
         return self.update_func(*args)
