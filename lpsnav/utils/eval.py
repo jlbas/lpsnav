@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sympy as smp
+from scipy.ndimage import gaussian_filter
 
 
 prx, pry, phx, phy, vr, thr, vh, thh = smp.symbols("prx pry phx phy vr thr vh thh")
@@ -61,19 +62,18 @@ def get_interactions(conf, env):
         end_idx = start_idx + (len(rem) - 1 if np.all(rem) else np.argmin(rem))
 
         col_width = env.agents[env.ego_id].radius + env.agents[k].radius
-        rel_int_line = np.array([[0, -col_width], [0, col_width]])
-        abs_int_line = helper.rotate(rel_int_line, int_heading)
-        line = abs_int_line + env.logs[k].pos
+        rel_line = np.array([[0, -col_width], [0, col_width]])
+        abs_line = helper.rotate(rel_line, int_heading)
+        line = abs_line + env.logs[k].pos
         if env.dt * (end_idx - start_idx) > 1:
             th = helper.angle(np.diff(line[:, end_idx], axis=0))
             right = helper.in_front(
                 env.logs[k].pos[end_idx], th, env.logs[env.ego_id].pos[end_idx]
             )
             pass_idx = 1 if right else 0
-            int_idx = [start_idx, end_idx]
-            int_slice = slice(start_idx, end_idx + 1)
-            int_t = env.dt * np.arange(start_idx, end_idx + 1)
-            interactions[k] = Interaction(int_idx, int_slice, int_t, line, int_heading, pass_idx)
+            sl = slice(start_idx, end_idx)
+            time = env.dt * np.arange(start_idx, end_idx)
+            interactions[k] = Interaction(start_idx, end_idx, sl, time, line, int_heading, pass_idx)
     return interactions
 
 
@@ -87,37 +87,37 @@ def get_int_costs(conf, env, interactions):
         )
         receded_pos = np.concatenate(
             (init_receded_pos, env.logs[env.ego_id].pos[:-receding_steps])
-        )[interaction.int_slice]
+        )[interaction.slice]
         receded_line = (
-            interaction.int_line[:, interaction.int_slice]
-            - env.logs[k].vel[interaction.int_slice] * conf["agent"]["lpsnav"]["receding_horiz"]
+            interaction.line[:, interaction.slice]
+            - env.logs[k].vel[interaction.slice] * conf["agent"]["lpsnav"]["receding_horiz"]
         )
         receded_start_line = (
-            interaction.int_line[:, interaction.int_slice]
-            - env.logs[k].vel[interaction.int_slice] * interaction.int_t[:, None]
+            interaction.line[:, interaction.slice]
+            - env.logs[k].vel[interaction.slice] * interaction.time[:, None]
         )
         scaled_speed = max(env.agents[env.ego_id].max_speed, env.agents[k].max_speed + 0.1)
         cost_rg = helper.dynamic_pt_cost(
             receded_pos,
             scaled_speed,
             receded_line,
-            interaction.int_line_heading[interaction.int_slice],
-            env.logs[k].vel[interaction.int_slice],
+            interaction.line_heading[interaction.slice],
+            env.logs[k].vel[interaction.slice],
         )
         cost_tg = helper.dynamic_pt_cost(
-            env.logs[env.ego_id].pos[interaction.int_slice],
+            env.logs[env.ego_id].pos[interaction.slice],
             scaled_speed,
-            interaction.int_line[:, interaction.int_slice],
-            interaction.int_line_heading[interaction.int_slice],
-            env.logs[k].vel[interaction.int_slice],
+            interaction.line[:, interaction.slice],
+            interaction.line_heading[interaction.slice],
+            env.logs[k].vel[interaction.slice],
         )
         cost_rtg = conf["agent"]["lpsnav"]["receding_horiz"] + cost_tg
         cost_sg = helper.dynamic_pt_cost(
-            env.logs[env.ego_id].pos[interaction.int_idx[0]],
+            env.logs[env.ego_id].pos[interaction.start_idx],
             scaled_speed,
             receded_start_line,
-            interaction.int_line_heading[interaction.int_slice],
-            env.logs[k].vel[interaction.int_slice],
+            interaction.line_heading[interaction.slice],
+            env.logs[k].vel[interaction.slice],
         )
         int_costs[k] = IntCost(cost_rg, cost_rtg, cost_tg, cost_sg)
     return int_costs
@@ -137,27 +137,29 @@ def get_goal_inference(conf, _env, int_costs):
 def get_traj_inference(_conf, _env, interactions, int_costs):
     traj_inference = {}
     for (k, interaction), int_cost in zip(interactions.items(), int_costs.values()):
-        if np.diff(interaction.int_idx) > 1:
-            cost_stg = interaction.int_t + int_cost.tg
+        if interaction.end_idx - interaction.start_idx > 1:
+            cost_stg = interaction.time + int_cost.tg
             traj_inference[k] = np.exp(int_cost.sg - cost_stg)
     return traj_inference
 
 
 def get_mpd(_conf, env, interactions):
-    mpd = Mpd()
+    mpds = {}
     for k, interaction in interactions.items():
         with np.errstate(invalid="ignore"):
-            # mpd.vals[id] = gaussian_filter(mpd_fn(*mpd.args[id]), sigma=2)
-            mpd.vals[k] = mpd_fn(
-                *env.logs[env.ego_id].pos[interaction.int_slice].T,
-                *env.logs[k].pos[interaction.int_slice].T,
-                env.logs[env.ego_id].speed[interaction.int_slice],
-                env.logs[env.ego_id].heading[interaction.int_slice],
-                env.logs[k].speed[interaction.int_slice],
-                env.logs[k].heading[interaction.int_slice],
-            )
-            mpd.time[k] = interaction.int_t
-    return mpd
+            start = interaction.slice.start
+            tcross = start + np.argmin(helper.dist(env.logs[env.ego_id].pos[start:], env.logs[k].pos[start:]))
+            sl = slice(start, tcross + 1)
+            mpd_vals = gaussian_filter(mpd_fn(
+                *env.logs[env.ego_id].pos[sl].T,
+                *env.logs[k].pos[sl].T,
+                env.logs[env.ego_id].speed[sl],
+                env.logs[env.ego_id].heading[sl],
+                env.logs[k].speed[sl],
+                env.logs[k].heading[sl],
+            ), sigma=2)
+            mpds[k] = Mpd(sl, env.time_log[sl], mpd_vals)
+    return mpds
 
 
 def eval_extra_ttg(conf, env, id=None):
@@ -224,7 +226,7 @@ def eval_others_irregularity(conf, env):
 def eval_legibility(_conf, env, interactions, goal_inferences):
     leg_scores = {}
     for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
-        t_discount = interaction.int_t[::-1]
+        t_discount = interaction.time[::-1]
         num = np.trapz(t_discount * goal_inf, dx=env.dt)
         den = np.trapz(t_discount, dx=env.dt)
         leg_scores[k] = np.delete(num / den, 1)[interaction.passing_idx]
@@ -242,7 +244,7 @@ def eval_predictability(_conf, _env, traj_inferences):
 def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
     pass_inf = np.full(len(env.logs[env.ego_id].pos), np.inf)
     for interaction, goal_inf in zip(interactions.values(), goal_inferences.values()):
-        sl = interaction.int_slice
+        sl = interaction.slice
         if sl.stop - sl.start > 1:
             sliced_inf = goal_inf[0 if interaction.passing_idx == 0 else 2]
             pass_inf[sl] = np.where(sliced_inf < pass_inf[sl], sliced_inf, pass_inf[sl])
@@ -252,7 +254,7 @@ def eval_min_pass_inf(_conf, env, interactions, goal_inferences):
 def eval_avg_min_pass_inf(_conf, env, interactions, goal_inferences):
     pass_inf = np.full(len(env.logs[env.ego_id].pos), np.inf)
     for interaction, goal_inf in zip(interactions.values(), goal_inferences.values()):
-        sl = interaction.int_slice
+        sl = interaction.slice
         if sl.stop - sl.start > 1:
             sliced_inf = goal_inf[0 if interaction.passing_idx == 0 else 2]
             pass_inf[sl] = np.where(sliced_inf < pass_inf[sl], sliced_inf, pass_inf[sl])
@@ -292,18 +294,19 @@ def eval_tracked_extra_dist(conf, env):
 
 def eval_pass_inf(_conf, env, interactions, goal_inferences):
     pass_inf = {}
-    for (k, interaction), goal_inf in zip(interactions.val.items(), goal_inferences.val.values()):
-        pass_inf[k] = [interaction.int_t, goal_inf[0 if interaction.passing_idx == 0 else 2]]
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+        pass_inf[k] = [interaction.time, goal_inf[0 if interaction.passing_idx == 0 else 2]]
     return pass_inf
 
 
 @dataclass
 class Interaction:
-    int_idx: list
-    int_slice: slice
-    int_t: np.ndarray
-    int_line: np.ndarray
-    int_line_heading: np.ndarray
+    start_idx: int
+    end_idx: int
+    slice: slice
+    time: np.ndarray
+    line: np.ndarray
+    line_heading: np.ndarray
     passing_idx: int
 
 
@@ -317,8 +320,9 @@ class IntCost:
 
 @dataclass
 class Mpd:
-    time: dict[int, list] = field(default_factory=dict)
-    vals: dict[int, np.ndarray] = field(default_factory=dict)
+    slice: slice
+    time: np.ndarray
+    vals: np.ndarray
 
 
 @dataclass
@@ -423,42 +427,6 @@ class Eval:
                 self.tracked_dfs[i].loc[zip(np.full(a_vals[0].shape, a_id), np.around(a_vals[0], 3)), t_k] = a_vals[1]
         for col in self.base_df_cols:
             self.tracked_dfs[i][col] = self.df.loc[i, col]
-        if self.conf["eval"]["show_inf"] or self.conf["eval"]["save_inf"]:
-            self.plot_inf(env.dt, env.agents, fname)
-
-    def plot_inf(self, dt, agents, fname):
-        fig, ax1 = plt.subplots()
-        fig.set_size_inches(3.4, 1.6)
-        fig.set_constrained_layout_pads(w_pad=0, h_pad=0, hspace=0, wspace=0)
-        ax1.set_title(f"Observer's Interaction and Trajectory Inferences")
-        ax1.set_xlabel(r"Time (s)")
-        ax1.set_ylabel("Trajectory Conditional")
-        ax2 = ax1.twinx()
-        ax2.set_ylabel("Interaction Conditional")
-        g_lbls = [r"$P(\mathcal{I}_L\mid\xi_{s\to t})$"]
-        g_lbls.append(g_lbls[0].replace("L", "R"))
-        t_lbls = [r"$P(\xi_{s\to t}\mid\mathcal{I}_L)$"]
-        t_lbls.append(t_lbls[0].replace("L", "R"))
-        fs = (self.tracked_metrics["goal_inferences"].val.items(), self.tracked_metrics["traj_inferences"].val.values())
-        for (k, g), t in zip(*fs):
-            attrs = (g, t), (ax1, ax2), (g_lbls, t_lbls), (("--", ":"), ("-.", (9, (3, 1, 1, 1))))
-            for inf, ax, lbls, lss in zip(*attrs):
-                step = int(self.conf["animation"]["body_interval"] / dt)
-                sample_slice = slice(None, None, step)
-                sampled_t = self.tracked_metrics["interactions"].val[k].int_t[sample_slice]
-                for idx, label, ls in zip((0, 2), lbls, lss):
-                    x, y = self.tracked_metrics["interactions"].val[k].int_t, inf[idx]
-                    ax.plot(x, y, lw=1, color=agents[k - 1].color, label=f"{k}:{label}", ls=ls)
-                    ax.scatter(sampled_t, inf[idx][sample_slice], color=agents[k - 1].color, s=8)
-        fig.legend(loc="lower left", bbox_to_anchor=(0, 0), bbox_transform=ax1.transAxes)
-        if self.conf["eval"]["save_inf"]:
-            os.makedirs(self.conf["eval"]["inf_dir"], exist_ok=True)
-            buf = os.path.join(self.conf["eval"]["inf_dir"], f"{fname}_inferences.pdf")
-            plt.savefig(buf, bbox_inches="tight")
-        if self.conf["eval"]["show_inf"]:
-            plt.show()
-        else:
-            plt.close()
 
     def print_df(self, fname, df):
         means = df.groupby("policy", as_index=False).mean()
