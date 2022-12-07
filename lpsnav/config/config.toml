@@ -5,6 +5,7 @@ progress_bar = true
 dt = 0.05
 max_duration = 30
 max_init_attempts = 10000
+min_start_buffer = 1
 
 # passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
 [scenario]
@@ -20,13 +21,12 @@ lat_dist = 0.7
 long_dist = 7
 comparison_param = "configuration"
 iters = 100
-scale = 1
+uniform_bnd = 0.5
 
 [scenario.random]
 number_of_agents = [5, 7, 9, 11]
 iters = 100
 min_start_goal_sep = 4
-min_start_buffer = 0.5
 des_speed_mean = 1.36
 des_speed_std_dev = 0.19
 width = 8
@@ -49,6 +49,7 @@ save_plot = false
 plot_dir = "data/plots"
 dark_background = true
 overlay = true
+plot_goals = true
 plot_body = true
 body_interval = 0.4
 plot_traj = true
@@ -57,25 +58,25 @@ autoplay = false
 dpi = 96
 width = 1920
 height = 1080
+follow_ego = false
 
 [eval]
 show_tbl = true
 save_tbl = false
 tbl_dir = "data/tables"
-metrics = ["extra_ttg", "failure", "min_pass_inf"]
-tracked_metrics = ["mpd"]
-inferences = ["left", "right"]
-show_inf = false
-save_inf = false
-invalid = false
-inf_dir = "data/inferences"
-show_bar_chart = false
-save_bar_chart = true
-bar_chart_dir = "data/bar_charts"
-save_df = false
+metrics = ["extra_dist", "extra_ttg", "min_dist", "min_ttc", "others_extra_dist", "others_extra_ttg", "others_efficiency", "others_irregularity", "others_failure", "failure", "pd_attained", "peak_mpd", "legibility", "predictability", "min_pass_inf"]
+tracked_metrics = ["min_mpd"]
+only_valid = true
+show_barplot = false
+save_barplot = false
+barplot_dir = "data/barplots"
+show_violinplot = false
+save_violinplot = false
+violinplot_dir = "data/violinplots"
 show_tracked_metrics = false
 save_tracked_metrics = false
 tracked_metrics_dir = "data/tracked_metrics"
+save_df = false
 df_dir = "data/dataframes"
 
 [agent]
@@ -102,9 +103,12 @@ color = "#8c8787"
 name = "LPSNav"
 color = "#785ef0"
 legibility_tol = 1.1
+predictability_tol = 0.05
 subgoal_priors = [0.48, 0.02, 0.5]
 receding_horiz = 2
 sensing_horiz = 5
+longitudinal_space = [0.1, 0.8]
+lateral_space = [0.1, 0.5]
 max_cost = 1e2
 
 [agent.rvo]
@@ -130,9 +134,9 @@ R = 0.2
 [agent.social_momentum]
 name = "SM"
 color = "#7293dc"
-weight = 0.16
+weight = 0.005
 heading_samples = 50
-heading_span = 3.14 # try reducing this
+heading_span = 3.14
 speed_samples = 1
 
 [agent.sa_cadrl]

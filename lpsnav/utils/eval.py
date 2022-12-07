@@ -22,6 +22,15 @@ args = (prx, pry, phx, phy, vr, thr, vh, thh)
 mpd = smp.sqrt((dvx * dpy + dvy * dpx) ** 2 / (dvx ** 2 + dvy ** 2))
 mpd_fn = smp.lambdify(args, mpd)
 
+p1x, p1y, p2x, p2y, v1x, v1y, v2x, v2y = smp.symbols("p1x p1y p2x p2y v1x v1y v2x v2y")
+r1, r2 = smp.symbols("r1 r2", positive=True)
+ttc_args = p1x, p1y, p2x, p2y, v1x, v1y,  v2x, v2y, r1, r2
+a = v1x**2/2 - v1x*v2x + v1y**2/2 - v1y*v2y + v2x**2/2 + v2y**2/2
+b = p1x*v1x - p1x*v2x + p1y*v1y - p1y*v2y - p2x*v1x + p2x*v2x - p2y*v1y + p2y*v2y
+c = -(-p1x**2 + 2*p1x*p2x - p1y**2 + 2*p1y*p2y - p2x**2 - p2y**2 + r1**2 + 2*r1*r2 + r2**2)/2
+ttc0_fn = smp.lambdify(ttc_args, (-b + smp.sqrt(b**2 - 4 * a * c)) / (2 * a))
+ttc1_fn = smp.lambdify(ttc_args, (-b - smp.sqrt(b**2 - 4 * a * c)) / (2 * a))
+
 
 def get_interactions(conf, env):
     interactions = {}
@@ -263,34 +272,138 @@ def eval_avg_min_pass_inf(_conf, env, interactions, goal_inferences):
     return np.nanmean(pass_inf) if np.any(np.isfinite(pass_inf)) else np.nan
 
 
-def eval_mpd(_conf, _env, mpd):
-    return {k: [mpd.val.time[k], mpd.val.vals[k]] for k in mpd.val.time}
+def eval_legible_time(_conf, _env, interactions, goal_inferences):
+    legible_time = {}
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+        true_pass_inf = goal_inf[0 if interaction.passing_idx == 0 else 2]
+        other_pass_inf = goal_inf[2 if interaction.passing_idx == 0 else 0]
+        is_legible = true_pass_inf - other_pass_inf > 0.1
+        legible_time[k] = (len(is_legible) - np.argmin(is_legible[::-1])) / len(is_legible)
+    return np.nan if not legible_time else np.mean(list(legible_time.values()))
 
 
-def eval_tracked_extra_ttg(conf, env):
-    if hasattr(env.agents[env.ego_id], "ttg"):
-        goal_dist = helper.dist(env.agents[env.ego_id].start, env.agents[env.ego_id].goal)
-        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
-        opt_ttg = goal_dist / env.agents[env.ego_id].max_speed
-        tracked_rem_goal_dist = helper.dist(env.logs[env.ego_id].pos, env.agents[env.ego_id].goal)
-        tracked_rem_goal_dist = np.maximum(0, tracked_rem_goal_dist - conf["agent"]["goal_tol"])
-        tracked_ttg = env.time_log + tracked_rem_goal_dist / env.agents[env.ego_id].max_speed
+def eval_mpd(_conf, _env, mpds):
+    return {k: [mpd.time, mpd.vals] for k, mpd in mpds.items()}
+
+
+def eval_peak_mpd(_conf, _env, mpds):
+    peak_mpd = {}
+    for k, mpd in mpds.items():
+        if np.any(mpd.vals):
+            peak_mpd[k] = np.argmax(mpd.vals) / len(mpd.vals)
+    return np.nan if not peak_mpd else np.mean(list(peak_mpd.values()))
+
+
+def eval_pd_attained(_conf, env, mpds):
+    pd_attained = {}
+    for k, mpd in mpds.items():
+        pd = np.min(helper.dist(env.logs[env.ego_id].pos[mpd.slice], env.logs[k].pos[mpd.slice]))
+        mpd_above_pd = (mpd.vals >= pd - 0.05)[::-1]
+        pd_attained_idx = 0 if np.all(mpd_above_pd) else len(mpd.vals) - np.argmin(mpd_above_pd)
+        pd_attained[k] = pd_attained_idx / len(mpd.vals)
+    return np.nan if not pd_attained else np.mean(list(pd_attained.values()))
+
+
+def eval_min_ttc(_conf, env):
+    ttc_sat = 10
+    min_ttc = ttc_sat # Set large enough, but not too large to affect the average
+    for k in (k for k in env.agents if k != env.ego_id):
+        with np.errstate(invalid="ignore"):
+            ttc0 = np.nan_to_num(ttc0_fn(
+                *env.logs[env.ego_id].pos.T,
+                *env.logs[k].pos.T,
+                *env.logs[env.ego_id].vel.T,
+                *env.logs[k].vel.T,
+                env.agents[env.ego_id].radius,
+                env.agents[k].radius,
+            ), nan=ttc_sat)
+            ttc1 = np.nan_to_num(ttc1_fn(
+                *env.logs[env.ego_id].pos.T,
+                *env.logs[k].pos.T,
+                *env.logs[env.ego_id].vel.T,
+                *env.logs[k].vel.T,
+                env.agents[env.ego_id].radius,
+                env.agents[k].radius,
+            ), nan=ttc_sat)
+            ttc = np.where((ttc1 < 0) & (0 < ttc0), 0, np.where(ttc1 < 0, ttc_sat, ttc1))
+            assert not np.any((ttc0 < 0) & (0 < ttc1))
+        min_ttc = min(min_ttc, np.min(ttc))
+    return min_ttc
+
+
+def eval_min_dist(_conf, env):
+    min_dist = np.inf
+    for k in (k for k in env.agents if k != env.ego_id):
+        cc_dist = helper.dist(env.logs[env.ego_id].pos, env.logs[k].pos)
+        separation = cc_dist - env.agents[env.ego_id].radius - env.agents[k].radius
+        min_dist = min(min_dist, min(separation))
+    return min_dist
+
+
+def eval_min_mpd(_conf, env, mpds):
+    min_mpd = np.full(env.step + 1, np.inf)
+    for mpd in mpds.values():
+        min_mpd[mpd.slice] = np.where(mpd.vals < min_mpd[mpd.slice], mpd.vals, min_mpd[mpd.slice])
+    return {env.ego_id: [env.time_log, min_mpd]}
+
+
+def eval_tracked_extra_ttg(conf, env, k=None):
+    k = env.ego_id if k is None else k
+    if hasattr(env.agents[k], "ttg"):
+        goal_i = int(env.agents[k].ttg / env.dt)
+        active = slice(goal_i + 1)
+        goal_dist = helper.dist(env.logs[k].pos[0], env.logs[k].pos[goal_i])
+        opt_ttg = goal_dist / env.agents[k].max_speed
+        tracked_rem_goal_dist = helper.dist(env.logs[k].pos[active], env.logs[k].pos[goal_i])
+        tracked_ttg = env.time_log[active] + tracked_rem_goal_dist / env.agents[k].max_speed
         tracked_extra_ttg = (tracked_ttg - opt_ttg) / opt_ttg
-        return {env.ego_id: [env.time_log, tracked_extra_ttg]}
+        return {k: [env.time_log[active], tracked_extra_ttg]}
     return {}
 
 
-def eval_tracked_extra_dist(conf, env):
-    if hasattr(env.agents[env.ego_id], "ttg"):
-        goal_dist = helper.dist(env.agents[env.ego_id].start, env.agents[env.ego_id].goal)
-        goal_dist = max(0, goal_dist - conf["agent"]["goal_tol"])
-        tracked_path_len = np.cumsum(np.linalg.norm(np.diff(env.logs[env.ego_id].pos, axis=0), axis=-1))
+def eval_tracked_extra_dist(conf, env, k=None):
+    k = env.ego_id if k is None else k
+    if hasattr(env.agents[k], "ttg"):
+        goal_i = int(env.agents[k].ttg / env.dt)
+        active = slice(goal_i + 1)
+        goal_dist = helper.dist(env.logs[k].pos[0], env.logs[k].pos[goal_i])
+        tracked_path_len = np.cumsum(np.linalg.norm(np.diff(env.logs[k].pos[active], axis=0), axis=-1))
         tracked_path_len = np.insert(tracked_path_len, 0, 0)
-        tracked_rem_goal_dist = helper.dist(env.logs[env.ego_id].pos, env.agents[env.ego_id].goal)
-        tracked_rem_goal_dist = np.maximum(0, tracked_rem_goal_dist - conf["agent"]["goal_tol"])
+        tracked_rem_goal_dist = helper.dist(env.logs[k].pos[active], env.logs[k].pos[goal_i])
         tracked_extra_dist = tracked_path_len + tracked_rem_goal_dist - goal_dist
-        return {env.ego_id: [env.time_log, tracked_extra_dist]}
+        return {k: [env.time_log[active], tracked_extra_dist]}
     return {}
+
+
+def eval_tracked_others_extra_dist(conf, env):
+    return {k1: v for k in env.agents if k != env.ego_id for k1, v in eval_tracked_extra_dist(conf, env, k).items()}
+
+
+def eval_tracked_min_ttc(conf, env):
+    ttc_sat = 10
+    min_ttc = np.full(env.step + 1, ttc_sat)
+    for k in (k for k in env.agents if k != env.ego_id):
+        with np.errstate(invalid="ignore"):
+            ttc0 = np.nan_to_num(ttc0_fn(
+                *env.logs[env.ego_id].pos.T,
+                *env.logs[k].pos.T,
+                *env.logs[env.ego_id].vel.T,
+                *env.logs[k].vel.T,
+                env.agents[env.ego_id].radius,
+                env.agents[k].radius,
+            ), nan=ttc_sat)
+            ttc1 = np.nan_to_num(ttc1_fn(
+                *env.logs[env.ego_id].pos.T,
+                *env.logs[k].pos.T,
+                *env.logs[env.ego_id].vel.T,
+                *env.logs[k].vel.T,
+                env.agents[env.ego_id].radius,
+                env.agents[k].radius,
+            ), nan=ttc_sat)
+            ttc = np.where((ttc1 < 0) & (0 < ttc0), 0, np.where(ttc1 < 0, ttc_sat, ttc1))
+            assert not np.any((ttc0 < 0) & (0 < ttc1))
+        min_ttc = np.minimum(min_ttc, ttc)
+    return {env.ego_id: [env.time_log, min_ttc]}
 
 
 def eval_pass_inf(_conf, env, interactions, goal_inferences):
@@ -298,6 +411,36 @@ def eval_pass_inf(_conf, env, interactions, goal_inferences):
     for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
         pass_inf[k] = [interaction.time, goal_inf[0 if interaction.passing_idx == 0 else 2]]
     return pass_inf
+
+
+def eval_left_inf(_conf, env, interactions, goal_inferences):
+    left_inf = {}
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+        left_inf[k] = [interaction.time, goal_inf[0]]
+    return left_inf
+
+
+def eval_right_inf(_conf, env, interactions, goal_inferences):
+    right_inf = {}
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+        right_inf[k] = [interaction.time, goal_inf[2]]
+    return right_inf
+
+
+def eval_traj_inf(_conf, env, interactions, traj_inferences):
+    true_traj_inf = {}
+    for (k, interaction), traj_inf in zip(interactions.items(), traj_inferences.values()):
+        true_traj_inf[k] = [interaction.time, traj_inf[0 if interaction.passing_idx == 0 else 2]]
+    return true_traj_inf
+
+
+def eval_pass_ratio(_conf, env, interactions, goal_inferences):
+    pass_ratio = {}
+    for (k, interaction), goal_inf in zip(interactions.items(), goal_inferences.values()):
+        left = goal_inf[0, :]
+        right = goal_inf[2, :]
+        pass_ratio[k] = [interaction.time, np.maximum(left, right) - np.minimum(left, right)]
+    return pass_ratio
 
 
 @dataclass
@@ -397,17 +540,31 @@ class Eval:
                 eval_avg_min_pass_inf,
                 ["interactions", "goal_inferences"],
             ),
+            "legible_time": Metric("Legible Time", "%", 2, min, eval_legible_time, ["interactions", "goal_inferences"]),
+            "peak_mpd": Metric("Time of MPD Peak", "%", 2, min, eval_peak_mpd, ["mpd"]),
+            "pd_attained": Metric("Time when the passing distance is attained", "%", 2, min, eval_pd_attained, ["mpd"]),
+            "min_ttc": Metric("Minimum Time-to-Collision", "s", 2, max, eval_min_ttc),
+            "min_dist": Metric("Minimum Distance to Another Agent", "m", 2, max, eval_min_dist),
         }
         self.tracked_metrics = {
             "extra_ttg": Metric("Extra Time-to-Goal", "%", 2, min, eval_tracked_extra_ttg),
-            "extra_dist": Metric("Extra Distance", "%", 2, min, eval_tracked_extra_dist),
-            "mpd": Metric("Minmal Predicted Distance", "m", 2, min, eval_mpd, ["mpd"]),
+            "extra_dist": Metric("Extra Distance", "m", 2, min, eval_tracked_extra_dist),
+            "mpd": Metric("MPD", "m", 2, min, eval_mpd, ["mpd"]),
+            "min_mpd": Metric("Minimum MPD", "m", 2, min, eval_min_mpd, ["mpd"]),
             "pass_inf": Metric("Passing Inference", "%", 2, max, eval_pass_inf, ["interactions", "goal_inferences"]),
+            "left_inf": Metric("Passing Inference", "%", 2, max, eval_left_inf, ["interactions", "goal_inferences"]),
+            "right_inf": Metric("Passing Inference", "%", 2, max, eval_right_inf, ["interactions", "goal_inferences"]),
+            "traj_inf": Metric("Trajectory Inference", "%", 2, max, eval_traj_inf, ["interactions", "traj_inferences"]),
+            "pass_ratio": Metric("Passing Inference Ratio", "%", 2, max, eval_pass_ratio, ["interactions", "goal_inferences"]),
+            "others_extra_dist": Metric("Others' Extra Distance", "m", 2, min, eval_tracked_others_extra_dist),
+            "min_ttc": Metric("Minimum Time-to-Collision", "s", 2, max, eval_tracked_min_ttc)
         }
+        self.metrics = {k: v for k, v in self.metrics.items() if k in self.conf["eval"]["metrics"] + ["failure"]}
+        self.tracked_metrics = {k: v for k, v in self.tracked_metrics.items() if k in self.conf["eval"]["tracked_metrics"]}
         base_df = pd.DataFrame(s_configs)
         for col in base_df:
             if isinstance(base_df[col][0], list):
-                base_df[col] = base_df[col].apply(','.join)
+                base_df.drop(columns=col, inplace=True)
         cols = ["i", "name", "policy"]
         self.base_df_cols = cols if self.comp_param is None else cols + [self.comp_param]
         base_df = base_df[[c for c in base_df if len(set(base_df[c])) > 1 or c in self.base_df_cols]]
@@ -424,7 +581,7 @@ class Eval:
         index = pd.MultiIndex.from_tuples(index, names=("agent_id", "time"))
         self.tracked_dfs[i] = pd.DataFrame(index=index, columns=list(self.tracked_metrics), dtype="float64")
         for t_k, t_v in self.tracked_metrics.items():
-            for a_id, a_vals in t_v(self.conf, env, *[self.feats[k] for k in t_v.f_args]).items():
+            for a_id, a_vals in t_v(self.conf, env, *[self.feats[k].val for k in t_v.f_args]).items():
                 self.tracked_dfs[i].loc[zip(np.full(a_vals[0].shape, a_id), np.around(a_vals[0], 3)), t_k] = a_vals[1]
         for col in self.base_df_cols:
             self.tracked_dfs[i][col] = self.df.loc[i, col]
@@ -440,27 +597,41 @@ class Eval:
             print(fname, md, sep="\n")
         if self.conf["eval"]["save_tbl"]:
             os.makedirs(self.conf["eval"]["tbl_dir"], exist_ok=True)
+            buf = os.path.join(self.conf["eval"]["tbl_dir"], fname)
+            means.to_markdown(buf=f"{buf}.md")
             means = means.applymap(lambda x: str(x).replace("<", "\\textbf{").replace(">", "}"))
-            buf = os.path.join(self.conf["eval"]["tbl_dir"], f"{fname}.latex")
-            means.style.to_latex(buf=buf, hrules=True)
+            means.style.to_latex(buf=f"{buf}.latex", hrules=True)
 
-    def plot_df(self, fname, df):
-        palette = {p: self.conf["agent"][p]["color"] for p in list(set(self.df["policy"]))}
+    def barplot(self, fname, df, names, palette):
         for k, v in [(k, v) for k, v in self.metrics.items() if k in df]:
             ax = sns.barplot(x=self.comp_param, y=k, hue="policy", data=df, palette=palette)
-            for text in ax.legend_.texts:
-                text.set_text(text._text.replace("_", " ").title())
-            # if k != "min_pass_inf":
-            #     ax.legend_.remove()
+            for text, name in zip(ax.legend_.texts, names):
+                text.set_text(name)
             ax.set_title(v.name)
-            ax.set_ylabel(f"{v.name} ({v.units.replace('%', '%%')})")
-            ax.set_ylabel("{name} ({units})".format(name=v.name, units=v.units.replace("%", "\\%")))
+            ax.set_ylabel(str(v))
             ax.set_xlabel(self.comp_param.replace("_", " ").title())
-            if self.conf["eval"]["save_bar_chart"]:
-                os.makedirs(self.conf["eval"]["bar_chart_dir"], exist_ok=True)
-                buf = os.path.join(self.conf["eval"]["bar_chart_dir"], f"{fname}_{k}_bar_chart.pdf")
+            if self.conf["eval"]["save_barplot"]:
+                os.makedirs(self.conf["eval"]["barplot_dir"], exist_ok=True)
+                buf = os.path.join(self.conf["eval"]["barplot_dir"], f"{fname}_{k}_barplot.pdf")
                 plt.savefig(buf)
-            if self.conf["eval"]["show_bar_chart"]:
+            if self.conf["eval"]["show_barplot"]:
+                plt.show()
+            else:
+                plt.close()
+
+    def violinplot(self, fname, df, names, palette):
+        for k, v in [(k, v) for k, v in self.metrics.items() if k in df]:
+            ax = sns.violinplot(x=self.comp_param, y=k, hue="policy", data=df[np.isfinite(df[k])], palette=palette)
+            for text, name in zip(ax.legend_.texts, names):
+                text.set_text(name)
+            ax.set_title(v.name)
+            ax.set_ylabel(str(v))
+            ax.set_xlabel(self.comp_param.replace("_", " ").title())
+            if self.conf["eval"]["save_violinplot"]:
+                os.makedirs(self.conf["eval"]["violinplot_dir"], exist_ok=True)
+                buf = os.path.join(self.conf["eval"]["violinplot_dir"], f"{fname}_{k}_violinplot.pdf")
+                plt.savefig(buf)
+            if self.conf["eval"]["show_violinplot"]:
                 plt.show()
             else:
                 plt.close()
@@ -471,8 +642,7 @@ class Eval:
         if self.conf["eval"]["save_df"]:
             self.df.to_csv(buf)
 
-    def plot_tracked_metrics(self, fname, df):
-        palette = {p: self.conf["agent"][p]["color"] for p in list(set(df["policy"]))}
+    def plot_tracked_metrics(self, fname, df, names, palette):
         iters = df["i"].drop_duplicates().to_list()
         policies = df["policy"].drop_duplicates().to_list()
         x = np.linspace(0, 1, len(df.time.drop_duplicates().index))
@@ -489,7 +659,10 @@ class Eval:
                         if a_idx_finite.any():
                             df.loc[a_idx, k] = np.interp(x, df.loc[a_idx_finite, "time"], df.loc[a_idx_finite, k])
                         df.loc[a_idx, "time"] = x
-                        sns.lineplot(x="time", y=k, hue="policy", data=df[a_idx], palette=palette, estimator=None, legend=legend)
+                        ax = sns.lineplot(x="time", y=k, hue="policy", data=df[a_idx], palette=palette, estimator=None, legend=legend)
+                        if legend:
+                            for text, name in zip(ax.legend_.texts, names):
+                                text.set_text(name)
             plt.title(fname)
             plt.ylabel(str(v))
             if self.conf["eval"]["save_tracked_metrics"]:
@@ -500,12 +673,15 @@ class Eval:
                 plt.show()
             else:
                 plt.close()
-
-            # Aggregate
-            ax = sns.lineplot(x="time", y=k, hue="policy", data=df, palette=palette)
-            ax.set_ylim(ymin=0)
-            plt.title(f"agg_{fname}")
+            ax = sns.lineplot(x="time", y=k, hue="policy", data=df, palette=palette, ci="sd")
+            if k in ("mpd", "min_mpd"):
+                ax.set_ylim([0, None])
+                plt.axhline(y=1, color='k', linestyle='--')
+            for text, name in zip(ax.legend_.texts, names):
+                text.set_text(name)
+            plt.title(f"{fname.split('_')[-1].title()} Scenario")
             plt.ylabel(str(v))
+            plt.xlabel("Normalized Time")
             if self.conf["eval"]["save_tracked_metrics"]:
                 os.makedirs(self.conf["eval"]["tracked_metrics_dir"], exist_ok=True)
                 buf = os.path.join(self.conf["eval"]["tracked_metrics_dir"], f"agg_{fname}_{k}.pdf")
@@ -523,23 +699,28 @@ class Eval:
             invalid_idx = df[df.failure == 1].i.drop_duplicates().to_list()
             metrics = [m_k for m_k, m_v in self.metrics.items() if m_v.only_valid]
             df.loc[df.index[df.i.isin(invalid_idx)], metrics] = np.nan
-        first_cols = ["policy", self.comp_param] if self.comp_param else ["policy"]
-        df = df[first_cols + list(set(self.conf["eval"]["metrics"]) & set(df))]
+        if "failure" not in self.conf["eval"]["metrics"]:
+            df.drop(columns="failure", inplace=True, errors="ignore")
         if self.conf["eval"]["show_tbl"] or self.conf["eval"]["save_tbl"]:
             if self.comp_param is None:
                 self.print_df(s_name, df)
             else:
                 for v in df[self.comp_param].drop_duplicates().to_list():
                     self.print_df(f"{s_name}_{v}", df[df[self.comp_param] == v])
-        if self.conf["eval"]["show_bar_chart"] or self.conf["eval"]["save_bar_chart"]:
-            self.plot_df(s_name, df)
+        palette = {p: self.conf["agent"][p]["color"] for p in list(self.df["policy"].drop_duplicates())}
+        names = [self.conf["agent"][p]["name"] for p in list(self.df["policy"].drop_duplicates())]
+        if self.conf["eval"]["show_barplot"] or self.conf["eval"]["save_barplot"]:
+            self.barplot(s_name, df, names, palette)
+        if self.conf["eval"]["show_violinplot"] or self.conf["eval"]["save_violinplot"]:
+            self.violinplot(s_name, df, names, palette)
         if self.conf["eval"]["save_df"]:
             self.save_df(s_name)
         if self.conf["eval"]["show_tracked_metrics"] or self.conf["eval"]["save_tracked_metrics"]:
             tracked_dfs = pd.concat(self.tracked_dfs.values()).reset_index()
-            tracked_dfs = tracked_dfs[first_cols + ["agent_id", "time", "i"] + [m for m in self.conf["eval"]["tracked_metrics"] if m in tracked_dfs]]
+            for k in [k for k, v in self.tracked_metrics.items() if k in tracked_dfs and v.units == '%']:
+                tracked_dfs[k] *= 100
             if self.comp_param is None:
-                self.plot_tracked_metrics(s_name, tracked_dfs)
+                self.plot_tracked_metrics(s_name, tracked_dfs, names, palette)
             else:
                 for v in tracked_dfs[self.comp_param].drop_duplicates().to_list():
-                    self.plot_tracked_metrics(f"{s_name}_{v}", tracked_dfs[tracked_dfs[self.comp_param] == v])
+                    self.plot_tracked_metrics(f"{s_name}_{v}", tracked_dfs[tracked_dfs[self.comp_param] == v], names, palette)
