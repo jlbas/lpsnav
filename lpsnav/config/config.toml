@@ -4,41 +4,41 @@ progress_bar = true
 [env]
 dt = 0.05
 max_duration = 30
-max_init_attempts = 10000
 min_start_buffer = 1
+max_init_attempts = 10000
 
-# passing, 2_agent_split, circle, random, swap, t_junction, 2_agent_t_junction, custom
 [scenario]
-name = "predefined"
+name = "random"
 homogeneous = false
-human_model = "rvo"
-# policy = ["sfm", "rvo", "social_momentum", "ga3c_cadrl", "sa_cadrl", "lpnav"]
-policy = ["lpnav"]
+human_model = "orca"
+policy = ["orca", "sfm", "social_momentum", "ga3c_cadrl", "sa_cadrl", "lpsnav"]
 
 [scenario.predefined]
-configuration = "swap"
+configuration = ["swap", "pass"]
 lat_dist = 0.7
-long_dist = 7
+long_dist = 5
 comparison_param = "configuration"
-iters = 100
-uniform_bnd = 0.5
+iters = 1
+uniform_bnd = 0
 
 [scenario.random]
-number_of_agents = [5, 7, 9, 11]
-iters = 100
-min_start_goal_sep = 4
-des_speed_mean = 1.36
-des_speed_std_dev = 0.19
+number_of_agents = [5, 7, 9]
+iters = 3
 width = 8
 height = 8
+min_start_goal_sep = 1
+des_speed_mean = 1.42
+des_speed_std_dev = 0.26
 comparison_param = "number_of_agents"
 
 [scenario.circle]
-number_of_agents = [4, 5, 8, 13]
-radius = [3, 3, 4, 5]
+number_of_agents = 8
+radius = 3
 comparison_param = "number_of_agents"
 
 [scenario.custom]
+starts = [[-3, 0], [3, 3]]
+goals = [[3, 0], [0, -3]]
 
 [animation]
 show_ani = true
@@ -47,13 +47,13 @@ ani_dir = "data/videos"
 show_plot = false
 save_plot = false
 plot_dir = "data/plots"
-dark_background = true
-overlay = true
+dark_background = false
+overlay = false
 plot_goals = true
 plot_body = true
 body_interval = 0.4
 plot_traj = true
-speed = 2
+speed = 1
 autoplay = false
 dpi = 96
 width = 1920
@@ -64,8 +64,7 @@ follow_ego = false
 show_tbl = true
 save_tbl = false
 tbl_dir = "data/tables"
-metrics = ["extra_dist", "extra_ttg", "min_dist", "min_ttc", "others_extra_dist", "others_extra_ttg", "others_efficiency", "others_irregularity", "others_failure", "failure", "pd_attained", "peak_mpd", "legibility", "predictability", "min_pass_inf"]
-tracked_metrics = ["min_mpd"]
+metrics = ["extra_dist", "failure"]
 only_valid = true
 show_barplot = false
 save_barplot = false
@@ -73,6 +72,7 @@ barplot_dir = "data/barplots"
 show_violinplot = false
 save_violinplot = false
 violinplot_dir = "data/violinplots"
+tracked_metrics = ["min_mpd"]
 show_tracked_metrics = false
 save_tracked_metrics = false
 tracked_metrics_dir = "data/tracked_metrics"
@@ -81,16 +81,15 @@ df_dir = "data/dataframes"
 
 [agent]
 radius = 0.25
-eps = 1e-10
 min_speed = 0
 max_speed = 1
 max_accel = 3
-max_ang_accel = 3
+max_ang_accel = 5
 goal_tol = 0.1
 heading_span = 1.57
-speed_samples = 3
+speed_samples = 5
 heading_samples = 31
-prim_horiz = 1.5
+prim_horiz = 1
 kinematics = "second_order_unicycle"
 sensing_dist = 20
 col_horiz = 1
@@ -102,16 +101,16 @@ color = "#8c8787"
 [agent.lpsnav]
 name = "LPSNav"
 color = "#785ef0"
-legibility_tol = 1.1
+legibility_tol = -0.02
 predictability_tol = 0.05
 subgoal_priors = [0.48, 0.02, 0.5]
-receding_horiz = 2
-sensing_horiz = 5
-longitudinal_space = [0.1, 0.8]
-lateral_space = [0.1, 0.5]
+longitudinal_space = [0.1, 0.5]
+lateral_space = [0.1, 0.2]
+receding_horiz = 5
+sensing_horiz = 10
 max_cost = 1e2
 
-[agent.rvo]
+[agent.orca]
 name = "ORCA"
 color = "#a9a5a5"
 max_neighbors = 10
@@ -135,9 +134,6 @@ R = 0.2
 name = "SM"
 color = "#7293dc"
 weight = 0.005
-heading_samples = 50
-heading_span = 3.14
-speed_samples = 1
 
 [agent.sa_cadrl]
 name = "SA-CADRL"

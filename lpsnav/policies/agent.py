@@ -11,7 +11,6 @@ class Agent:
         self.is_ego = is_ego
         self.start = np.array(start, dtype=float)
         self.goal = np.array(goal, dtype=float)
-        self.eps = conf["eps"]
         self.radius = conf["radius"]
         r = 0.9 * self.radius
         x = r * np.cos(np.pi / 6)
