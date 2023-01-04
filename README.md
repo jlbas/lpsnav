@@ -1,5 +1,8 @@
 # On Legible and Predictable Robot Navigation in Multi-Agent Environments
 
+## Abstract
+Legible motion is intent-expressive, which when employed during social robot navigation, allows others to quickly infer the intended avoidance strategy. Predictable motion matches an observer’s expectation which, during navigation, allows others to confidently carryout the interaction. In this work, we present a navigation framework capable of reasoning on its legibility and predictability with respect to dynamic interactions, e.g., a passing side. Our approach generalizes the previously formalized notions of legibility and predictability by allowing dynamic goal regions in order to navigate in dynamic environments. This generalization also allows us to quantitatively evaluate the legibility and the predictability of trajectories with respect to navigation interactions. Our approach is shown to promote legible behavior in ambiguous scenarios and predictable behavior in unambiguous scenarios. In a multi-agent environment, this yields an increase in safety while remaining competitive in terms of goal-efficiency when compared to other robot navigation planners in multi-agent environments.
+
 ## Installation
 1. Clone the repository and install it locally by running
 ```shell
@@ -55,7 +58,7 @@ class  YourNewPolicy(Agent):
     self.des_speed = 1
     self.des_heading = 0
 ```
-4. Lastly, add `"your_new_policy"` to the list of policies to be simulated in the `scenario` section of the `config/confi.toml` file
+4. Lastly, add `"your_new_policy"` to the list of policies to be simulated in the `scenario` section of the `config/config.toml` file
 ```toml
 [scenario]
 ...
