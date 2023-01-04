@@ -19,7 +19,7 @@ python setup.py install
 ```
 
 ## Usage
-Run a simulation from the project's root folder
+Run a simulation from the package's root folder
 ```shell
 python sim.py
 ```
