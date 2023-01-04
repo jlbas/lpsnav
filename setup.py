@@ -16,7 +16,7 @@ setup(
     url="https://github.com/jlbas/LPSNav",
     packages=find_packages(),
     install_requires=[
-        "matplotlib"
+        "matplotlib",
         "numpy",
         "pandas",
         "seaborn",
