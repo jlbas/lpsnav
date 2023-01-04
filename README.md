@@ -6,8 +6,8 @@ Legible motion is intent-expressive, which when employed during social robot nav
 ## Installation
 1. Clone the repository with its submodules and install it locally by running
 ```shell
-git clone --recursive https://github.com/jlbas/LPSNav.git
-cd LPSNav
+git clone --recursive https://github.com/jlbas/lpsnav.git
+cd lpsnav
 pip install .
 ```
 2. Install the [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
