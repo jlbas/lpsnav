@@ -587,7 +587,7 @@ class Eval:
             self.tracked_dfs[i][col] = self.df.loc[i, col]
 
     def print_df(self, fname, df):
-        means = df.groupby("policy", as_index=False).mean()
+        means = df.groupby("policy", as_index=False).mean(numeric_only=True)
         for k, v in [(k, v) for k, v in self.metrics.items() if k in means]:
             means[k] = means[k].round(v.decimals)
             means[k] = means[k].map(lambda x: f"<{x}>" if x == v.opt_func(means[k]) else x)
